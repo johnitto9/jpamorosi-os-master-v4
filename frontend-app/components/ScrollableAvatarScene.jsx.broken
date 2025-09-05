@@ -1,0 +1,55 @@
+"use client";
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { useGLTF, Stars } from '@react-three/drei';
+import * as THREE from 'three';
+import { useScrollStore } from '../store/scrollStore';
+
+const START_STATE = {
+  scale: 2.5,
+  position: new THREE.Vector3(-2, -2.5, 0),
+  rotation: new THREE.Euler(0, -Math.PI / 4, 0),
+};
+const END_STATE = {
+  scale: 7,
+  position: new THREE.Vector3(0, -2.5, 0),
+  rotation: new THREE.Euler(0, 0, 0),
+};
+
+function AvatarChoreography() {
+  const groupRef = useRef();
+  // Asegúrate de que esta ruta sea correcta y el modelo exista
+  const { scene } = useGLTF('/models/avatar-optimized.glb'); 
+  const scrollProgress = useScrollStore((state) => state.scrollProgress);
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    groupRef.current.scale.lerp(
+      new THREE.Vector3().setScalar(THREE.MathUtils.lerp(START_STATE.scale, END_STATE.scale, scrollProgress)), 0.1
+    );
+    groupRef.current.position.lerp(
+      new THREE.Vector3().lerpVectors(START_STATE.position, END_STATE.position, scrollProgress), 0.1
+    );
+    const startQuat = new THREE.Quaternion().setFromEuler(START_STATE.rotation);
+    const endQuat = new THREE.Quaternion().setFromEuler(END_STATE.rotation);
+    groupRef.current.quaternion.slerp(startQuat.slerp(endQuat, scrollProgress), 0.1);
+  });
+  return <primitive ref={groupRef} object={scene.clone()} />;
+}
+
+export function ScrollableAvatarScene() {
+  return (
+    <div className="fixed inset-0 z-0 pointer-events-none">
+      <Canvas 
+        camera={{ position: [0, 0, 12], fov: 45 }}
+        gl={{ antialias: true, alpha: false }} // Desactiva alfa para un fondo opaco
+        onCreated={({ gl }) => gl.setClearColor('black')} // Fuerza el color de fondo a negro
+      >
+        <ambientLight intensity={1.5} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} />
+        <Stars radius={150} count={5000} factor={4} fade speed={0.5} />
+        <AvatarChoreography />
+      </Canvas>
+    </div>
+  );
+}

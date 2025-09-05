@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(pnpm ls:*)",
+      "Bash(npm ls:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(corepack enable)",
+      "Bash(node:*)",
+      "Bash(pnpm --filter frontend-app install)",
+      "Bash(ls:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(pnpm add:*)",
+      "Bash(grep:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm vitest:*)",
+      "Bash(timeout:*)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" pnpm build)",
+      "Bash(DEBUG=1 timeout 30s pnpm dev)",
+      "Bash(pkill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(true)",
+      "Bash(curl:*)",
+      "Bash(pnpm:*)",
+      "Bash(cp:*)",
+      "Bash(rg:*)",
+      "Bash(cat:*)",
+      "Bash(rimraf:*)"
+    ],
+    "deny": []
+  }
+}

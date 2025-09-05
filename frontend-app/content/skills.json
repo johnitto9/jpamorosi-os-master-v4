@@ -1,0 +1,46 @@
+{
+  "id": "skills",
+  "title": "Skills.exe",
+  "icon": "⚡",
+  "content": {
+    "categories": [
+      {
+        "name": "Methodologies & Principles",
+        "skills": [
+          { "name": "AI Systems Architecture", "level": 95, "imageUrl": "/imgs/skills.png" },
+          { "name": "Strategic Post-Mortem", "level": 90, "imageUrl": "/imgs/skills.png" },
+          { "name": "Cost & Resource Optimization", "level": 88, "imageUrl": "/imgs/skills.png" },
+          { "name": "Rapid Iteration Cycles", "level": 85, "imageUrl": "/imgs/skills.png" }
+        ]
+      },
+      {
+        "name": "AI & Machine Learning",
+        "skills": [
+          { "name": "LLM Fine-Tuning", "level": 92, "imageUrl": "/imgs/skills.png" },
+          { "name": "RAG & Vector Databases", "level": 90, "imageUrl": "/imgs/skills.png" },
+          { "name": "Agent Orchestration", "level": 88, "imageUrl": "/imgs/skills.png" },
+          { "name": "Prompt Engineering", "level": 85, "imageUrl": "/imgs/skills.png" }
+        ]
+      },
+      {
+        "name": "Backend & Infrastructure",
+        "skills": [
+          { "name": "Python", "level": 95, "imageUrl": "/imgs/skills.png" },
+          { "name": "FastAPI", "level": 90, "imageUrl": "/imgs/skills.png" },
+          { "name": "Docker", "level": 88, "imageUrl": "/imgs/skills.png" },
+          { "name": "PostgreSQL", "level": 85, "imageUrl": "/imgs/skills.png" }
+        ]
+      },
+      {
+        "name": "Cloud & Frontend",
+        "skills": [
+          { "name": "Microsoft Azure", "level": 85, "imageUrl": "/imgs/skills.png" },
+          { "name": "RunPod (NVIDIA GPUs)", "level": 90, "imageUrl": "/imgs/skills.png" },
+          { "name": "React", "level": 80, "imageUrl": "/imgs/skills.png" },
+          { "name": "Tailwind CSS", "level": 78, "imageUrl": "/imgs/skills.png" },
+          { "name": "Git & GitHub", "level": 92, "imageUrl": "/imgs/skills.png" }
+        ]
+      }
+    ]
+  }
+}

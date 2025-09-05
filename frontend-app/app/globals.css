@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-600;
+  }
+  
+  body {
+    @apply bg-dark-bg text-primary-text font-sans;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  
+  html, body, #__next {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white bg-opacity-10 border border-white border-opacity-20 backdrop-blur-md;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  
+  .glass-card-dark {
+    @apply bg-black bg-opacity-20 border border-white border-opacity-10 backdrop-blur-md;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  
+  .glass-button {
+    @apply glass-card transition-all duration-200 hover:bg-opacity-20 hover:border-opacity-30;
+  }
+  
+  .focus-ring {
+    @apply ring-2 ring-accent-cyan ring-opacity-50 outline-none;
+  }
+  
+  .focus-ring-purple {
+    @apply ring-2 ring-accent-purple ring-opacity-50 outline-none;
+  }
+  
+  .focus-ring-magenta {
+    @apply ring-2 ring-accent-magenta ring-opacity-50 outline-none;
+  }
+}
+
+@layer utilities {
+  .bg-glass {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+  }
+  
+  /* Ocultar scrollbar pero mantener funcionalidad */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari y Opera */
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE y Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+/* Hide Next.js development indicator completely */
+div[data-nextjs-toast-wrapper],
+div[data-nextjs-dialog-overlay], 
+div[data-nextjs-build-indicator],
+button[data-nextjs-toast-wrapper],
+/* Next.js dev indicator appears as a button with specific styling */
+button[data-nextjs-route-announcer-button],
+div[data-nextjs-route-announcer],
+/* Generic fallback for Next.js dev overlays */
+div[style*="position: fixed"][style*="z-index: 99999"],
+button[style*="position: fixed"][style*="z-index: 99999"] {
+  display: none !important;
+  visibility: hidden !important;
+}

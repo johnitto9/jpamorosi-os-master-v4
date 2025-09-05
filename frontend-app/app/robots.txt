@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://jpamorosi.com/sitemap.xml
+
+# Disallow admin and API routes (if any)
+Disallow: /api/
+Disallow: /_next/
+Disallow: /.well-known/
+
+# Allow important pages
+Allow: /
+Allow: /about
+Allow: /skills
+Allow: /projects
+Allow: /contact
+Allow: /cv

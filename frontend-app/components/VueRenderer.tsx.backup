@@ -1,0 +1,143 @@
+"use client"
+
+import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'vue-planets': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        'enable-controls'?: string
+        'show-info'?: string
+        'animation-speed'?: string
+        'earth-color'?: string
+        'mars-color'?: string
+        'jupiter-color'?: string
+        'saturn-color'?: string
+      }
+    }
+  }
+}
+
+interface VueRendererProps {
+  fallback?: React.ReactNode
+  className?: string
+  enableControls?: boolean
+  showInfo?: boolean
+  animationSpeed?: number
+  earthColor?: string
+  marsColor?: string
+  jupiterColor?: string
+  saturnColor?: string
+}
+
+export default function VueRenderer({
+  fallback,
+  className = '',
+  enableControls = true,
+  showInfo = true,
+  animationSpeed = 1,
+  earthColor = '#6B93D6',
+  marsColor = '#CD5C5C',
+  jupiterColor = '#D2691E',
+  saturnColor = '#FAD5A5',
+}: VueRendererProps) {
+  const [isVueLoaded, setIsVueLoaded] = useState(false)
+  const [shouldUseVue, setShouldUseVue] = useState(false)
+  const searchParams = useSearchParams()
+  const loadAttempted = useRef(false)
+
+  useEffect(() => {
+    // Check URL parameter for Vue renderer
+    const renderer = searchParams.get('renderer')
+    setShouldUseVue(renderer === 'vue')
+  }, [searchParams])
+
+  useEffect(() => {
+    if (!shouldUseVue || loadAttempted.current) return
+
+    loadAttempted.current = true
+
+    // Check if Vue component is already loaded
+    if (window.__VUE_PLANETS_LOADED__) {
+      setIsVueLoaded(true)
+      return
+    }
+
+    // Listen for Vue component load event
+    const handleVueLoaded = () => {
+      setIsVueLoaded(true)
+    }
+
+    window.addEventListener('vue-planets-loaded', handleVueLoaded)
+
+    // Dynamically load Vue component
+    const loadVueComponent = async () => {
+      try {
+        // Load the built Vue component
+        await import('../../packages/vue-components/dist/vue-planets.es.js')
+      } catch (error) {
+        console.warn('Failed to load Vue component:', error)
+        console.log('Falling back to React renderer')
+        // Fallback to React if Vue component fails to load
+        setShouldUseVue(false)
+      }
+    }
+
+    loadVueComponent()
+
+    return () => {
+      window.removeEventListener('vue-planets-loaded', handleVueLoaded)
+    }
+  }, [shouldUseVue])
+
+  // Handle planet click events from Vue component
+  useEffect(() => {
+    if (!isVueLoaded || !shouldUseVue) return
+
+    const handlePlanetClick = (event: CustomEvent) => {
+      console.log('Planet clicked in Vue component:', event.detail)
+      // You can dispatch React events or update React state here
+    }
+
+    // Listen for custom events from Vue component
+    document.addEventListener('vue-planets:planet-click', handlePlanetClick as EventListener)
+
+    return () => {
+      document.removeEventListener('vue-planets:planet-click', handlePlanetClick as EventListener)
+    }
+  }, [isVueLoaded, shouldUseVue])
+
+  if (!shouldUseVue) {
+    return <>{fallback}</>
+  }
+
+  if (!isVueLoaded) {
+    return (
+      <div className={`flex items-center justify-center min-h-[400px] ${className}`}>
+        <div className="text-accent-cyan animate-pulse">
+          Cargando renderizador Vue...
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`vue-renderer-container ${className}`}>
+      <vue-planets
+        enable-controls={enableControls.toString()}
+        show-info={showInfo.toString()}
+        animation-speed={animationSpeed.toString()}
+        earth-color={earthColor}
+        mars-color={marsColor}
+        jupiter-color={jupiterColor}
+        saturn-color={saturnColor}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block'
+        }}
+      />
+    </div>
+  )
+}

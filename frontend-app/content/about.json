@@ -1,0 +1,19 @@
+{
+  "id": "about",
+  "title": "About.txt",
+  "icon": "📄",
+  "content": {
+    "name": "Juan Pablo Amorosi",
+    "title": "AI Developer & Architect",
+    "image_path": "/imgs/profile-cvimage.png",
+    "bio": "I am an AI Developer and Architect who operates from **first principles** to build full-cycle intelligence systems. My background is forged in the arena of execution, where resource efficiency and iteration speed are not just metrics, but a working philosophy.",
+    "description": [
+      "I am an AI Developer and Architect who operates from **first principles** to build full-cycle intelligence systems. My background is forged in the arena of execution, where resource efficiency and iteration speed are not just metrics, but a working philosophy.",
+      "I turn constraints into strategic advantages, whether by reverse-engineering paid APIs with **proprietary scraping** or by designing AI architectures that use lightweight, low-cost models for specialized tasks.",
+      "More than a programmer, I am an **orchestrator of complex systems**. I translate abstract business visions into resilient and scalable software architectures. This portfolio is the chronicle of that methodology."
+    ],
+    "location": "Argentina",
+    "languages": ["Spanish (Native)", "English (Fluent)"],
+    "interests": ["AI Systems Architecture", "Resource Optimization", "Reverse Engineering", "LLM Fine-Tuning", "RAG & Vector Databases", "Agent Orchestration"]
+  }
+}

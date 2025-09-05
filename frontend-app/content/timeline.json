@@ -1,0 +1,83 @@
+{
+  "id": "timeline",
+  "title": "Timeline.log",
+  "icon": "📅",
+  "content": {
+    "experiences": [
+      {
+        "period": "2023 – 2025",
+        "position": "Founder – Delify (Entrepreneurship)",
+        "company": "📍 Argentina",
+        "description": "Founder of Delify, a premium international candy e-commerce brand. Led the end-to-end development of the online store, digital marketing strategy, and customer experience. Achieved consistent revenue growth through product curation, social media positioning, and the integration of AI-powered operational tools.",
+        "technologies": ["Entrepreneurship", "E-commerce", "Digital Marketing", "Product Strategy"]
+      },
+      {
+        "period": "Aug 2025 – Present",
+        "position": "Resilience in Production: \"Delibot\"",
+        "company": "Delify (In-house AI Operations Manager)",
+        "description": "Deployment of an AI-powered operations manager in production, integrating WhatsApp, real-time scraping, and persistence in Docker (PostgreSQL/ChromaDB). Implemented a Tool-First Architecture to eliminate model hallucinations, ensuring robustness and reliability in live environments.",
+        "technologies": ["WhatsApp API", "Real-time Scraping", "PostgreSQL", "ChromaDB", "Docker", "Tool-First Architecture", "Production AI"]
+      },
+      {
+        "period": "Jan 2024 – Present",
+        "position": "Algorithmic Trading Ecosystem (Independent R&D)",
+        "company": "",
+        "description": "Designed a trading platform integrating Coinglass data via proprietary scraper, eliminating API costs. Built a custom ETL pipeline (\"datasetcreator\") to generate high-quality datasets for fine-tuning AI models (R1). Implemented a two-tier AI architecture: Orchestrator (large LLM) + Specialist (fine-tuned model) to optimize costs and accuracy.",
+        "technologies": ["Python", "FastAPI", "Web Scraping", "Fine-Tuning", "LLMs", "ETL", "PostgreSQL", "Docker"]
+      },
+      {
+        "period": "May 2025 – Jul 2025",
+        "position": "Strategic Pivot: Legal Agentic System (Independent R&D)",
+        "company": "",
+        "description": "Conducted a strategic post-mortem that concluded trading bots were limited by capital and latency. Re-engineered the agentic + RAG architecture and applied it to Legal AI, a domain with more accessible technological barriers. Demonstrated adaptability and maturity by reallocating technical resources toward a higher-viability opportunity.",
+        "technologies": ["RAG", "Vector Databases", "ChromaDB", "AI Agents", "Strategic Analysis", "Python"]
+      },
+      {
+        "period": "2024 – Present",
+        "position": "Local AI Lab on RunPod (Infrastructure for Experimentation)",
+        "company": "",
+        "description": "Deployed a dockerized AI stack on RunPod (NVIDIA 3090) as a personal R&D engine. Orchestrated multiple models in synergy: a distilled LLM (R1), an embeddings model (Qwen3), and a reranker (Qwen3). Used a local chatbot as a testing ground to validate architectures before production deployment.",
+        "technologies": ["RunPod", "NVIDIA 3090", "Docker", "Distilled LLM", "Embeddings", "Qwen3", "Model Orchestration"]
+      },
+      {
+        "period": "Aug 2025",
+        "position": "Cloud Deployment: \"RecApp\" in Azure (Enterprise Proof of Concept)",
+        "company": "",
+        "description": "Developed an intelligent insurance policy consultant using GPT-5-Mini on Azure. Designed an Intention Router to orchestrate specialized AI agents, applying the role of AI Orchestrator in an enterprise context.",
+        "technologies": ["Microsoft Azure", "GPT-5-Mini", "Intention Router", "Agent Orchestration", "Enterprise AI"]
+      }
+    ],
+    "education": [
+      {
+        "period": "2023 – 2024",
+        "degree": "Higher Technician in Software Development (incomplete)",
+        "institution": "Instituto de Formación Técnica Superior N°29 (IFTS)",
+        "description": "Initial coursework focused on programming, software architecture, and development fundamentals."
+      },
+      {
+        "period": "Mar 2023",
+        "degree": "Introduction to Mathematical Thinking for IT",
+        "institution": "Instituto de Formación Técnica Superior N°29 (IFTS)",
+        "description": ""
+      },
+      {
+        "period": "Feb 2023",
+        "degree": "Full Stack Development – Web Full Stack Junior Profile",
+        "institution": "INTI – Argentina Programa 4.0",
+        "description": "Skills: Web Services API, back-end and front-end development, HTML, databases (MySQL, PostgreSQL), Java, JavaScript, TypeScript."
+      },
+      {
+        "period": "Sep 2022",
+        "degree": "Online Design Tools",
+        "institution": "Universidad Tecnológica Nacional (UTN) – Ministry of Labor, Employment and Social Security",
+        "description": ""
+      },
+      {
+        "period": "Jun 2022",
+        "degree": "E-commerce for Entrepreneurs",
+        "institution": "Universidad Nacional del Sur (UNS)",
+        "description": ""
+      }
+    ]
+  }
+}

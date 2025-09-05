@@ -1,0 +1,26 @@
+# Herramientas Python para desarrollo y análisis del proyecto jpamorosi-os
+# Instalar con: pip install -r requirements.txt
+
+# Desarrollo web y análisis
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Análisis de datos y reportes
+pandas>=2.1.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+
+# Automatización y scripts
+selenium>=4.15.0
+python-dotenv>=1.0.0
+
+# Testing y calidad de código
+pytest>=7.4.0
+black>=23.7.0
+flake8>=6.0.0
+
+# Utilidades
+click>=8.1.0
+pyyaml>=6.0
+rich>=13.5.0

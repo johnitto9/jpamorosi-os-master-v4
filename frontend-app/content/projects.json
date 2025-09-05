@@ -1,0 +1,79 @@
+{
+  "id": "projects",
+  "title": "Projects.lnk",
+  "icon": "🚀",
+  "content": {
+    "featured": [
+      {
+        "name": "Trading Ecosystem: R&D in Financial AI",
+        "imageUrl": "/imgs/tradnbot.png",
+        "theme": "btn-back-black",
+        "description": "My core R&D project, born from a strategic pivot after discovering the impracticality of LLMs for low-latency execution, refocusing the goal on deep analysis. The ecosystem consists of a Dataset Creator that enriches market data using an LLM and a modular Framework for backtesting. Its culmination is the LLMStrategy, an AI agent that generates trading signals, always governed by a strict Risk Manager.",
+        "technologies": ["Systems Design", "Strategic Pivot", "LLM Strategy", "Backtesting", "Risk Management", "ETL", "FinTech"],
+        "status": "In Development",
+        "github": "https://github.com/johnitto9/Trading-bot"
+      },
+      {
+        "name": "Dataset Creator",
+        "imageUrl": "/imgs/dataset1.png",
+        "theme": "btn-back-black",
+        "description": "The ETL engine of the Trading Ecosystem. It uses an LLM for the contextual enrichment of market data, creating the high-purity fuel (JSONL files) required for fine-tuning truly specialized AI models.",
+        "technologies": ["ETL", "Data Processing", "AI Enrichment", "Data Generation", "JSONL", "Fine-Tuning"],
+        "status": "Completed",
+        "github": "https://github.com/johnitto9/datasetcreator-v1"
+      },
+      {
+        "name": "RecApp: AI Orchestrator (Azure)",
+        "imageUrl": "/imgs/recapp1.png",
+        "theme": "btn-back-blue",
+        "description": "An enterprise-grade prototype demonstrating the 'AI Orchestrator' role on Microsoft Azure. Its 'Intent Router' directs tasks to specialized AI agents to solve complex business workflows. It's my case study on scaling and applying AI architectures to a corporate cloud environment.",
+        "technologies": ["Microsoft Azure", "AI Orchestration", "Intent Router", "Multi-Agent Systems", "Enterprise AI"],
+        "status": "Production",
+        "github": "https://github.com/johnitto9/RecApp-Premium"
+      },
+      {
+        "name": "AI Lab (RunPod)",
+        "imageUrl": "/imgs/chatbotdock1.png",
+        "theme": "btn-back-gray",
+        "description": "My R&D engine, built on a 'Brain & Muscle' distributed architecture. The 'Muscle' (a RunPod server with an NVIDIA 3090) handles heavy inference with a stack of 4-bit quantized models, while the 'Brain' (local client) orchestrates the pipeline. It showcases an MLOps approach focused on efficiency and rapid experimentation.",
+        "technologies": ["MLOps", "Distributed Architecture", "RunPod", "NVIDIA 3090", "4-bit Quantization", "RAG", "Cost-Efficiency"],
+        "status": "Production",
+        "github": "https://github.com/johnitto9/RunPod-IA-lab"
+      },
+      {
+        "name": "Delibot: Production Resilience",
+        "imageUrl": "/imgs/delibot1.png",
+        "theme": "btn-back-green",
+        "description": "A full-stack WhatsApp e-commerce system. To eradicate AI hallucinations and ensure reliable actions, it implements a 'Tool-First Architecture'. The LLM acts as an intent router, selecting a deterministic tool (e.g., AddToCart), ensuring every operation is predictable and fact-based.",
+        "technologies": ["Production", "Tool-First Architecture", "Anti-Hallucination", "WhatsApp API", "ChromaDB", "SQLAlchemy"],
+        "status": "Production",
+        "demo": "https://delify.com.ar"
+      },
+      {
+        "name": "Kaelos: Legal Agentic System",
+        "imageUrl": "/imgs/kaelos1.png",
+        "theme": "btn-back-yellow",
+        "description": "Born from a strategic pivot, this system applies a RAG (Retrieval-Augmented Generation) architecture to perform semantic analysis on large volumes of legal documents. It demonstrates my agility in repurposing a mastered tech stack to solve high-impact problems in a new domain.",
+        "technologies": ["RAG", "Vector Databases", "AI Agents", "Strategic Pivot", "Semantic Analysis"],
+        "status": "In Development"
+      },
+      {
+        "name": "Code Saver",
+        "imageUrl": "/imgs/banner_codext.png",
+        "theme": "btn-back-orange",
+        "description": "A meta-efficiency GUI tool that solves a key bottleneck in AI-assisted development. It extracts and consolidates a project's entire codebase into a single prompt, dramatically accelerating the analysis, debugging, and refactoring cycle.",
+        "technologies": ["Developer Tools", "Meta-Efficiency", "Code Analysis", "Prompt Optimization", "PySide6"],
+        "status": "Completed",
+        "github": "https://github.com/johnitto9/CodeExtractor-PySide6"
+      }
+    ],
+    "categories": [
+      "Sistemas de IA",
+      "Arquitectura de Software",
+      "Trading & Fintech",
+      "Herramientas de Desarrollo",
+      "Cloud & Enterprise",
+      "I+D Personal"
+    ]
+  }
+}
