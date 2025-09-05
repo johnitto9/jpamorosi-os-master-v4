@@ -50,7 +50,7 @@ export default function Desktop({ children }: { children?: React.ReactNode }) {
       
       {/* ScrollWatermark minimalista */}
       <ScrollWatermarkMinimal 
-        delay={500}    // Aparece a los 0.5 segundos  
+        delay={1200}    // Aparece a los 1.2 segundos (después del avatar 3D)  
         hideAfter={4000}
       />
     </div>

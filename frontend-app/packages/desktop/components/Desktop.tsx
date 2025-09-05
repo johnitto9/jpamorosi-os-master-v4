@@ -60,15 +60,10 @@ export function Desktop({ children, className = "" }: DesktopProps) {
         
         {/* ScrollWatermark - Floating scroll indicator */}
         <ScrollWatermark 
-          delay={1500}      // Aparece a los 1.5 segundos
+          delay={1500}      // Aparece a los 1.5 segundos (después del avatar 3D)
           hideAfter={4000}  // Se oculta a los 4 segundos
         />
         
-        {/* Versión simple para testing */}
-        <ScrollWatermarkSimple 
-          delay={1500}
-          hideAfter={4000}
-        />
       </div>
     </div>
   )

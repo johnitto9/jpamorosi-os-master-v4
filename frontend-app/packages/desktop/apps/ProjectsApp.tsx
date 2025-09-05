@@ -1,4 +1,5 @@
 import React from "react"
+import Image from "next/image"
 import type { WindowApp } from "../types"
 
 interface ProjectsAppProps {
@@ -36,15 +37,14 @@ export function ProjectsApp({ app }: ProjectsAppProps) {
               {/* Project Image */}
               {project.imageUrl && (
                 <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden bg-gray-800">
-                  <img
+                  <Image
                     src={project.imageUrl}
                     alt={`${project.name} preview`}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     onError={(e) => {
                       console.log('Image failed to load:', project.imageUrl);
-                      // Cambiar a un placeholder simple
-                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzM3NEE1RCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOUE5QjlGIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+SW1hZ2VuIG5vIGRpc3BvbmlibGU8L3RleHQ+PC9zdmc+';
                     }}
                   />
                 </div>

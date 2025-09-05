@@ -190,9 +190,9 @@ export function RealAvatarScene() {
         
         console.log(`🎭 Total meshes configurados: ${meshCount}`);
         
-        // Posición inicial del avatar - intermedio entre -0.8 y -1.0
+        // Posición inicial del avatar - subido más hacia arriba
         avatar.scale.setScalar(6); // Escala igual que en working version  
-        avatar.position.set(0, -0.9, 5); // Intermedio: un pelin más arriba
+        avatar.position.set(0, -0.6, 5); // Subido más hacia arriba desde -0.9
         
         console.log(`🎯 Avatar configurado:`);
         console.log('  Escala:', avatar.scale.x.toFixed(3));
@@ -301,7 +301,7 @@ export function RealAvatarScene() {
     // Estados de animación - CONSISTENCIA TOTAL para evitar bug de estacionado
     const START_STATE = {
       scale: 6,       // Grande al inicio
-      position: { x: 0, y: -0.9, z: 5 }, // EXACTAMENTE igual que la posición del loader
+      position: { x: 0, y: -0.6, z: 5 }, // EXACTAMENTE igual que la posición del loader (subido)
       rotation: { y: 0 } // De frente
     };
 
@@ -317,14 +317,17 @@ export function RealAvatarScene() {
     // Threshold más estricto: si está muy cerca de 0, forzar a 0
     const finalProgress = clampedProgress < 0.02 ? 0 : clampedProgress;
 
-    // Interpolación suave
+    // Interpolación suave con easing para transiciones más naturales
+    const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     const lerp = (start: number, end: number, progress: number) => 
       start + (end - start) * progress;
+    const lerpEased = (start: number, end: number, progress: number) => 
+      start + (end - start) * easeInOutCubic(progress);
 
-    // Aplicar transformaciones interpoladas
+    // Aplicar transformaciones interpoladas con suavizado
     const scale = lerp(START_STATE.scale, END_STATE.scale, finalProgress);
-    const basePosY = lerp(START_STATE.position.y, END_STATE.position.y, finalProgress);
-    const rotY = lerp(START_STATE.rotation.y, END_STATE.rotation.y, finalProgress);
+    const basePosY = lerpEased(START_STATE.position.y, END_STATE.position.y, finalProgress);
+    const rotY = lerpEased(START_STATE.rotation.y, END_STATE.rotation.y, finalProgress);
 
     // Aplicar transformaciones
     avatarRef.current.scale.setScalar(scale);
