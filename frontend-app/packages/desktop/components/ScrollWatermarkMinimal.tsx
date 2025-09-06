@@ -28,8 +28,21 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
+    // Listener para el evento del avatar (método confiable)
+    const handleAvatarReallyVisible = (event: CustomEvent) => {
+      console.log('🎯 ScrollWatermarkMinimal: Avatar REALLY visible event received:', event.detail);
+      setTimeout(() => {
+        setShow(true);
+        console.log('✅ ScrollWatermarkMinimal: Showing via avatar sync');
+      }, 300); // Solo 300ms porque ya está verificado
+    };
+    
+    // Añadir listener para el evento del avatar
+    window.addEventListener('avatarReallyVisible', handleAvatarReallyVisible as EventListener);
+    
+    // Timer de fallback si el avatar no carga
     const showTimer = setTimeout(() => {
-      console.log("🚀 ScrollWatermarkMinimal showing");
+      console.log("🚀 ScrollWatermarkMinimal showing (fallback timer)");
       setShow(true);
     }, delay);
     
@@ -50,6 +63,7 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
     
     return () => {
       window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('avatarReallyVisible', handleAvatarReallyVisible as EventListener);
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
       window.removeEventListener('scroll', handleScroll);

@@ -80,7 +80,7 @@ export const metadata: Metadata = {
       { rel: 'icon', url: '/android-chrome-512x512.svg', sizes: '512x512', type: 'image/svg+xml' }
     ]
   },
-  manifest: '/manifest.webmanifest',
+  // manifest se genera automáticamente desde app/manifest.ts
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION || ''
   },
