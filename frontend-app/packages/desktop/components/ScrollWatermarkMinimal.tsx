@@ -29,18 +29,18 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
-    // Listener para el evento del avatar (método confiable)
-    const handleAvatarReallyVisible = (event: CustomEvent) => {
-      console.log('🎯 ScrollWatermarkMinimal: Avatar REALLY visible event received:', event.detail);
+    // Listener para cuando el avatar está completamente cargado (desde store)
+    const handleAvatarFullyLoaded = (event: CustomEvent) => {
+      console.log('🎯 ScrollWatermarkMinimal: Avatar FULLY LOADED event received:', event.detail);
       setAvatarEventReceived(true);
       setTimeout(() => {
         setShow(true);
-        console.log('✅ ScrollWatermarkMinimal: Showing via avatar sync AFTER loader fadeout');
-      }, 1500); // 1.5 segundos para asegurar que el loader haya desaparecido completamente
+        console.log('✅ ScrollWatermarkMinimal: Showing AFTER avatar fully loaded and loader gone');
+      }, 800); // Delay más corto porque este evento ya es después del loader
     };
     
-    // Añadir listener para el evento del avatar
-    window.addEventListener('avatarReallyVisible', handleAvatarReallyVisible as EventListener);
+    // Añadir listener para el evento del avatar completamente cargado
+    window.addEventListener('avatarFullyLoaded', handleAvatarFullyLoaded as EventListener);
     
     // Timer de fallback si el avatar no carga
     const showTimer = setTimeout(() => {
@@ -67,7 +67,7 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
     
     return () => {
       window.removeEventListener('resize', checkMobile);
-      window.removeEventListener('avatarReallyVisible', handleAvatarReallyVisible as EventListener);
+      window.removeEventListener('avatarFullyLoaded', handleAvatarFullyLoaded as EventListener);
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
       window.removeEventListener('scroll', handleScroll);

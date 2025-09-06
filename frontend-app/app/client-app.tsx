@@ -38,12 +38,12 @@ export default function ClientApp() {
         )}
       </AnimatePresence>
 
-      {/* Avatar Visibility Verifier - Comprueba que el avatar esté realmente visible */}
-      <AvatarVisibilityVerifier 
+      {/* Avatar Visibility Verifier - DESACTIVADO temporalmente para debugging */}
+      {/* <AvatarVisibilityVerifier 
         debug={true}
         checkInterval={100}
         maxChecks={100}
-      />
+      /> */}
 
       {/* Desktop es el orquestador principal del fondo y la UI */}
       <Desktop>
