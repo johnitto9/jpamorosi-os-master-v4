@@ -12,7 +12,8 @@
     "check:seo": "node scripts/check-seo.mjs",
     "optimize:og": "node scripts/optimize-og.mjs",
     "favicon:simple": "node scripts/simple-favicon.mjs",
-    "check:whatsapp": "node scripts/check-whatsapp.mjs"
+    "check:whatsapp": "node scripts/check-whatsapp.mjs",
+    "check:google": "node scripts/check-google-seo.mjs"
   },
   "dependencies": {
     "@formspree/react": "^2.5.1",

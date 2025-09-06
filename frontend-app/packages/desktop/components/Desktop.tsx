@@ -7,6 +7,7 @@ import { Dock } from "./Dock"
 import { ConditionalBackground3D } from "../../three-react/src/ConditionalBackground3D"
 import ScrollWatermark from "./ScrollWatermark"
 import ScrollWatermarkSimple from "./ScrollWatermarkSimple"
+import { useResponsiveWindows } from "../../../hooks/use-responsive-windows"
 
 export interface DesktopProps {
   children?: React.ReactNode
@@ -15,6 +16,9 @@ export interface DesktopProps {
 
 export function Desktop({ children, className = "" }: DesktopProps) {
   const { windows } = useDesktopStore()
+  
+  // Activar responsividad en vivo para las ventanas
+  useResponsiveWindows()
 
   return (
     <div className={`min-h-screen bg-dark-bg relative ${className}`}>
@@ -58,10 +62,11 @@ export function Desktop({ children, className = "" }: DesktopProps) {
         {/* Dock */}
         <Dock />
         
-        {/* ScrollWatermark - Floating scroll indicator */}
+        {/* ScrollWatermark - Sincronizada con el avatar 3D */}
         <ScrollWatermark 
-          delay={2000}      // Aparece a los 2 segundos (+0.5seg retraso)
-          hideAfter={4500}  // Se oculta a los 4.5 segundos (+0.5seg duración)
+          avatarSync={true}    // Sincronizada con evento del avatar
+          delay={2000}         // Fallback si avatar no carga
+          hideAfter={4500}     // Se oculta después de 4.5 segundos
         />
         
       </div>

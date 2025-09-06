@@ -1,14 +1,14 @@
 {
   "name": "jpamorosi.os - Interactive CV",
   "short_name": "jpamorosi.os",
-  "description": "Un CV interactivo en formato desktop OS: proyectos, IA, hardware y contacto.",
+  "description": "An interactive CV in desktop OS format: projects, AI, hardware, and contact.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0b0f",
   "theme_color": "#0b0b0f",
   "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "es",
+  "lang": "en",
   "categories": ["portfolio", "personal", "cv"],
   "icons": [
     {

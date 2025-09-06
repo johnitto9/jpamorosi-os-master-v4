@@ -4,19 +4,23 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ScrollWatermarkProps {
-  delay?: number;
+  delay?: number; // Ahora es fallback si el avatar no se carga
   autoHide?: boolean;
   hideAfter?: number;
+  avatarSync?: boolean; // Nueva prop para activar sincronización con avatar
 }
 
 const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({ 
-  delay = 1500,  // Aparece a los 1.5 segundos
+  delay = 1500,  // Fallback si avatar no carga
   autoHide = true,
-  hideAfter = 4000  // Se oculta a los 4 segundos
+  hideAfter = 4000,  // Se oculta a los 4 segundos
+  avatarSync = true  // Por defecto sincronizado con avatar
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const [showTrigger, setShowTrigger] = useState<string>(''); // Para debug
   
   // DEBUG: Estado de debug para diagnosticar
   const [debugInfo, setDebugInfo] = useState("");
@@ -25,6 +29,9 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
     isVisible,
     hasInteracted,
     isMobile,
+    avatarLoaded,
+    avatarSync,
+    showTrigger,
     delay,
     hideAfter
   });
@@ -38,15 +45,49 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    // Mostrar después del delay inicial
-    const showTimer = setTimeout(() => {
-      console.log("🕒 ScrollWatermark Timer triggered - hasInteracted:", hasInteracted);
+    // Función para mostrar la watermark
+    const showWatermark = (trigger: string) => {
+      console.log(`🎯 ScrollWatermark showWatermark called by: ${trigger}`, { hasInteracted });
       if (!hasInteracted) {
         setIsVisible(true);
-        console.log("✅ ScrollWatermark should be visible now!");
-        setDebugInfo("Visible after delay");
+        setShowTrigger(trigger);
+        setDebugInfo(`Visible via ${trigger}`);
+        console.log(`✅ ScrollWatermark visible via ${trigger}`);
       }
-    }, delay);
+    };
+
+    // Listener para el evento del avatar
+    const handleAvatarLoaded = (event: CustomEvent) => {
+      console.log('🎨 Avatar loaded event received:', event.detail);
+      setAvatarLoaded(true);
+      if (avatarSync) {
+        // Pequeño delay adicional para que el avatar se "asiente"
+        setTimeout(() => {
+          showWatermark('avatar-3d-loaded');
+        }, 500);
+      }
+    };
+
+    // Fallback timer si no hay sincronización con avatar
+    let showTimer: NodeJS.Timeout;
+    if (!avatarSync) {
+      showTimer = setTimeout(() => {
+        showWatermark('fallback-timer');
+      }, delay);
+    } else {
+      // También timer de fallback si el avatar no carga en tiempo razonable
+      showTimer = setTimeout(() => {
+        if (!avatarLoaded && !hasInteracted) {
+          console.log("⏰ Avatar fallback timer triggered");
+          showWatermark('avatar-fallback-timer');
+        }
+      }, delay + 3000); // 3 segundos extra para esperar al avatar
+    }
+
+    // Añadir listener para el evento del avatar
+    if (avatarSync) {
+      window.addEventListener('avatarLoaded', handleAvatarLoaded as EventListener);
+    }
 
     // Auto-ocultar después de un tiempo
     let hideTimer: NodeJS.Timeout;
@@ -78,10 +119,13 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
       window.removeEventListener('touchmove', handleInteraction);
       window.removeEventListener('wheel', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
+      if (avatarSync) {
+        window.removeEventListener('avatarLoaded', handleAvatarLoaded as EventListener);
+      }
       clearTimeout(showTimer);
       if (hideTimer) clearTimeout(hideTimer);
     };
-  }, [delay, autoHide, hideAfter, hasInteracted, isVisible]);
+  }, [delay, autoHide, hideAfter, hasInteracted, isVisible, avatarSync, avatarLoaded]);
 
   return (
     <AnimatePresence>
@@ -92,6 +136,9 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
           isVisible: {isVisible ? 'TRUE' : 'FALSE'}<br/>
           hasInteracted: {hasInteracted ? 'TRUE' : 'FALSE'}<br/>
           isMobile: {isMobile ? 'TRUE' : 'FALSE'}<br/>
+          avatarLoaded: {avatarLoaded ? 'TRUE' : 'FALSE'}<br/>
+          avatarSync: {avatarSync ? 'TRUE' : 'FALSE'}<br/>
+          showTrigger: {showTrigger}<br/>
           Info: {debugInfo}
         </div>
       )}

@@ -33,18 +33,19 @@ export function Window({ window }: WindowProps) {
   const windowRef = useRef<HTMLDivElement>(null)
   const dragStartRef = useRef({ x: 0, y: 0, windowX: 0, windowY: 0 })
   
-  // Mobile detection
+  // Mobile detection - Only disable on true mobile, not tablets
   const isMobile = useMediaQuery('(max-width: 768px)')
+  const isTablet = useMediaQuery('(max-width: 1200px) and (min-width: 769px)')
 
   // Handle click to focus
   const handleFocus = () => {
     focusWindow(window.id)
   }
 
-  // Handle dragging - disabled on mobile
+  // Handle dragging - disabled only on true mobile, enabled on tablets
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.window-header')) {
-      // Only enable dragging on desktop
+      // Enable dragging on desktop AND tablets (disable only on mobile)
       if (!isMobile) {
         setIsDragging(true)
         dragStartRef.current = {
@@ -53,6 +54,25 @@ export function Window({ window }: WindowProps) {
           windowX: window.position.x,
           windowY: window.position.y
         }
+      }
+      handleFocus()
+    }
+  }
+
+  // Handle touch dragging for tablets
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.window-header')) {
+      // Enable touch dragging on tablets only (not mobile, not desktop)
+      if (isTablet) {
+        setIsDragging(true)
+        const touch = e.touches[0]
+        dragStartRef.current = {
+          x: touch.clientX,
+          y: touch.clientY,
+          windowX: window.position.x,
+          windowY: window.position.y
+        }
+        // No preventDefault aquí - se maneja en el useEffect
       }
       handleFocus()
     }
@@ -72,7 +92,7 @@ export function Window({ window }: WindowProps) {
     }
   }
 
-  // Mouse move handler
+  // Mouse and touch move handlers
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
@@ -110,7 +130,40 @@ export function Window({ window }: WindowProps) {
       }
     }
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging && isTablet) {
+        e.preventDefault() // Prevent scrolling
+        const touch = e.touches[0]
+        const deltaX = touch.clientX - dragStartRef.current.x
+        const deltaY = touch.clientY - dragStartRef.current.y
+        
+        // Calculate new position with viewport constraints
+        const newX = dragStartRef.current.windowX + deltaX
+        const newY = dragStartRef.current.windowY + deltaY
+        
+        // Get viewport dimensions
+        const viewportWidth = globalThis.window?.innerWidth || 1024
+        const viewportHeight = globalThis.window?.innerHeight || 768
+        
+        // Constrain window position to viewport
+        const constrainedX = Math.max(0, Math.min(newX, viewportWidth - window.size.width))
+        const constrainedY = Math.max(0, Math.min(newY, viewportHeight - window.size.height))
+        
+        updateWindow(window.id, {
+          position: {
+            x: constrainedX,
+            y: constrainedY
+          }
+        })
+      }
+    }
+
     const handleMouseUp = () => {
+      setIsDragging(false)
+      setIsResizing(false)
+    }
+
+    const handleTouchEnd = () => {
       setIsDragging(false)
       setIsResizing(false)
     }
@@ -118,13 +171,17 @@ export function Window({ window }: WindowProps) {
     if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
+      document.addEventListener('touchmove', handleTouchMove, { passive: false })
+      document.addEventListener('touchend', handleTouchEnd)
       
       return () => {
         document.removeEventListener('mousemove', handleMouseMove)
         document.removeEventListener('mouseup', handleMouseUp)
+        document.removeEventListener('touchmove', handleTouchMove)
+        document.removeEventListener('touchend', handleTouchEnd)
       }
     }
-  }, [isDragging, isResizing, window.id, updateWindow])
+  }, [isDragging, isResizing, window.id, updateWindow, isTablet])
 
   if (window.isMinimized) {
     return null
@@ -154,10 +211,10 @@ export function Window({ window }: WindowProps) {
         shadow-2xl flex flex-col
         ${isMobile 
           ? 'fixed inset-0 z-50 bg-dark-bg/90 backdrop-blur-lg' 
-          : 'glass-card absolute rounded-lg min-w-[224px] min-h-[144px]'
+          : 'glass-card absolute rounded-lg min-w-[224px] min-h-[144px] transition-all duration-300 ease-out'
         }
-        ${isDragging ? 'cursor-grabbing' : 'cursor-default'}
-        ${isResizing ? 'cursor-nw-resize' : ''}
+        ${isDragging ? 'cursor-grabbing !transition-none' : 'cursor-default'}
+        ${isResizing ? 'cursor-nw-resize !transition-none' : ''}
         focus-within:ring-2 focus-within:ring-accent-cyan/50
       `}
       style={isMobile ? { zIndex: window.zIndex } : {
@@ -168,11 +225,13 @@ export function Window({ window }: WindowProps) {
         zIndex: window.zIndex
       }}
       onMouseDown={handleFocus}
+      onTouchStart={handleTouchStart}
     >
       {/* Window Header */}
       <div 
         className="window-header flex items-center justify-between p-3 border-b border-accent-cyan/20 cursor-grab active:cursor-grabbing"
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
       >
         <div className="flex items-center gap-2">
           <span className="text-lg">{window.app.icon}</span>

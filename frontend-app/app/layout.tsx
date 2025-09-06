@@ -8,15 +8,15 @@ export const metadata: Metadata = {
     default: 'jpamorosi.dev — Personal OS · Interactive CV',
     template: '%s | jpamorosi.dev'
   },
-  description: 'Un CV interactivo en formato "desktop OS": proyectos, IA, hardware y contacto. Explorá mi experiencia como Builder & AI Hacker.',
+  description: 'An interactive CV in "desktop OS" format: projects, AI, hardware, and contact. Explore my experience as a Builder & AI Hacker.',
   keywords: [
     'Juan Pablo Amorosi',
     'jpamorosi',
     'portfolio',
-    'CV interactivo',
-    'desarrollador',
-    'IA',
-    'inteligencia artificial',
+    'interactive CV',
+    'developer',
+    'AI',
+    'artificial intelligence',
     'projects',
     'next.js',
     'react',
@@ -30,11 +30,11 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    locale: 'es_AR',
+    locale: 'en_US',
     url: '/',
     siteName: 'jpamorosi.os',
     title: 'jpamorosi.os — Interactive CV',
-    description: 'Explorá mi OS personal: proyectos, IA, hardware y contacto. Un CV interactivo único.',
+    description: 'Explore my personal OS: projects, AI, hardware, and contact. A unique interactive CV.',
     images: [
       {
         url: '/og.jpg',
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     site: '@jpamorosi',
     creator: '@jpamorosi',
     title: 'jpamorosi.os — Interactive CV',
-    description: 'Mi escritorio interactivo en la web. Explorá mi experiencia como Builder & AI Hacker.',
+    description: 'My interactive desktop on the web. Explore my experience as a Builder & AI Hacker.',
     images: ['/og.jpg']
   },
   robots: {
@@ -106,7 +106,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className="dark">
+    <html lang="en" className="dark">
       <head>
         {/* JSON-LD Structured Data */}
         <script
@@ -118,9 +118,9 @@ export default function RootLayout({
               name: 'Juan Pablo Amorosi',
               url: 'https://www.jpamorosi.dev/',
               jobTitle: 'Builder & AI Hacker',
-              description: 'Desarrollador especializado en IA, hardware y proyectos innovadores',
+              description: 'Developer specialized in AI, hardware, and innovative projects',
               knowsAbout: [
-                'Inteligencia Artificial',
+                'Artificial Intelligence',
                 'Machine Learning',
                 'Hardware Development',
                 'Web Development',
@@ -132,7 +132,7 @@ export default function RootLayout({
                 'https://github.com/jpamorosi',
                 'https://www.linkedin.com/in/jpamorosi'
               ],
-              alumniOf: 'Universidad',
+              alumniOf: 'University',
               workLocation: {
                 '@type': 'Place',
                 name: 'Argentina'
@@ -148,12 +148,12 @@ export default function RootLayout({
               '@type': 'WebSite',
               name: 'jpamorosi.dev',
               url: 'https://www.jpamorosi.dev/',
-              description: 'CV interactivo y portafolio personal de Juan Pablo Amorosi',
+              description: 'Interactive CV and personal portfolio of Juan Pablo Amorosi',
               author: {
                 '@type': 'Person',
                 name: 'Juan Pablo Amorosi'
               },
-              inLanguage: 'es-AR',
+              inLanguage: 'en-US',
               copyrightYear: new Date().getFullYear(),
               genre: 'portfolio'
             })
@@ -168,9 +168,9 @@ export default function RootLayout({
         <meta property="og:url" content="https://www.jpamorosi.dev/" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="jpamorosi.os — Interactive CV" />
-        <meta property="og:description" content="Explorá mi OS personal: proyectos, IA, hardware y contacto. Un CV interactivo único." />
+        <meta property="og:description" content="Explore my personal OS: projects, AI, hardware, and contact. A unique interactive CV." />
         <meta property="og:site_name" content="jpamorosi.os" />
-        <meta property="og:locale" content="es_AR" />
+        <meta property="og:locale" content="en_US" />
         
         {/* Security Headers */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />

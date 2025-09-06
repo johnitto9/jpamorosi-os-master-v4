@@ -26,8 +26,8 @@
         "name": "RecApp: AI Orchestrator (Azure)",
         "imageUrl": "/imgs/recapp1.png",
         "theme": "btn-back-blue",
-        "description": "An enterprise-grade prototype demonstrating the 'AI Orchestrator' role on Microsoft Azure. Its 'Intent Router' directs tasks to specialized AI agents to solve complex business workflows. It's my case study on scaling and applying AI architectures to a corporate cloud environment.",
-        "technologies": ["Microsoft Azure", "AI Orchestration", "Intent Router", "Multi-Agent Systems", "Enterprise AI"],
+        "description": "An enterprise-grade prototype demonstrating the 'AI Orchestrator' role on Microsoft Azure, powered by GPT-5-mini. Its 'Intent Router' directs tasks to specialized AI agents to solve complex business workflows. It's my case study on scaling and applying AI architectures to a corporate cloud environment.",
+        "technologies": ["Microsoft Azure", "GPT-5-mini", "AI Orchestration", "Intent Router", "Multi-Agent Systems", "Enterprise AI"],
         "status": "Production",
         "github": "https://github.com/johnitto9/RecApp-Premium"
       },
@@ -68,12 +68,12 @@
       }
     ],
     "categories": [
-      "Sistemas de IA",
-      "Arquitectura de Software",
+      "AI Systems",
+      "Software Architecture",
       "Trading & Fintech",
-      "Herramientas de Desarrollo",
+      "Developer Tools",
       "Cloud & Enterprise",
-      "I+D Personal"
+      "Personal R&D"
     ]
   }
 }

@@ -211,6 +211,16 @@ export function RealAvatarScene() {
         // scene.add(helperCube);
         
         console.log('✅ Avatar añadido a la escena y visible');
+        
+        // Emitir evento personalizado cuando el avatar está completamente cargado
+        const avatarLoadedEvent = new CustomEvent('avatarLoaded', {
+          detail: { 
+            timestamp: Date.now(),
+            message: 'Avatar 3D completamente cargado y visible' 
+          }
+        });
+        window.dispatchEvent(avatarLoadedEvent);
+        console.log('🎯 Evento avatarLoaded emitido');
       },
       (progress) => {
         console.log('📥 Cargando avatar:', (progress.loaded / progress.total * 100).toFixed(1) + '%');

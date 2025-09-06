@@ -19,11 +19,36 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       return
     }
 
+    // Responsive configuration
+    const getResponsiveConfig = () => {
+      if (typeof window === 'undefined') return { sizeMultiplier: 1, posOffset: 30 };
+      
+      const isTablet = window.matchMedia('(max-width: 1200px) and (min-width: 769px)').matches;
+      const isSmallTablet = window.matchMedia('(max-width: 1024px) and (min-width: 769px)').matches;
+      
+      const sizeMultiplier = isSmallTablet ? 0.85 : isTablet ? 0.92 : 1;
+      const posOffset = isTablet ? 20 : 30;
+      
+      return { sizeMultiplier, posOffset };
+    };
+
+    const { sizeMultiplier, posOffset } = getResponsiveConfig();
+
+    // Calculate responsive position and size
+    const basePosition = app.defaultPosition || { x: 100 + windows.length * posOffset, y: 100 + windows.length * posOffset };
+    const baseSize = app.defaultSize || { width: 600, height: 400 };
+
     const newWindow: WindowInstance = {
       id: `${app.id}-${Date.now()}`,
       app,
-      position: app.defaultPosition || { x: 100 + windows.length * 30, y: 100 + windows.length * 30 },
-      size: app.defaultSize || { width: 600, height: 400 },
+      position: {
+        x: Math.round(basePosition.x * (sizeMultiplier > 0.9 ? 1 : 0.9)), // Slight position adjustment for smaller screens
+        y: Math.round(basePosition.y * (sizeMultiplier > 0.9 ? 1 : 0.9))
+      },
+      size: {
+        width: Math.round(baseSize.width * sizeMultiplier),
+        height: Math.round(baseSize.height * sizeMultiplier)
+      },
       zIndex: nextZIndex,
       isMinimized: false,
     }

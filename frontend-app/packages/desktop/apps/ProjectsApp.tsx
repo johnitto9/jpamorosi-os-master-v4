@@ -21,28 +21,31 @@ export function ProjectsApp({ app }: ProjectsAppProps) {
   }
 
   return (
-    <div className="p-6 text-primary-text h-full overflow-auto">
-      <div className="space-y-8">
+    <div className="p-4 sm:p-6 text-primary-text h-full overflow-auto">
+      <div className="space-y-6 sm:space-y-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-accent-cyan mb-2">Featured Projects</h2>
-          <p className="text-secondary-text">A showcase of my recent work</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-accent-cyan mb-2">Featured Projects</h2>
+          <p className="text-secondary-text text-sm sm:text-base">A showcase of my recent work</p>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-4 sm:gap-6">
           {content.featured.map((project, index) => (
             <div
               key={index}
-              className="glass-card p-6 rounded-lg border border-accent-cyan/20 hover:border-accent-cyan/40 transition-all duration-300"
+              className="glass-card p-4 sm:p-6 rounded-lg border border-accent-cyan/20 hover:border-accent-cyan/40 transition-all duration-300"
             >
-              {/* Project Image */}
+              {/* Project Image - Responsive height based on container */}
               {project.imageUrl && (
-                <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden bg-gray-800">
+                <div className="relative w-full mb-4 rounded-lg overflow-hidden bg-gray-800" 
+                     style={{ aspectRatio: '16/9', minHeight: '120px', maxHeight: '240px' }}>
                   <Image
                     src={project.imageUrl}
                     alt={`${project.name} preview`}
                     fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover transition-all duration-300"
+                    sizes="(max-width: 400px) 300px, (max-width: 600px) 500px, (max-width: 800px) 700px, 900px"
+                    priority={index < 2}
+                    quality={85}
                     onError={(e) => {
                       console.log('Image failed to load:', project.imageUrl);
                     }}
@@ -50,10 +53,10 @@ export function ProjectsApp({ app }: ProjectsAppProps) {
                 </div>
               )}
               
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-xl font-semibold text-accent-cyan">{project.name}</h3>
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold text-accent-cyan pr-2">{project.name}</h3>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                     project.status === "Production" || project.status === "Active"
                       ? "bg-green-500/20 text-green-400"
                       : project.status === "In Development"
@@ -82,11 +85,11 @@ export function ProjectsApp({ app }: ProjectsAppProps) {
                 ))}
               </div>
               
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-wrap gap-2 sm:gap-3 pt-2">
                 {project.demo && (
                   <button
                     onClick={() => window.open(project.demo, "_blank")}
-                    className="px-4 py-2 bg-accent-cyan/20 text-accent-cyan rounded hover:bg-accent-cyan/30 transition-colors text-sm font-medium focus-ring"
+                    className="px-3 sm:px-4 py-2 bg-accent-cyan/20 text-accent-cyan rounded hover:bg-accent-cyan/30 transition-colors text-xs sm:text-sm font-medium focus-ring"
                   >
                     🚀 Live Demo
                   </button>
@@ -94,7 +97,7 @@ export function ProjectsApp({ app }: ProjectsAppProps) {
                 {project.github && (
                   <button
                     onClick={() => window.open(project.github, "_blank")}
-                    className="px-4 py-2 bg-accent-purple/20 text-accent-purple rounded hover:bg-accent-purple/30 transition-colors text-sm font-medium focus-ring"
+                    className="px-3 sm:px-4 py-2 bg-accent-purple/20 text-accent-purple rounded hover:bg-accent-purple/30 transition-colors text-xs sm:text-sm font-medium focus-ring"
                   >
                     📂 GitHub
                   </button>

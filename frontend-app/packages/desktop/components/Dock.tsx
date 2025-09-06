@@ -11,32 +11,49 @@ import timelineContent from "../../../content/timeline.json"
 import projectsContent from "../../../content/projects.json"
 import contactContent from "../../../content/contact.json"
 
-// App definitions with default window properties - 20% smaller
+// App definitions with responsive positioning and sizing
+const getResponsiveWindowConfig = () => {
+  if (typeof window === 'undefined') return {}; // SSR safety
+  
+  const isTablet = window.matchMedia('(max-width: 1200px) and (min-width: 769px)').matches;
+  const isSmallTablet = window.matchMedia('(max-width: 1024px) and (min-width: 769px)').matches;
+  
+  // Responsive sizing multiplier
+  const sizeMultiplier = isSmallTablet ? 0.85 : isTablet ? 0.92 : 1;
+  
+  // Position offset for responsive layouts  
+  const posOffset = isTablet ? 20 : 30;
+  
+  return { sizeMultiplier, posOffset };
+};
+
 const apps: WindowApp[] = [
   {
     ...aboutContent,
     defaultPosition: { x: 100, y: 100 },
-    defaultSize: { width: 560, height: 400 } // Un pelin más grande
+    defaultSize: { width: 560, height: 400 }
   },
   {
     ...skillsContent,
-    defaultPosition: { x: 150, y: 150 },
-    defaultSize: { width: 560, height: 400 } // 700x500 * 0.8
+    defaultPosition: { x: 150, y: 150 }, 
+    defaultSize: { width: 560, height: 400 }
   },
   {
     ...timelineContent,
     defaultPosition: { x: 200, y: 200 },
-    defaultSize: { width: 640, height: 480 } // 800x600 * 0.8
+    defaultSize: { width: 640, height: 480 }
   },
   {
     ...projectsContent,
-    defaultPosition: { x: 250, y: 250 },
-    defaultSize: { width: 720, height: 520 } // 900x650 * 0.8
+    // Nueva posición: segunda columna, arriba a la derecha 
+    defaultPosition: { x: 450, y: 120 },
+    defaultSize: { width: 720, height: 520 }
   },
   {
     ...contactContent,
-    defaultPosition: { x: 300, y: 300 },
-    defaultSize: { width: 600, height: 480 } // Tamaño adecuado para formulario completo sin scroll
+    // Nueva posición: segunda columna, un poco más abajo que projects
+    defaultPosition: { x: 500, y: 170 },
+    defaultSize: { width: 600, height: 480 }
   }
 ]
 
