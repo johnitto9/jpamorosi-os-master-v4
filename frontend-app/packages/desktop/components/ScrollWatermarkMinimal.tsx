@@ -15,6 +15,7 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
   const [show, setShow] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [avatarEventReceived, setAvatarEventReceived] = useState(false);
   
   useEffect(() => {
     console.log("🎯 ScrollWatermarkMinimal mounted");
@@ -31,10 +32,11 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
     // Listener para el evento del avatar (método confiable)
     const handleAvatarReallyVisible = (event: CustomEvent) => {
       console.log('🎯 ScrollWatermarkMinimal: Avatar REALLY visible event received:', event.detail);
+      setAvatarEventReceived(true);
       setTimeout(() => {
         setShow(true);
-        console.log('✅ ScrollWatermarkMinimal: Showing via avatar sync');
-      }, 300); // Solo 300ms porque ya está verificado
+        console.log('✅ ScrollWatermarkMinimal: Showing via avatar sync AFTER loader fadeout');
+      }, 1500); // 1.5 segundos para asegurar que el loader haya desaparecido completamente
     };
     
     // Añadir listener para el evento del avatar
@@ -42,8 +44,10 @@ const ScrollWatermarkMinimal: React.FC<ScrollWatermarkMinimalProps> = ({
     
     // Timer de fallback si el avatar no carga
     const showTimer = setTimeout(() => {
-      console.log("🚀 ScrollWatermarkMinimal showing (fallback timer)");
-      setShow(true);
+      if (!avatarEventReceived) {
+        console.log("🚀 ScrollWatermarkMinimal showing (fallback timer)");
+        setShow(true);
+      }
     }, delay);
     
     const hideTimer = setTimeout(() => {
