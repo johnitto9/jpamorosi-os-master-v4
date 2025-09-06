@@ -80,7 +80,7 @@ export const metadata: Metadata = {
       { rel: 'icon', url: '/android-chrome-512x512.svg', sizes: '512x512', type: 'image/svg+xml' }
     ]
   },
-  manifest: '/site.webmanifest',
+  manifest: '/manifest.webmanifest',
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION || ''
   },

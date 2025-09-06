@@ -5,12 +5,17 @@ import { Window } from "../packages/desktop/components/Window";
 import { Dock } from "../packages/desktop/components/Dock";
 import Desktop from "../components/Desktop";
 import { RealTimeClock } from "../components/RealTimeClock";
+import { AvatarLoader } from "../components/AvatarLoader";
+import { AvatarVisibilityVerifier } from "../components/AvatarVisibilityVerifier";
+import { useAvatarStore } from "../store/avatarStore";
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 
 export default function ClientApp() {
   const [mounted, setMounted] = useState(false);
   const { windows } = useDesktopStore();
+  const { isLoading, progress, isLoaded } = useAvatarStore();
 
   useEffect(() => {
     setMounted(true);
@@ -26,6 +31,20 @@ export default function ClientApp() {
 
   return (
     <>
+      {/* Avatar Loader */}
+      <AnimatePresence>
+        {isLoading && !isLoaded && (
+          <AvatarLoader progress={progress} isVisible={true} />
+        )}
+      </AnimatePresence>
+
+      {/* Avatar Visibility Verifier - Comprueba que el avatar esté realmente visible */}
+      <AvatarVisibilityVerifier 
+        debug={true}
+        checkInterval={100}
+        maxChecks={100}
+      />
+
       {/* Desktop es el orquestador principal del fondo y la UI */}
       <Desktop>
         {/* ÁREA DE SCROLL INVISIBLE - solo para generar scroll */}
@@ -64,7 +83,7 @@ export default function ClientApp() {
         </div>
 
         <div className="text-center">
-          <div className="bg-black/60 backdrop-blur-sm border border-cyan-400/30 p-6 rounded-lg inline-block shadow-2xl mt-32 pointer-events-auto">
+          <div className="bg-black/60 backdrop-blur-sm border border-cyan-400/30 p-6 rounded-lg inline-block shadow-2xl mt-32 pointer-events-auto z-[45]">
             <h2 className="text-lg font-semibold text-cyan-400 mb-3 select-text">Welcome to jpamorosi.os</h2>
             <p className="text-gray-300 text-sm max-w-md mx-auto leading-relaxed select-text">
               This is an interactive CV built as a desktop environment. Click the dock icons to 
@@ -96,7 +115,7 @@ export default function ClientApp() {
         {/* Welcome Card Desktop */}
         <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[50]">
           <div className="text-center transform scale-90">
-            <div className="bg-black/60 backdrop-blur-sm border border-cyan-400/30 p-5 rounded-lg inline-block shadow-2xl pointer-events-auto">
+            <div className="bg-black/60 backdrop-blur-sm border border-cyan-400/30 p-5 rounded-lg inline-block shadow-2xl pointer-events-auto z-[45]">
               <h2 className="text-base font-semibold text-cyan-400 mb-3 select-text">Welcome to jpamorosi.os</h2>
               <p className="text-gray-300 text-sm max-w-md mx-auto leading-relaxed select-text">
                 This is an interactive CV built as a desktop environment. Click the dock icons to 

@@ -56,15 +56,29 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
       }
     };
 
-    // Listener para el evento del avatar
-    const handleAvatarLoaded = (event: CustomEvent) => {
-      console.log('🎨 Avatar loaded event received:', event.detail);
+    // Listener para el evento del avatar (método confiable)
+    const handleAvatarReallyVisible = (event: CustomEvent) => {
+      console.log('🎯 Avatar REALLY visible event received:', event.detail);
       setAvatarLoaded(true);
       if (avatarSync) {
-        // Pequeño delay adicional para que el avatar se "asiente"
+        // Delay reducido porque ya verificamos que está visible
         setTimeout(() => {
-          showWatermark('avatar-3d-loaded');
-        }, 500);
+          showWatermark('avatar-3d-verified-visible');
+        }, 300); // Solo 300ms porque ya está verificado
+      }
+    };
+
+    // Listener para el evento del avatar (método legacy como fallback)
+    const handleAvatarLoaded = (event: CustomEvent) => {
+      console.log('🎨 Avatar fully loaded event received (legacy):', event.detail);
+      // Solo actuar si no hemos recibido el evento "really visible" aún
+      if (!avatarLoaded) {
+        setAvatarLoaded(true);
+        if (avatarSync) {
+          setTimeout(() => {
+            showWatermark('avatar-3d-legacy-loaded');
+          }, 1200); // Delay más largo para método legacy
+        }
       }
     };
 
@@ -84,9 +98,12 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
       }, delay + 3000); // 3 segundos extra para esperar al avatar
     }
 
-    // Añadir listener para el evento del avatar
+    // Añadir listeners para los eventos del avatar
     if (avatarSync) {
-      window.addEventListener('avatarLoaded', handleAvatarLoaded as EventListener);
+      // Prioridad 1: Evento verificado de visibilidad real
+      window.addEventListener('avatarReallyVisible', handleAvatarReallyVisible as EventListener);
+      // Prioridad 2: Evento legacy como fallback
+      window.addEventListener('avatarFullyLoaded', handleAvatarLoaded as EventListener);
     }
 
     // Auto-ocultar después de un tiempo
@@ -120,7 +137,8 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
       window.removeEventListener('wheel', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
       if (avatarSync) {
-        window.removeEventListener('avatarLoaded', handleAvatarLoaded as EventListener);
+        window.removeEventListener('avatarReallyVisible', handleAvatarReallyVisible as EventListener);
+        window.removeEventListener('avatarFullyLoaded', handleAvatarLoaded as EventListener);
       }
       clearTimeout(showTimer);
       if (hideTimer) clearTimeout(hideTimer);
@@ -131,7 +149,7 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
     <AnimatePresence>
       {/* DEBUG OVERLAY - siempre visible para testear */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-4 left-4 bg-red-500/80 text-white p-2 rounded text-xs z-[11000] font-mono">
+        <div className="fixed top-4 left-4 bg-red-500/80 text-white p-2 rounded text-xs z-[11000] font-mono max-w-xs">
           ScrollWatermark Debug:<br/>
           isVisible: {isVisible ? 'TRUE' : 'FALSE'}<br/>
           hasInteracted: {hasInteracted ? 'TRUE' : 'FALSE'}<br/>
@@ -139,7 +157,12 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
           avatarLoaded: {avatarLoaded ? 'TRUE' : 'FALSE'}<br/>
           avatarSync: {avatarSync ? 'TRUE' : 'FALSE'}<br/>
           showTrigger: {showTrigger}<br/>
-          Info: {debugInfo}
+          Info: {debugInfo}<br/>
+          <span className="text-yellow-300">
+            🔍 Listening for:<br/>
+            - avatarReallyVisible (primary)<br/>
+            - avatarFullyLoaded (fallback)
+          </span>
         </div>
       )}
       

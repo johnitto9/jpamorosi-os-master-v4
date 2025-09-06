@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useScrollStore } from '../store/scrollStore';
+import { useAvatarStore } from '../store/avatarStore';
 
 export function RealAvatarScene() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -13,6 +14,7 @@ export function RealAvatarScene() {
   const avatarRef = useRef<THREE.Group>();
   const animationRef = useRef<number>();
   const scrollProgress = useScrollStore((state) => state.scrollProgress);
+  const { setProgress, setLoaded, setError, reset } = useAvatarStore();
 
   // Suprimir errores específicos de texturas blob
   useEffect(() => {
@@ -154,6 +156,9 @@ export function RealAvatarScene() {
     // testCube.position.set(5, 0, 0);
     // scene.add(testCube);
 
+    // Reset avatar store al iniciar
+    reset();
+
     // Avatar loading
     const loader = new GLTFLoader();
     loader.load(
@@ -212,21 +217,21 @@ export function RealAvatarScene() {
         
         console.log('✅ Avatar añadido a la escena y visible');
         
-        // Emitir evento personalizado cuando el avatar está completamente cargado
-        const avatarLoadedEvent = new CustomEvent('avatarLoaded', {
-          detail: { 
-            timestamp: Date.now(),
-            message: 'Avatar 3D completamente cargado y visible' 
-          }
-        });
-        window.dispatchEvent(avatarLoadedEvent);
-        console.log('🎯 Evento avatarLoaded emitido');
+        // Delay para asegurar que esté realmente renderizado
+        setTimeout(() => {
+          setLoaded(true);
+          console.log('🎯 Avatar marcado como completamente cargado después de render');
+        }, 100); // Pequeño delay para asegurar renderizado
       },
       (progress) => {
-        console.log('📥 Cargando avatar:', (progress.loaded / progress.total * 100).toFixed(1) + '%');
+        const percent = (progress.loaded / progress.total * 100);
+        setProgress(percent);
+        console.log('📥 Cargando avatar:', percent.toFixed(1) + '%');
       },
       (error) => {
         console.error('❌ Error cargando avatar:', error);
+        setError(error instanceof Error ? error.message : 'Error loading 3D avatar');
+        
         // Fallback: cubo simple wrapeado en Group
         const fallbackGroup = new THREE.Group();
         const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -237,6 +242,11 @@ export function RealAvatarScene() {
         fallbackGroup.add(cube);
         scene.add(fallbackGroup);
         avatarRef.current = fallbackGroup;
+        
+        // Marcar como cargado aunque sea fallback
+        setTimeout(() => {
+          setLoaded(true);
+        }, 100);
       }
     );
 

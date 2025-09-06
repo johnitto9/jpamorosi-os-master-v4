@@ -7,8 +7,10 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
 
-    // Rutas explícitas a tus paquetes (esto es lo que quita el warning)
-    './packages/desktop/**/*.{js,ts,jsx,tsx,mdx}',
+    // Rutas explícitas a tus paquetes - más específicas para evitar node_modules
+    './packages/desktop/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './packages/desktop/store/**/*.{js,ts,jsx,tsx,mdx}',
+    './packages/desktop/apps/**/*.{js,ts,jsx,tsx,mdx}',
     './packages/three-react/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
