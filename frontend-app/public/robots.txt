@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://www.jpamorosi.dev/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1

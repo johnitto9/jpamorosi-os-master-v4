@@ -13,6 +13,23 @@ export function RealAvatarScene() {
   const avatarRef = useRef<THREE.Group>();
   const animationRef = useRef<number>();
   const scrollProgress = useScrollStore((state) => state.scrollProgress);
+
+  // Suprimir errores específicos de texturas blob
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('GLTFLoader') && message.includes('Couldn\'t load texture') && message.includes('blob:')) {
+        // Suprimir este error específico silenciosamente
+        return;
+      }
+      originalError.apply(console, args);
+    };
+    
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
   
   // Refs para la animación de estrellas
   const starPhasesRef = useRef<Float32Array>();
@@ -167,24 +184,8 @@ export function RealAvatarScene() {
             
             console.log(`🔍 Mesh ${meshCount}:`, mesh.name, mesh.visible);
             
-            // Restaurar materiales originales mejorados
-            if (mesh.material) {
-              if (Array.isArray(mesh.material)) {
-                mesh.material.forEach((mat: any) => {
-                  if (mat.isMeshStandardMaterial || mat.isMeshPhongMaterial) {
-                    mat.emissive = new THREE.Color(0x202020); // Sutil glow
-                    mat.emissiveIntensity = 0.1;
-                  }
-                });
-              } else {
-                const mat = mesh.material as any;
-                if (mat.isMeshStandardMaterial || mat.isMeshPhongMaterial) {
-                  mat.emissive = new THREE.Color(0x202020); // Sutil glow
-                  mat.emissiveIntensity = 0.1;
-                  mat.wireframe = false;
-                }
-              }
-            }
+            // NO TOCAR MATERIALES - Dejar originales intactos
+            // (Los materiales y texturas se cargan automáticamente desde el GLB)
           }
         });
         

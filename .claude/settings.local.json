@@ -34,7 +34,8 @@
       "Bash(cp:*)",
       "Bash(rg:*)",
       "Bash(cat:*)",
-      "Bash(rimraf:*)"
+      "Bash(rimraf:*)",
+      "Bash(npx sharp-cli resize:*)"
     ],
     "deny": []
   }
