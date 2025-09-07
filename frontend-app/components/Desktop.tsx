@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useDesktopStore } from '../packages/desktop/store';
 import { useScrollStore } from '../store/scrollStore';
 import { RealAvatarScene } from './RealAvatarScene';
-import ScrollWatermarkMinimal from '../packages/desktop/components/ScrollWatermarkMinimal';
+import ScrollWatermarkClean from '../packages/desktop/components/ScrollWatermarkClean';
 
 export default function Desktop({ children }: { children?: React.ReactNode }) {
   const { windows } = useDesktopStore();
@@ -48,10 +48,9 @@ export default function Desktop({ children }: { children?: React.ReactNode }) {
         </div>
       </div>
       
-      {/* ScrollWatermark minimalista */}
-      <ScrollWatermarkMinimal 
-        delay={1700}    // Aparece a los 1.7 segundos (+0.5seg retraso)  
-        hideAfter={4500} // Dura 4.5 segundos (+0.5seg duración)
+      {/* ScrollWatermark limpio - sincronizado SOLO con avatar store */}
+      <ScrollWatermarkClean 
+        hideAfter={4500} // Dura 4.5 segundos
       />
     </div>
   );

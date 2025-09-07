@@ -37,11 +37,11 @@ export const metadata: Metadata = {
     description: 'Explore my personal OS: projects, AI, hardware, and contact. A unique interactive CV.',
     images: [
       {
-        url: '/og.jpg',
+        url: '/imgs/avif/og.avif',
         width: 1200,
         height: 630,
         alt: 'jpamorosi.os - Personal Operating System',
-        type: 'image/jpeg'
+        type: 'image/avif'
       }
     ]
   },
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     creator: '@jpamorosi',
     title: 'jpamorosi.os — Interactive CV',
     description: 'My interactive desktop on the web. Explore my experience as a Builder & AI Hacker.',
-    images: ['/og.jpg']
+    images: ['/imgs/avif/og.avif']
   },
   robots: {
     index: true,

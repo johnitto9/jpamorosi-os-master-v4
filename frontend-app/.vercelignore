@@ -1,0 +1,26 @@
+# Ignore files that don't exist and cause warnings
+manifest.webmanifest
+*/manifest.webmanifest/route.*
+
+# Development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Test coverage
+coverage/
+
+# Documentation
+docs/
+*.md
+!README.md
