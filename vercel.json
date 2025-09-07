@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "root": "frontend-app"
+  "buildCommand": "cd frontend-app && pnpm install && pnpm build",
+  "outputDirectory": "frontend-app/.next",
+  "installCommand": "cd frontend-app && pnpm install"
 }
