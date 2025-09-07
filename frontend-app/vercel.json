@@ -43,7 +43,11 @@
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 10
-    },
-    "app/manifest.webmanifest/route.{ts,js}": null
+    }
+  },
+  "build": {
+    "env": {
+      "VERCEL_FORCE_NO_BUILD_CACHE": "1"
+    }
   }
 }

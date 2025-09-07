@@ -77,9 +77,9 @@ const nextConfig = {
   // PWA-related redirects and rewrites
   async redirects() {
     return [
-      // Redirect old manifest routes to the new dynamic manifest
+      // Redirect phantom manifest routes 
       {
-        source: '/manifest.webmanifest/route',
+        source: '/manifest.webmanifest/route/:path*',
         destination: '/manifest.webmanifest',
         permanent: true,
       },
@@ -89,6 +89,15 @@ const nextConfig = {
         permanent: true,
       }
     ];
+  },
+
+  // Exclude phantom routes from build
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': [
+        '**/manifest.webmanifest/route*',
+      ],
+    },
   },
 
 
