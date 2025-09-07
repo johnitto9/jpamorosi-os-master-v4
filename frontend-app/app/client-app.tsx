@@ -55,7 +55,7 @@ export default function ClientApp() {
       </Desktop>
 
       {/* Top Bar - FIXED position para que no se mueva con el scroll */}
-      <header className="fixed top-0 left-0 right-0 z-[101] flex items-center justify-between p-4 bg-black/20 backdrop-blur-sm border-b border-cyan-400/20">
+      <header className="fixed top-0 left-0 right-0 z-[101] flex items-center justify-between px-4 py-2 bg-black/20 backdrop-blur-sm border-b border-cyan-400/20" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
           <span className="font-mono text-sm text-white">jpamorosi.os</span>
@@ -66,9 +66,9 @@ export default function ClientApp() {
       </header>
 
       {/* LAYOUT ORIGINAL MOBILE + MODIFICACIONES DESKTOP */}
-      <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none z-[50] md:hidden">
-        {/* Mobile: Layout original con flexbox centrado */}
-        <div className="text-center -mt-48">
+      <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none z-[50] md:hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        {/* Mobile: Layout original con flexbox centrado - ajustado para evitar solapamiento */}
+        <div className="text-center mobile-title-safe">
           <div className="mb-12">
             <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-2xl pointer-events-auto select-text">
               <span className="text-cyan-400">jp</span>

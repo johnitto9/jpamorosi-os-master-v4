@@ -1,6 +1,8 @@
-# Ignore files that don't exist and cause warnings
-manifest.webmanifest
-*/manifest.webmanifest/route.*
+# Ignore phantom manifest routes that cause Vercel warnings
+app/manifest.webmanifest/
+app/manifest.webmanifest/route.*
+manifest.webmanifest/route.*
+site.webmanifest
 
 # Development files
 .env.local

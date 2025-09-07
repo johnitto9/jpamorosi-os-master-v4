@@ -76,7 +76,19 @@ const nextConfig = {
 
   // PWA-related redirects
   async redirects() {
-    return [];
+    return [
+      // Redirect old manifest routes to the new dynamic manifest
+      {
+        source: '/manifest.webmanifest/route',
+        destination: '/manifest.webmanifest',
+        permanent: true,
+      },
+      {
+        source: '/site.webmanifest',
+        destination: '/manifest.webmanifest',
+        permanent: true,
+      }
+    ];
   },
 
   // Static optimization

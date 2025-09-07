@@ -28,6 +28,32 @@
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
+
+  /* Ajuste defensivo para diferentes iPhones y configuraciones de accesibilidad */
+  .mobile-title-safe {
+    margin-top: -8rem; /* Base: -mt-32 */
+  }
+
+  /* iPhone estándar y configuraciones normales */
+  @media screen and (max-height: 900px) and (max-width: 430px) {
+    .mobile-title-safe {
+      margin-top: -6rem; /* Menos agresivo para pantallas más pequeñas */
+    }
+  }
+  
+  /* iPhone con texto grande o configuraciones de accesibilidad */
+  @media screen and (max-height: 850px) {
+    .mobile-title-safe {
+      margin-top: -4rem; /* Muy conservativo para evitar solapamiento */
+    }
+  }
+
+  /* iPhone Pro Max y pantallas grandes (mantiene tu configuración) */
+  @media screen and (min-height: 900px) {
+    .mobile-title-safe {
+      margin-top: -12rem; /* Mantiene el look original en tu iPhone */
+    }
+  }
   
   .glass-card-dark {
     @apply bg-black bg-opacity-20 border border-white border-opacity-10 backdrop-blur-md;
