@@ -1,4 +1,0 @@
-# Force Vercel to re-analyze routes and forget phantom manifest route
-# This file forces a clean route analysis on next deploy
-BUILD_TIMESTAMP=2025-01-07-manifest-cleanup
-ROUTE_OVERRIDE_FLAG=true

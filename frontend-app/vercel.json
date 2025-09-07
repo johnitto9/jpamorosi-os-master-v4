@@ -45,10 +45,5 @@
       "maxDuration": 10
     },
     "app/manifest.webmanifest/route.{ts,js}": null
-  },
-  "outputFileTracing": {
-    "ignoredFiles": [
-      "**/manifest.webmanifest/route.*"
-    ]
   }
 }
