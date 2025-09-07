@@ -218,7 +218,12 @@ export function Background3DWithAvatar({
     )
     
     camera.position.set(0, 0, 20) // Alejar aún más la cámara para dar espacio al avatar adelantado
-    camera.lookAt(0, -1.5, 0) // Mirar hacia donde están centrados avatar y partículas
+    
+    // Ajustar punto de mira según dispositivo
+    const isMobileSetup = window.innerWidth < 768
+    const lookAtY = isMobileSetup ? -3.5 : -1.5  // Mirar más abajo en mobile
+    camera.lookAt(0, lookAtY, 0)
+    console.log('Camera positioned at:', camera.position, 'looking at Y:', lookAtY)
     console.log('Camera positioned at:', camera.position, 'looking at origin')
 
     // Store refs
@@ -247,8 +252,21 @@ export function Background3DWithAvatar({
         avatarRef.current.rotation.x = gestureRotation.x * 0.5 // Subtle gesture response
         avatarRef.current.rotation.z = gestureRotation.y * 0.3 // Subtle gesture response
         
-        // Ligero movimiento Y basado en scroll
-        const originalY = -1.5
+        // Ligero movimiento Y basado en scroll - ajustado para mobile
+        const isMobileView = window.innerWidth < 768
+        const originalY = isMobileView ? -5.0 : -1.5  // Avatar MUCHO más abajo en mobile (Y negativo = abajo)
+        
+        // DEBUG: Log para verificar que se está aplicando
+        if (Math.random() < 0.001) { // Log ocasional para no saturar console
+          console.log('🔍 Avatar Y position debug:', {
+            isMobileView,
+            windowWidth: window.innerWidth,
+            originalY,
+            finalY: originalY + (scrollFactorRef.current * 1.0),
+            scrollFactor: scrollFactorRef.current
+          })
+        }
+        
         avatarRef.current.position.y = originalY + (scrollFactorRef.current * 1.0)
       }
       

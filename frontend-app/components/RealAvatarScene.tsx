@@ -196,9 +196,15 @@ export function RealAvatarScene() {
         
         console.log(`🎭 Total meshes configurados: ${meshCount}`);
         
-        // Posición inicial del avatar - subido más hacia arriba
+        // Posición inicial del avatar - ajustada para mobile
         avatar.scale.setScalar(6); // Escala igual que en working version  
-        avatar.position.set(0, -0.6, 5); // Subido más hacia arriba desde -0.9
+        
+        // Detectar mobile y ajustar posición Y
+        const isMobileView = window.innerWidth < 768;
+        const avatarY = isMobileView ? -2.5 : -0.6;  // MUCHO más abajo en mobile
+        avatar.position.set(0, avatarY, 5);
+        
+        console.log('📱 Mobile detection:', { isMobileView, windowWidth: window.innerWidth, avatarY });
         
         console.log(`🎯 Avatar configurado:`);
         console.log('  Escala:', avatar.scale.x.toFixed(3));
@@ -250,9 +256,15 @@ export function RealAvatarScene() {
       }
     );
 
-    // Posición de cámara actualizada
+    // Posición de cámara actualizada - ajustada para mobile
     camera.position.set(0, 0, 20); // Alejar más la cámara
-    camera.lookAt(0, -0.9, 0); // Mirar exactamente donde está el avatar
+    
+    // Ajustar punto de mira según dispositivo para coincidir con avatar
+    const isMobileSetup = window.innerWidth < 768;
+    const lookAtY = isMobileSetup ? -2.5 : -0.9;  // Mirar donde está el avatar en cada caso
+    camera.lookAt(0, lookAtY, 0);
+    
+    console.log('📷 Camera setup:', { isMobileSetup, lookAtY });
 
     // Store refs
     sceneRef.current = scene;
@@ -320,11 +332,17 @@ export function RealAvatarScene() {
     if (!avatarRef.current) return;
 
     // Estados de animación - CONSISTENCIA TOTAL para evitar bug de estacionado
+    // Detectar mobile para consistencia con posición inicial
+    const isMobileAnimation = window.innerWidth < 768;
+    const startY = isMobileAnimation ? -2.5 : -0.6; // Usar misma lógica que posición inicial
+    
     const START_STATE = {
       scale: 6,       // Grande al inicio
-      position: { x: 0, y: -0.6, z: 5 }, // EXACTAMENTE igual que la posición del loader (subido)
+      position: { x: 0, y: startY, z: 5 }, // Respetar configuración mobile
       rotation: { y: 0 } // De frente
     };
+    
+    console.log('🔄 Scroll animation START_STATE:', { isMobileAnimation, startY });
 
     const END_STATE = {
       scale: 0.5,     // Valor exacto del repo master-master2

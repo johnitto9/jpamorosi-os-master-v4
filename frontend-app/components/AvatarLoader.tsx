@@ -38,7 +38,7 @@ export function AvatarLoader({ progress = 0, isVisible = true }: AvatarLoaderPro
       {/* Container del loader - centrado exactamente donde aparece el avatar 3D */}
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" 
            style={{ 
-             marginTop: '-15vh' /* Ajustado basado en prod testing */
+             marginTop: isMobile ? '-8vh' : '-15vh' /* Ajuste sutil en mobile para alinear con avatar */
            }}>
         
         {/* Avatar placeholder - solo círculo */}

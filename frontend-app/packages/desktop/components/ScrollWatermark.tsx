@@ -183,7 +183,9 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
             duration: 0.5,
             ease: "easeOut"
           }}
-          className="fixed inset-0 pointer-events-none z-[10000] flex items-center justify-center md:justify-end md:pr-12"
+          className={`fixed inset-0 pointer-events-none z-[10000] flex items-center justify-center md:justify-end md:pr-12 ${
+            isMobile ? 'pt-16' : ''  /* Bajar watermark en mobile proporcionalmente */
+          }`}
         >
           {/* Container principal con efecto flotante */}
           <motion.div 
