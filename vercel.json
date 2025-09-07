@@ -1,6 +1,5 @@
 {
-  "version": 2,
-  "buildCommand": "cd frontend-app && pnpm install && pnpm build",
-  "outputDirectory": "frontend-app/.next",
-  "installCommand": "cd frontend-app && pnpm install"
+  "buildCommand": "cd frontend-app && pnpm build",
+  "installCommand": "cd frontend-app && pnpm install",
+  "outputDirectory": "frontend-app/.next"
 }
