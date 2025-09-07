@@ -74,7 +74,7 @@ const nextConfig = {
   // Compression
   compress: true,
 
-  // PWA-related redirects
+  // PWA-related redirects and rewrites
   async redirects() {
     return [
       // Redirect old manifest routes to the new dynamic manifest
@@ -87,6 +87,16 @@ const nextConfig = {
         source: '/site.webmanifest',
         destination: '/manifest.webmanifest',
         permanent: true,
+      }
+    ];
+  },
+
+  async rewrites() {
+    return [
+      // Ensure manifest is handled by the dynamic manifest.ts file
+      {
+        source: '/manifest.webmanifest',
+        destination: '/manifest.webmanifest'
       }
     ];
   },
