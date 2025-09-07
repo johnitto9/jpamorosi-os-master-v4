@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://jpamorosi.com'
+  const baseUrl = 'https://jpamorosi.dev'
   const lastModified = new Date()
 
   return [
