@@ -25,29 +25,11 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
-    },
-    {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
     }
   ],
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 10
-    }
-  },
-  "build": {
-    "env": {
-      "VERCEL_FORCE_NO_BUILD_CACHE": "1"
     }
   }
 }

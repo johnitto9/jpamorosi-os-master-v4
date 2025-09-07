@@ -35,7 +35,8 @@
       "Bash(rg:*)",
       "Bash(cat:*)",
       "Bash(rimraf:*)",
-      "Bash(npx sharp-cli resize:*)"
+      "Bash(npx sharp-cli resize:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }

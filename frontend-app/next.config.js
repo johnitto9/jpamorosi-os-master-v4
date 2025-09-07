@@ -74,31 +74,6 @@ const nextConfig = {
   // Compression
   compress: true,
 
-  // PWA-related redirects and rewrites
-  async redirects() {
-    return [
-      // Redirect phantom manifest routes 
-      {
-        source: '/manifest.webmanifest/route/:path*',
-        destination: '/manifest.webmanifest',
-        permanent: true,
-      },
-      {
-        source: '/site.webmanifest',
-        destination: '/manifest.webmanifest',
-        permanent: true,
-      }
-    ];
-  },
-
-  // Exclude phantom routes from build
-  experimental: {
-    outputFileTracingExcludes: {
-      '*': [
-        '**/manifest.webmanifest/route*',
-      ],
-    },
-  },
 
 
   // Static optimization
