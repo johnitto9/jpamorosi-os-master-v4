@@ -91,15 +91,6 @@ const nextConfig = {
     ];
   },
 
-  async rewrites() {
-    return [
-      // Ensure manifest is handled by the dynamic manifest.ts file
-      {
-        source: '/manifest.webmanifest',
-        destination: '/manifest.webmanifest'
-      }
-    ];
-  },
 
   // Static optimization
   trailingSlash: false,

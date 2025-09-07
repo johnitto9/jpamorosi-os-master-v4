@@ -1,8 +1,9 @@
 # Ignore phantom manifest routes that cause Vercel warnings
 app/manifest.webmanifest/
-app/manifest.webmanifest/route.*
-manifest.webmanifest/route.*
+**/manifest.webmanifest/route*
+**/manifest.webmanifest/route.*
 site.webmanifest
+public/site.webmanifest
 
 # Development files
 .env.local
