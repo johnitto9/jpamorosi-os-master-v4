@@ -1,3 +1,5 @@
+// next.config.js
+
 // Security headers
 const securityHeaders = [
   {
@@ -29,7 +31,10 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
       "media-src 'self' data: blob:",
-      "connect-src 'self' blob: data: https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      // 🔑 FIX: permitimos llamadas a Formspree y mantenemos Vercel
+      "connect-src 'self' blob: data: https://formspree.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      // (Opcional pero recomendado si alguna vez usás <form action="https://formspree.io/...">)
+      "form-action 'self' https://formspree.io",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "object-src 'none'"
@@ -46,7 +51,7 @@ const nextConfig = {
     ignoreDuringBuilds: false
   },
   productionBrowserSourceMaps: false,
-  
+
   // Security headers
   async headers() {
     return [
@@ -59,7 +64,7 @@ const nextConfig = {
 
   // Performance optimizations
   experimental: {
-    // optimizeCss: true, // Temporarily disabled for build testing
+    // optimizeCss: true,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons']
   },
 
@@ -68,17 +73,15 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year
+    minimumCacheTTL: 60 * 60 * 24 * 365 // 1 year
   },
 
   // Compression
   compress: true,
 
-
-
   // Static optimization
   trailingSlash: false,
   poweredByHeader: false
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
