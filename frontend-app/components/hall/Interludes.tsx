@@ -125,23 +125,28 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
 }
 
 // --- The scroll engine -------------------------------------------------------
-// Builds ONE scrubbed timeline per scene, bound to the real ScrollStage scroller.
-// `build(tl, q)` authors the desktop choreography; `mobileBuild(tl, q)` (optional)
-// authors a parallel vertical scrubbed timeline for the mobile scene block.
+// Two patterns, two viewports:
 //
-// ARCHITECTURE (1:1 parity): both desktop and mobile share the SAME shape —
-// one shared timeline per scene, scrubbed to that scene's scroll progress,
-// every element animated within it. Mobile just lays out elements vertically
-// and uses vertical transforms (cards enter from below / exit above, words
-// dance stacked, thread grows top-to-bottom) instead of the desktop's
-// horizontal-axis choreography.
+// DESKTOP (≥1024px): ONE scrubbed timeline per scene, bound to [data-scene].
+// `build(tl, q)` authors the choreography; `q` is a scoped selector.
+// Sticky 300vh stage, horizontal-axis choreography. This is the proven
+// architecture that the user already loves ("flama").
 //
-// `q` is a scoped selector (gsap.utils.selector) — desktop query is scoped to
-// rootEl, mobile query to the mobile scene subtree, so the same `.il-*` class
-// contract can drive both without collisions.
+// MOBILE (≤1023px): per-element ScrollTrigger with toggleActions. Each animated
+// element has its own trigger; the animation plays once when the element
+// enters the viewport. This is a deliberate departure from the desktop's
+// shared-scrubbed-timeline pattern — on mobile, a single scrubbed timeline
+// over a 280vh section produces changes too subtle to perceive, and the
+// user reported "sin animacion" (no animation visible) after S4/S5 attempts
+// to maintain architectural parity. Per-element triggers give the user a
+// clear, visible sequence of reveals as they scroll.
+//
+// `mobile(q, ctx)` gets the scoped selector, the scroller, and the mobile
+// section. The mobile function authors whatever per-element animations it
+// wants — no shared timeline required.
 function useSceneChoreography(
   build: (tl: gsap.core.Timeline, q: (s: string) => Element[]) => void,
-  mobileBuild?: (tl: gsap.core.Timeline, q: (s: string) => Element[]) => void,
+  mobile?: (q: (s: string) => Element[], ctx: { scroller: HTMLElement | null; section: HTMLElement }) => void,
 ): RefObject<HTMLDivElement> {
   const container = useContext(ScrollContainerContext);
   const root = useRef<HTMLDivElement>(null);
@@ -155,19 +160,26 @@ function useSceneChoreography(
       const scroller =
         (container?.current as HTMLElement | null) ??
         (typeof document !== "undefined" ? document.querySelector<HTMLElement>("main") : null) ??
-        undefined;
-      const section = rootEl?.querySelector<HTMLElement>("[data-scene]") ?? undefined;
-      const mobileSection = rootEl?.querySelector<HTMLElement>("[data-scene-mobile]") ?? undefined;
+        null;
+      const section = rootEl?.querySelector<HTMLElement>("[data-scene]") ?? null;
+      const mobileSection = rootEl?.querySelector<HTMLElement>("[data-scene-mobile]") ?? null;
       if (!rootEl || !scroller) return; // leave the readable base layout
 
       // gsap.matchMedia: the skill's responsive gate — builds only on the
       // matched viewport with motion allowed, auto-reverts otherwise.
       const mm = gsap.matchMedia();
 
-      // Desktop: sticky horizontal scrubbed timeline (unchanged architecture)
+      // Desktop: sticky horizontal scrubbed timeline (unchanged architecture).
+      // CRITICAL: scope the selector to [data-scene], NOT rootEl. The section
+      // also contains [data-scene-mobile] with the SAME class names (.il-word,
+      // .il-card-a, etc.) — if we used rootEl as the scope, the selector would
+      // match BOTH scenes' elements and the forEach on .il-word would iterate
+      // 10 words instead of 5, pushing the desktop words to late timeline
+      // positions and causing them to accumulate. Scoping to [data-scene]
+      // isolates the desktop choreography to the desktop scene's own elements.
       if (section) {
         mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
-          const q = gsap.utils.selector(rootEl);
+          const q = gsap.utils.selector(section);
           const tl = gsap.timeline({
             defaults: { ease: "none" },
             scrollTrigger: {
@@ -182,37 +194,15 @@ function useSceneChoreography(
         });
       }
 
-      // Mobile: vertical scrubbed timeline (1:1 architectural parity).
-      // mobileBuild is the per-scene choreography function; the section is the
-      // SAME shape as desktop (sticky stage inside a tall section) so a single
-      // scrubbed timeline drives all element transforms.
-      if (mobileBuild && mobileSection) {
+      // Mobile: per-element ScrollTrigger (toggleActions).
+      // The mobile function authors each element's own scrollTrigger; the
+      // section is still a tall structure (180-200vh) so the sticky stage
+      // behaves correctly, but the animation is per-element rather than
+      // shared. This is what actually plays visibly on a phone.
+      if (mobile && mobileSection) {
         mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
           const q = gsap.utils.selector(mobileSection);
-          // Defensive: explicitly set initial states for the per-frame elements.
-          // fromTo's immediateRender normally handles this, but an explicit set
-          // here guarantees the layout is right even if the fromTo FROM state
-          // gets clobbered (CSS specificity, hmr race, etc.) — keeps the words
-          // invisible and the cards/screen in their starting positions until
-          // the timeline plays them in.
-          gsap.set(q(".il-word"), { autoAlpha: 0, yPercent: 90 });
-          gsap.set(q(".il-flow"), { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" });
-          gsap.set(q(".il-card-a"), { yPercent: 130, autoAlpha: 0, scale: 0.85 });
-          gsap.set(q(".il-card-b"), { yPercent: 140, autoAlpha: 0, scale: 0.85 });
-          gsap.set(q(".il-screen"), { yPercent: 130, autoAlpha: 0, scale: 0.85 });
-          gsap.set(q(".il-thread"), { scaleY: 0 });
-          gsap.set(q(".il-layer"), { autoAlpha: 0, y: 60 });
-          const tl = gsap.timeline({
-            defaults: { ease: "none" },
-            scrollTrigger: {
-              trigger: mobileSection,
-              scroller,
-              start: "top top",
-              end: "bottom bottom",
-              scrub: 1,
-            },
-          });
-          mobileBuild(tl, q);
+          mobile(q, { scroller, section: mobileSection });
         });
       }
 
@@ -419,27 +409,41 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
         if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
       });
     },
-    // MOBILE BUILD — same single scrubbed timeline, vertical transforms.
-    // Cards enter from below and exit up; thread grows top→bottom; words dance stacked.
-    (tl, q) => {
-      tl.from(q(".il-eyebrow"), { y: 26, duration: 0.5, ease: "power2.out" }, 0)
-        .from(q(".il-head"), { y: 44, rotate: -2, duration: 0.7, ease: "power3.out" }, 0.05)
-        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
-        .to(q(".il-head"), { y: -22, duration: 5, ease: "none" }, 0.9)
-        .fromTo(q(".il-thread"), { scaleY: 0 }, { scaleY: 1, duration: 5, ease: "none", transformOrigin: "top center" }, 0.4)
-        // card A: rises from below, settles, then exits up
-        .fromTo(q(".il-card-a"), { yPercent: 130, autoAlpha: 0, scale: 0.85 },
-          { yPercent: 0, autoAlpha: 1, scale: 1, duration: 1.5, ease: "power3.out" }, 0.5)
-        .to(q(".il-card-a"), { yPercent: -130, autoAlpha: 0, scale: 0.9, duration: 1.4, ease: "power1.in" }, 2.6)
-        // card B: rises from below while A is still present
-        .fromTo(q(".il-card-b"), { yPercent: 140, autoAlpha: 0, scale: 0.85 },
-          { yPercent: 0, autoAlpha: 1, scale: 1, duration: 1.5, ease: "power3.out" }, 2.0)
-        .to(q(".il-card-b"), { yPercent: -140, autoAlpha: 0, duration: 1.2, ease: "power1.in" }, 4.4);
-      // milestone words dance stacked (vertical)
-      q(".il-word").forEach((w, i) => {
-        const at = 1.2 + i * 0.62;
-        tl.fromTo(w, { autoAlpha: 0, yPercent: 90, rotate: i % 2 ? 5 : -5 }, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)" }, at);
-        if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
+    // MOBILE BUILD — per-element scrollTrigger with toggleActions. Each
+    // element animates once when it enters the viewport. The narrative
+    // enters on its own trigger, the prints enter from below, the thread
+    // grows on its own scrub, the words dance in sequence.
+    (q, { scroller }) => {
+      // Defensive initial state — keep elements in their starting position
+      gsap.set(q(".il-card-a"), { yPercent: 100, autoAlpha: 0, scale: 0.85 });
+      gsap.set(q(".il-card-b"), { yPercent: 100, autoAlpha: 0, scale: 0.85 });
+      gsap.set(q(".il-word"), { autoAlpha: 0, yPercent: 80 });
+      gsap.set(q(".il-thread"), { scaleY: 0 });
+
+      // Narrative: subtle entrance
+      gsap.from(q(".il-eyebrow"), { y: 20, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: q(".il-eyebrow")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.from(q(".il-head"), { y: 30, rotate: -2, duration: 0.6, ease: "power3.out",
+        scrollTrigger: { trigger: q(".il-head")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.from(q(".il-body"), { y: 20, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: q(".il-body")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+
+      // Card-a: rises from below, settles
+      gsap.to(q(".il-card-a"), { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
+        scrollTrigger: { trigger: q(".il-card-a")[0], scroller, start: "top 88%", toggleActions: "play none none reverse" } });
+
+      // Card-b: enters after card-a is settled (start position deeper into the section)
+      gsap.to(q(".il-card-b"), { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
+        scrollTrigger: { trigger: q(".il-card-b")[0], scroller, start: "top 88%", toggleActions: "play none none reverse" } });
+
+      // Thread: grow from top, scrubbed to the section's own scroll
+      gsap.to(q(".il-thread"), { scaleY: 1, duration: 1.2, ease: "none", transformOrigin: "top center",
+        scrollTrigger: { trigger: q(".il-thread")[0], scroller, start: "top 80%", end: "bottom 30%", scrub: true } });
+
+      // Words: each appears in sequence with a back ease
+      q(".il-word").forEach((w) => {
+        gsap.to(w, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)",
+          scrollTrigger: { trigger: w, scroller, start: "top 88%", toggleActions: "play none none reverse" } });
       });
     },
   );
@@ -502,18 +506,25 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
         tl.fromTo(l, { autoAlpha: 0, y: 64, xPercent: -10 }, { autoAlpha: 1, y: 0, xPercent: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.4 + i * 0.72);
       });
     },
-    // MOBILE BUILD — same single timeline; system screen rises from below
-    // and floats up, layer cards assemble bottom-up.
-    (tl, q) => {
-      tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
-        .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
-        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
-        .fromTo(q(".il-screen"), { yPercent: 130, autoAlpha: 0, scale: 0.85 },
-          { yPercent: 0, autoAlpha: 1, scale: 1, duration: 1.5, ease: "power3.out" }, 0.5)
-        .to(q(".il-screen"), { yPercent: -14, duration: 5, ease: "sine.inOut" }, 2.2);
-      // layers assemble bottom-up (vertical stack)
-      q(".il-layer").forEach((l, i) => {
-        tl.fromTo(l, { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.5 + i * 0.55);
+    // MOBILE BUILD — per-element scrollTrigger. The system screen rises
+    // from below; the layer cards assemble in sequence as the user scrolls.
+    (q, { scroller }) => {
+      gsap.set(q(".il-screen"), { yPercent: 100, autoAlpha: 0, scale: 0.85 });
+      gsap.set(q(".il-layer"), { autoAlpha: 0, y: 40 });
+
+      gsap.from(q(".il-eyebrow"), { y: 20, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: q(".il-eyebrow")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.from(q(".il-head"), { y: 30, duration: 0.6, ease: "power3.out",
+        scrollTrigger: { trigger: q(".il-head")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.from(q(".il-body"), { y: 20, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: q(".il-body")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+
+      gsap.to(q(".il-screen"), { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
+        scrollTrigger: { trigger: q(".il-screen")[0], scroller, start: "top 85%", toggleActions: "play none none reverse" } });
+
+      q(".il-layer").forEach((l) => {
+        gsap.to(l, { autoAlpha: 1, y: 0, duration: 0.6, ease: "back.out(1.4)",
+          scrollTrigger: { trigger: l, scroller, start: "top 90%", toggleActions: "play none none reverse" } });
       });
     },
   );
@@ -581,25 +592,32 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
         }
       });
     },
-    // MOBILE BUILD — same single timeline; backdrop drifts, flow words pulse
-    // stacked vertically, rail advances, dots scale on each step.
-    (tl, q) => {
-      tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
-        .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
-        .from(q(".il-body"), { y: 20, duration: 0.6, ease: "power2.out" }, 0.35)
-        .fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -12, scale: 1, duration: 6, ease: "none" }, 0)
-        .fromTo(q(".il-rail"), { scaleX: 0 }, { scaleX: 1, duration: 5.4, ease: "none", transformOrigin: "left center" }, 0.6);
-      const dots = q(".il-dot");
-      q(".il-flow").forEach((w, i) => {
-        const at = 0.9 + i * 0.66;
-        tl.fromTo(w, { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" },
-          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, at);
-        if (dots[i]) tl.fromTo(dots[i], { scale: 1, autoAlpha: 0.3 }, { scale: 1.5, autoAlpha: 1, duration: 0.5 }, at);
-        if (i < words.length - 1) {
-          tl.to(w, { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.5, ease: "power1.in" }, at + 0.7);
-          if (dots[i]) tl.to(dots[i], { scale: 1, autoAlpha: 0.5, duration: 0.5 }, at + 0.7);
-        }
+    // MOBILE BUILD — per-element scrollTrigger. Backdrop drifts subtly;
+    // flow words appear in sequence; rail grows from left.
+    (q, { scroller }) => {
+      gsap.set(q(".il-flow"), { autoAlpha: 0, yPercent: 50, scale: 0.7, filter: "blur(6px)" });
+      gsap.set(q(".il-rail"), { scaleX: 0 });
+
+      gsap.from(q(".il-eyebrow"), { y: 20, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: q(".il-eyebrow")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.from(q(".il-head"), { y: 30, duration: 0.6, ease: "power3.out",
+        scrollTrigger: { trigger: q(".il-head")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.from(q(".il-body"), { y: 20, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: q(".il-body")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+
+      // Backdrop: gentle drift as the section is in view
+      gsap.fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -8, scale: 1, duration: 1.5, ease: "none",
+        scrollTrigger: { trigger: q(".il-backdrop")[0], scroller, start: "top 80%", end: "bottom 30%", scrub: true } });
+
+      // Flow words: each appears in sequence as the user scrolls
+      q(".il-flow").forEach((w) => {
+        gsap.to(w, { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out",
+          scrollTrigger: { trigger: w, scroller, start: "top 90%", toggleActions: "play none none reverse" } });
       });
+
+      // Rail: grow from left, scrubbed to the section's scroll
+      gsap.to(q(".il-rail"), { scaleX: 1, duration: 1.2, ease: "none", transformOrigin: "left center",
+        scrollTrigger: { trigger: q(".il-rail")[0], scroller, start: "top 80%", end: "bottom 30%", scrub: true } });
     },
   );
 
