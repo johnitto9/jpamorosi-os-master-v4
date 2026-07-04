@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAdminConfigured, adminMissingVars } from "@/lib/env";
 import { verifyCredentials, setSessionCookie } from "@/lib/auth/admin";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,10 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+
+  // brute-force guard: 8 attempts / 10 min per IP (T07, spec 17)
+  const limited = rateLimited(request, "admin-login", 8, 10 * 60_000);
+  if (limited) return limited;
 
   let json: unknown;
   try {

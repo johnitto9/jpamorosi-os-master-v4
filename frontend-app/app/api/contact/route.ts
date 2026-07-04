@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { rateLimited } from '@/lib/rate-limit'
+
+// NOTE (T07/T08): legacy route — the live home form posts to Formspree, and the
+// from/to below are stale (should use lib/email/service + labs@jpamorosi.dev).
+// Kept + rate-limited defensively; flagged for reconciliation in PENDING.md.
 
 // Contact form validation schema
 const contactSchema = z.object({
@@ -10,6 +15,10 @@ const contactSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  // anti-spam: 5 submissions / 10 min per IP
+  const limited = rateLimited(request, 'contact', 5, 10 * 60_000)
+  if (limited) return limited
+
   try {
     const body = await request.json()
     
