@@ -1,10 +1,10 @@
 {
-  "phase": "INTERACTIVE_STELLAR_COMPLETE", 
-  "phaseDone": "INTERACTIVE_STELLAR",
+  "phase": "CHISPA_COMPLETE",
+  "phaseDone": "CHISPA 2026-07-03: i18n total (chrome ROOM 7 idiomas + contenido via LLM cache) + heartbeat autónomo diario (ver PHASE_CHISPA_2026-07-03)",
   "tailwind": "4.1.11",
   "decisions": [
     "FASE 1 re-ejecutada: estructura re-estabilizada",
-    "Eliminada duplicación /apps → _apps_backup", 
+    "Eliminada duplicación /apps → _apps_backup",
     "Package manager pnpm@9.12.0 fijado via Corepack",
     "Tailwind v4.1.11 verificado, sin utilidades -opacity-",
     "Scene contract creado, resend dependency agregada",
@@ -54,24 +54,126 @@
     "BACKGROUND3D_INTERACTIVE: Canvas con pointerEvents habilitados, cursor grab/grabbing implementado",
     "ANIMATION_HYBRID: Rotación combinada automática + gestual + scroll-responsive para máxima interactividad",
     "AVATAR_PRESERVATION: Avatar 3D mantenido con respuesta sutil a gestos (0.5x/0.3x sensitivity)",
-    "ARCHITECTURE_INTEGRATED: Gestos aplicados al sistema existente vs crear componente separado"
+    "ARCHITECTURE_INTEGRATED: Gestos aplicados al sistema existente vs crear componente separado",
+    "SCHEME004: roadmap top-tier definido (fases A-F) en scheme004-toptier-roadmap.md",
+    "FASE A: cards holograficas image-dominant (Hall + Featured comparten HallOfFameCard)",
+    "FASE A: video de sala por proyecto en Hall (assets.heroVideo + crossfade, fallback global)",
+    "FASE A: lib/media/resolve.ts — switch Cloudflare R2/Stream por env, fallback local",
+    "FASE A: SectionTransition v2 — fold 3D mas profundo + page-lighting veil",
+    "FASE A: ParticleWaveField v2 — drift, twinkle, crest sparkle",
+    "FASE A: ContactSection en home (mismo Formspree xanbvlqw que /os)",
+    "FASE A: admin ProjectForm + campos video/links (playstore/appstore/website)",
+    "FASE D: postgres 16 en compose (profile backend, port 5433), driver postgres real del ProjectRepository con seed automatico",
+    "FASE D: redis/worker NO agregados a proposito (anti sobreingenieria, documentado en compose)",
+    "FASE E: agente Lab Guide — orchestrator Mente Unica, OpenRouter z-ai/glm-5.2 opcional, fallback determinista no-silence",
+    "FASE E: memoria por sesion (cookie al_sid) + leads merge-upsert en postgres, degradacion memory-lite sin DB",
+    "FASE E: widget aero grande + nudge proactivo + admin /admin/leads",
+    "FASE B capa 1: ProjectMediaShowcase (video+galeria) y ProjectLinksBlock (stores) en ProjectRoom",
+    "Verificado: smoke SQL + E2E HTTP contra postgres real (lead capturado, memoria persistida)",
+    "HOLO_TOTAL: HolographicCard en todas las cards (proof, evidence, founder, related, chat) ademas de Hall/Featured",
+    "FASE B cierre: ProjectHero 2.0 (particulas + watermark + hero image holografica + links completos), MediaShowcase solo-video (gallery vive en EvidenceWall)",
+    "FASE C: Admin 2.0 — ProjectForm con tabs + live preview de la HallOfFameCard real + color pickers + editor de screenshots",
+    "FASE F: cohesion de fondo verificada via SceneSetter/sceneStore en rooms y /projects",
+    "POLISH3: Hall carousel coverflow 3D (rotateY ±26deg laterales, perspective 1400px), slides duplicados si <5 para loop denso, dots por proyecto (modulo)",
+    "POLISH3: LabArchiveGrid convertido de lista timeline a grid de HallOfFameCard compactas (holo total real en todas las grids)",
+    "UXADMIN: CardCarousel reutilizable (Embla loop, 1/2/3 por vista) en Featured y Archive, formato de card intacto",
+    "UXADMIN: ChapterNav rediseñado como rail de nodos cyberpunk (spring + pulse ring), scrollbar oculto con .no-scrollbar",
+    "UXADMIN: /api/admin/upload generico + MediaDropzone/MultiImageDrop drag&drop + ProjectForm 2.1 estilo BBN (sin tabs, secciones card, action bar sticky)",
+    "SCHEME005: agente de ventas propuesto (playbooks, pgvector, web_search, Seedream 4.5 mockups) — autorizado por el usuario",
+    "AGENTE-1: playbooks.ts (stages por código, scoring 0-100, persona impronta Juan), stage/score en leads (DDL idempotente), admin leads con badges de etapa",
+    "AGENTE-1: presencia viva — saludo Hola! gigante + 3 preset nudges (40s/150s, max 2/sesion, sessionStorage), launcher saluda durante popups",
+    "FIX: clipping de cards (padding en viewport Embla, clip corta en padding-box) + KnobPop overshoot en ChapterNav",
+    "MVP_CLOSE FASE0: .gitignore raiz creado (secrets/, repos referencia, .env*) — nada sensible tracked",
+    "MVP_CLOSE: pgvector/pgvector:pg16 + CREATE EXTENSION guardado, verificado activo; memoria keyword con seam a embeddings",
+    "MVP_CLOSE: emailService Resend (6 templates, email_logs, fallback controlado) + admin magic link single-use (ADMIN_EMAIL) E2E verificado",
+    "MVP_CLOSE: events bus (17 tipos) + ai_logs + health/status + APIs publicas/admin JSON/internal con Bearer token",
+    "MVP_CLOSE: agente con web_search (serper, 1 ronda follow-up) y generate_mockup (Seedream 4.5, cap 3/sesion) env-gated + notifyAdmin en lead con contacto nuevo",
+    "MVP_CLOSE: storageService R2 (aws-sdk s3, fallback local, logs sin secretos) en /api/admin/upload",
+    "MVP_CLOSE: nudges contextuales por pagina + .ui-interactive quirurgico (criterio BuenPick sin global) + healthcheck backend en compose + 7 docs",
+    "FINIQUITO: session_started contextual (primer mensaje, lang/country/device/campaign, lead que vuelve) + templates project_created y mockup_generated + links al dossier en todos los hitos",
+    "FINIQUITO: /admin/sessions/[id] = dossier (identidad, score breakdown explicable, orbe, mockups, timeline de eventos, transcript); /admin/leads clickeable al dossier",
+    "FINIQUITO: ProjectSetup = wizard 3 steps + secuencia 'creando cimientos'; chat BLOQUEADO en project/branding hasta pinnear proyecto (pantalla pre-creacion)",
+    "FINIQUITO: dragnet de prospeccion — tabla prospects, ingesta scout+email_drop, pipeline ingest→filter→enrich→qualify→contact (heuristica/serper/LLM, batch acotado), /admin/prospects kanban con drop de .eml y avance a demanda",
+    "FINIQUITO: E2E vivo probado — serper interpretado por el agente (Rioplatense caso real), 5 emails de hitos entregados via Resend, AgroTech Sur dropeado→score 85→Contactar; tsc+42 tests+build OK",
+    "CHISPA: dict ROOM (7 idiomas, ~40 claves) para cards/rooms/flips/links/index; room components async con getDict propio; enterLabel threaded por grids",
+    "CHISPA: lib/i18n/translate.ts — content_translations cache por hash, translateBatch en chunks de 3 (LLM 2200 tokens/45s), localizeProjects (category/oneLiner/proof/highlights/aiSummary) + localizeCapabilities; sin cache no hay LLM (Vercel-safe)",
+    "CHISPA: heartbeat autónomo /api/cron/heartbeat (worker PULSE_HOUR=20 diario): dragnet solo + follow-ups LLM personalizados a leads tibios (AGENT_FOLLOWUP_ENABLED, default OFF, 1/lead ever) + self-reflection a memoria + daily_pulse al admin",
+    "CHISPA: verificado vivo — home/rooms en ES y PT con contenido traducido, cache poblada, heartbeat x2 con pulse entregado; tsc+42+build OK",
+    "ADMIN_DRAGN_LOOP: drawer de detalle en ProspectBoard (Esc/backdrop, framer-motion slide, A11y dialog) con enrichment completo + raw URL/contacto; POST /api/admin/leads (x-lead-source header) cierra el loop scout→inbound via insertLead con session_id NULL",
+    "ADMIN_DRAGN_LOOP: headers renombrados Pipeline — inbound / Prospects — outbound (dragnet) sin tocar rutas; decisión con Juan de NO fusionar (son inbound vs outbound, mismo patrón kanban pero modelos distintos: leads con session_id vs prospects scout/drop)",
+    "BIGINT_FIX: pg types.setTypeParser(20, Number) en lib/db/pool.ts — pg devuelve bigserial como string por defecto; todos los RETURNING id llegan como number end-to-end (root cause del Error 200 del promote)",
+    "WIZARD_EASYGUIDE: QUICK_STACK → BUSINESS_NEEDS (7 chips bilingües: tráfico/visuales/edge/soberanía/pagos/i18n/móvil); step 0 = name+pitch+kind+ADN; step 1 = chips + colapsable '¿sos dev?' con textbox libre cerrado por defecto; step 2 = visión; backend intacto (projectPatchSchema strict), brief etiquetado [Pitch]/[ADN]/[Necesidades]/[Concepto] dentro de concept ≤1200 chars; card fallback charAt→emoji del kind",
+    "WIZARD_STEPLENGTH: dividido en 6 steps cortos (nombre→pitch→kind→ADN→necesidades→visión) sin scroll obligatorio; SKIPPABLE={1,3,4,5}, no-dev path nombre→kind→create en ~30s",
+    "I18N_ASSISTANT: ASSISTANT dict en 7 idiomas (en/es/pt/fr/ru/zh/ar) con 3 thread profiles (omni/project/branding) + 6 nudges + 4 thinking steps; AssistantWidget lee lang del cookie al_lang + escucha al_lang_change event; LanguageSwitch dispara event antes de router.refresh; body POST /api/assistant manda lang state al orchestrator (system prompt ya instruye responder en ese idioma)",
+    "I18N_POLISH: WIZARD + COOKIE dicts (7 idiomas); AssistantProjectOrbit refactor total (es:boolean → lang:Lang, BUSINESS_NEEDS.labels por idioma, KIND_META_LABELS separado); CookieConsent re-renderiza con COOKIE[lang] + escucha al_lang_change; AssistantWidget greeting reset por heurística (primer turno es preset si matchea algún templateFor(kind,l).greeting); IP→lang coverage ampliada 24→60+ países (Centroamérica+Caribe, post-soviéticos, Maghreb+Golfo+Levante, PALOP)",
+    "I18N_OVERLAP: ASSISTANT.popup/panel/composer extendidos (22 keys × 7 idiomas); popup greeting hardcoded → ASSISTANT[lang]; aria-labels traducidos; overlap cookie+popup resuelto con conditional bottom-24/top-24 según needsConsentTopUp state; CookieConsent dispara al_consent_change event al decidir"
   ],
   "flags": {
     "no3d": false,
-    "renderer": "react"
+    "renderer": "react",
+    "mediaCdn": "local (Cloudflare-ready via NEXT_PUBLIC_MEDIA_CDN_BASE)",
+    "llm": "off (set OPENROUTER_API_KEY to enable z-ai/glm-5.2)",
+    "database": "postgres via docker compose --profile backend (DATABASE_URL)",
+    "dragnet": {
+      "drawer": true,
+      "promote_to_lead": true,
+      "source_header": "x-lead-source"
+    },
+    "wizard": {
+      "steps": 3,
+      "dev_section": "collapsed-default",
+      "brief_format": "labeled",
+      "stack_quick_picks": "removed"
+    },
+    "i18n": {
+      "assistant_dict": "ASSISTANT",
+      "langs": 7,
+      "switch_event": "al_lang_change",
+      "scope": "chrome+assistant+agent",
+      "dicts": ["DICTS", "ROOM", "ASSISTANT", "WIZARD", "COOKIE"],
+      "ip_coverage": "60+"
+    }
   },
   "completed": {
     "phase2a": {
       "date": "2025-08-12",
-      "components": ["Desktop", "Window", "Dock", "AboutApp", "SkillsApp", "TimelineApp", "ProjectsApp", "ContactApp"],
-      "features": ["drag_drop", "resize", "focus_management", "dock_animations", "content_json"],
+      "components": [
+        "Desktop",
+        "Window",
+        "Dock",
+        "AboutApp",
+        "SkillsApp",
+        "TimelineApp",
+        "ProjectsApp",
+        "ContactApp"
+      ],
+      "features": [
+        "drag_drop",
+        "resize",
+        "focus_management",
+        "dock_animations",
+        "content_json"
+      ],
       "status": "fully_functional"
     },
     "phase2b": {
       "date": "2025-08-12",
-      "components": ["Background3D", "FallbackBackground", "ConditionalBackground3D"],
-      "features": ["fibonacci_sphere", "lazy_loading", "3d_flags", "fallback_system", "code_splitting"],
-      "tests": ["desktop_store_spec", "20_tests_passing"],
+      "components": [
+        "Background3D",
+        "FallbackBackground",
+        "ConditionalBackground3D"
+      ],
+      "features": [
+        "fibonacci_sphere",
+        "lazy_loading",
+        "3d_flags",
+        "fallback_system",
+        "code_splitting"
+      ],
+      "tests": [
+        "desktop_store_spec",
+        "20_tests_passing"
+      ],
       "integration": "Desktop component updated with 3D background",
       "performance": "Lazy loading + Suspense + prefers-reduced-motion detection",
       "status": "completed_fully_functional",
@@ -80,29 +182,76 @@
     "quantum_leap_phase1": {
       "date": "2025-08-12",
       "mission_id": "QL-20250812",
-      "fixes_applied": ["window_overflow", "timeline_crash", "viewport_limits"],
-      "responsive_refactor": ["desktop_layout_adaptive", "window_mobile_fullscreen", "dock_mobile_tactile"],
-      "features": ["mobile_first_responsive", "viewport_constraint", "touch_optimized_dock", "fullscreen_mobile_windows"],
+      "fixes_applied": [
+        "window_overflow",
+        "timeline_crash",
+        "viewport_limits"
+      ],
+      "responsive_refactor": [
+        "desktop_layout_adaptive",
+        "window_mobile_fullscreen",
+        "dock_mobile_tactile"
+      ],
+      "features": [
+        "mobile_first_responsive",
+        "viewport_constraint",
+        "touch_optimized_dock",
+        "fullscreen_mobile_windows"
+      ],
       "status": "QL1_COMPLETE",
       "notes": "Estabilidad fundacional y núcleo responsivo completado. Ready para QL-2."
     },
     "quantum_leap_phase2": {
-      "date": "2025-08-12", 
+      "date": "2025-08-12",
       "mission_id": "QL-20250812",
-      "formspree_integration": ["dependency_installed", "contact_app_refactored", "validation_implemented"],
-      "content_preparation": ["sync_checkpoint_created", "json_structure_documented", "ready_for_real_data"],
-      "features": ["functional_contact_form", "real_email_delivery", "error_handling", "content_sync_ready"],
+      "formspree_integration": [
+        "dependency_installed",
+        "contact_app_refactored",
+        "validation_implemented"
+      ],
+      "content_preparation": [
+        "sync_checkpoint_created",
+        "json_structure_documented",
+        "ready_for_real_data"
+      ],
+      "features": [
+        "functional_contact_form",
+        "real_email_delivery",
+        "error_handling",
+        "content_sync_ready"
+      ],
       "form_id": "xanbvlqw",
       "status": "QL2_COMPLETE",
       "notes": "Integración funcional completa. Ready para contenido final y QL-3."
     },
     "quantum_leap_phase3": {
       "date": "2025-08-12",
-      "mission_id": "QL-20250812", 
-      "content_integration": ["about_json_real_data", "timeline_5_experiences", "projects_7_featured", "skills_17_real", "contact_real_data"],
-      "assets_integration": ["5_images_copied", "profile_image_integrated", "project_images_integrated", "placeholders_created"],
-      "component_robustness": ["aboutapp_image_support", "projectsapp_null_safe", "lazy_loading_implemented", "responsive_layouts"],
-      "features": ["real_professional_content", "optimized_assets", "null_safe_components", "mobile_responsive"],
+      "mission_id": "QL-20250812",
+      "content_integration": [
+        "about_json_real_data",
+        "timeline_5_experiences",
+        "projects_7_featured",
+        "skills_17_real",
+        "contact_real_data"
+      ],
+      "assets_integration": [
+        "5_images_copied",
+        "profile_image_integrated",
+        "project_images_integrated",
+        "placeholders_created"
+      ],
+      "component_robustness": [
+        "aboutapp_image_support",
+        "projectsapp_null_safe",
+        "lazy_loading_implemented",
+        "responsive_layouts"
+      ],
+      "features": [
+        "real_professional_content",
+        "optimized_assets",
+        "null_safe_components",
+        "mobile_responsive"
+      ],
       "assets_count": 5,
       "files_modified": 7,
       "status": "QL3_COMPLETE",
@@ -111,11 +260,27 @@
     "refac2_mobile_ux": {
       "date": "2025-08-31",
       "mission_id": "REFAC2-20250831",
-      "phases_completed": ["phase0_stabilization", "phase1_dock_validation", "phase2_mobile_ux"],
-      "mobile_features": ["single_window_mode", "slide_animations", "fullscreen_layout", "touch_optimized", "scroll_content"],
-      "components_modified": ["store.ts", "Window.tsx"],
+      "phases_completed": [
+        "phase0_stabilization",
+        "phase1_dock_validation",
+        "phase2_mobile_ux"
+      ],
+      "mobile_features": [
+        "single_window_mode",
+        "slide_animations",
+        "fullscreen_layout",
+        "touch_optimized",
+        "scroll_content"
+      ],
+      "components_modified": [
+        "store.ts",
+        "Window.tsx"
+      ],
       "breakpoint": "768px",
-      "animation_types": ["mobile_slide_vertical", "desktop_fade_scale"],
+      "animation_types": [
+        "mobile_slide_vertical",
+        "desktop_fade_scale"
+      ],
       "status": "REFAC2_COMPLETE",
       "notes": "Mobile UX completamente transformada: ventana única, animaciones fluidas, optimización táctil."
     },
@@ -124,13 +289,29 @@
       "mission_id": "INTERACTIVE_STELLAR-20250903",
       "integration_approach": "INTEGRATED_WITH_EXISTING_3D_SYSTEM",
       "dependency_installed": "@use-gesture/react@10.3.1",
-      "components_modified": ["Background3DWithAvatar.tsx"],
-      "gesture_features": ["mouse_drag_rotation", "mobile_swipe_rotation", "combined_animations", "cursor_feedback"],
-      "3d_elements_preserved": ["avatar_3d", "fibonacci_particles", "background_spheres", "scroll_animations"],
-      "architecture_decisions": ["canvas_pointer_events_enabled", "z_index_hierarchy_maintained", "gesture_sensitivity_optimized"],
+      "components_modified": [
+        "Background3DWithAvatar.tsx"
+      ],
+      "gesture_features": [
+        "mouse_drag_rotation",
+        "mobile_swipe_rotation",
+        "combined_animations",
+        "cursor_feedback"
+      ],
+      "3d_elements_preserved": [
+        "avatar_3d",
+        "fibonacci_particles",
+        "background_spheres",
+        "scroll_animations"
+      ],
+      "architecture_decisions": [
+        "canvas_pointer_events_enabled",
+        "z_index_hierarchy_maintained",
+        "gesture_sensitivity_optimized"
+      ],
       "sensitivity_settings": {
         "particles": "direct_1x_response",
-        "avatar_x": "subtle_0.5x_response", 
+        "avatar_x": "subtle_0.5x_response",
         "avatar_z": "subtle_0.3x_response"
       },
       "status": "INTERACTIVE_STELLAR_COMPLETE",

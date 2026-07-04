@@ -1,0 +1,29 @@
+# Amorosi Labs - Docker build context excludes
+node_modules
+.next
+out
+build
+npm-debug.log*
+.pnpm-debug.log*
+
+# env & secrets (never bake into image)
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.production.example
+
+# local runtime data (mount a volume instead)
+data
+
+# vcs / editor / docs
+.git
+.gitignore
+.vercel
+*.tsbuildinfo
+README.md
+PHASE*_VERIFICATION.md
+STYLE_VERIFICATION.md
+develop-history
+docs
+tests

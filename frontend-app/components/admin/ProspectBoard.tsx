@@ -1,0 +1,599 @@
+"use client";
+
+// components/admin/ProspectBoard.tsx
+// Client half of /admin/prospects: the kanban itself.
+// - columns mirror the pipeline stages; cards carry what each stage produced
+//   (snippet -> enrichment -> score + fit + next action);
+// - the intake bar accepts pasted text AND drag&drop of .eml/.txt files —
+//   both feed the same ingest mouth as the scout;
+// - "Advance pipeline" runs a bounded batch server-side and the board
+//   refreshes in place, so you SEE the cards rotate;
+// - click a card to open the detail drawer (full enrichment + raw + the
+//   manual moves the admin is allowed to make, including "Promote to lead"
+//   which closes the loop with the inbound funnel via /api/admin/leads).
+
+import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+
+type Prospect = {
+  id: number;
+  stage: string;
+  source: string;
+  title: string | null;
+  company: string | null;
+  contactName: string | null;
+  email: string | null;
+  url: string | null;
+  snippet: string | null;
+  enrichment: string | null;
+  fitReason: string | null;
+  nextAction: string | null;
+  score: number;
+  updatedAt: string;
+};
+
+const COLUMNS: Array<{ stage: string; label: string; hint: string; color: string }> = [
+  { stage: "ingest", label: "Ingesta", hint: "dragado crudo", color: "rgba(255,255,255,0.4)" },
+  { stage: "filter", label: "Filtrado", hint: "pasó la red", color: "#f0a500" },
+  { stage: "enrich", label: "Enriquecido", hint: "búsqueda fina", color: "#8b5cf6" },
+  { stage: "qualify", label: "Calificado", hint: "score + fit", color: "#00f2ff" },
+  { stage: "contact", label: "Contactar 🎯", hint: "listos para salir", color: "#34d399" },
+];
+
+function ScoreRing({ score }: { score: number }) {
+  const hue = score >= 70 ? "#34d399" : score >= 55 ? "#00f2ff" : "#f0a500";
+  return (
+    <span
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] font-bold"
+      style={{ borderColor: `${hue}90`, color: hue }}
+      title={`fit score ${score}/100`}
+    >
+      {score}
+    </span>
+  );
+}
+
+function Card({
+  p,
+  onStage,
+  onOpen,
+}: {
+  p: Prospect;
+  onStage: (id: number, stage: string) => void;
+  onOpen: (p: Prospect) => void;
+}) {
+  const contacted = p.stage === "contacted";
+  // Whole card opens the drawer; the inline buttons stop propagation
+  // so they keep their current behavior (mailto / mark / discard).
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: contacted ? 0.55 : 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      onClick={() => onOpen(p)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(p);
+        }
+      }}
+      className="cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-cyan-400/40 focus:border-cyan-400/60 focus:outline-none"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-white">
+            {contacted && <span className="mr-1 text-emerald-300">✓</span>}
+            {p.company || p.title || "—"}
+          </p>
+          {p.company && p.title && (
+            <p className="mt-0.5 line-clamp-1 text-xs text-white/45">{p.title}</p>
+          )}
+        </div>
+        {(p.stage === "qualify" || p.stage === "contact" || contacted) && (
+          <ScoreRing score={p.score} />
+        )}
+      </div>
+
+      {/* what the current stage knows */}
+      {p.stage === "ingest" && p.snippet && (
+        <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-white/55">{p.snippet}</p>
+      )}
+      {(p.stage === "filter" || p.stage === "enrich") && (
+        <p className="mt-1.5 line-clamp-3 text-xs leading-snug text-white/55">
+          {p.enrichment || p.snippet}
+        </p>
+      )}
+      {(p.stage === "qualify" || p.stage === "contact" || contacted) && (
+        <>
+          {p.fitReason && (
+            <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-white/60">{p.fitReason}</p>
+          )}
+          {p.nextAction && (
+            <p className="mt-1.5 rounded-lg border border-emerald-400/25 bg-emerald-400/[0.06] px-2 py-1.5 text-[11px] leading-snug text-emerald-200">
+              → {p.nextAction}
+            </p>
+          )}
+        </>
+      )}
+
+      <div className="mt-2 flex items-center gap-2 text-[10px] text-white/35">
+        <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono uppercase">
+          {p.source === "email_drop" ? "📩 drop" : "🕸 scout"}
+        </span>
+        {p.email && <span className="truncate text-cyan-300">{p.email}</span>}
+        {p.url && (
+          <a
+            href={p.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="truncate hover:text-cyan-300"
+          >
+            {p.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 28)}…
+          </a>
+        )}
+      </div>
+
+      {/* manual controls — the only human moves on this board */}
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {p.stage === "contact" && (
+          <>
+            {p.email && (
+              <a
+                href={`mailto:${p.email}`}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-full bg-emerald-400/90 px-2.5 py-1 text-[10px] font-bold text-black hover:bg-emerald-300"
+              >
+                ✉ Escribir
+              </a>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onStage(p.id, "contacted");
+              }}
+              className="rounded-full border border-emerald-400/50 px-2.5 py-1 text-[10px] text-emerald-300 hover:bg-emerald-400/10"
+            >
+              Marcar contactado
+            </button>
+          </>
+        )}
+        {!contacted && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStage(p.id, "discarded");
+            }}
+            aria-label="Discard prospect"
+            className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-white/40 hover:border-red-400/40 hover:text-red-300"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">{label}</p>
+      <div className="mt-1.5 text-sm leading-relaxed text-white/80">{children}</div>
+    </div>
+  );
+}
+
+function ProspectDrawer({
+  p,
+  onClose,
+  onStage,
+  onPromoted,
+}: {
+  p: Prospect | null;
+  onClose: () => void;
+  onStage: (id: number, stage: string) => void;
+  onPromoted: (prospectId: number, leadId: number) => void;
+}) {
+  const [promoting, setPromoting] = useState(false);
+  const [promoteErr, setPromoteErr] = useState<string | null>(null);
+
+  // Escape closes the drawer (the keyboard shortcut the admin actually uses).
+  useEffect(() => {
+    if (!p) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [p, onClose]);
+
+  // reset transient state when switching prospects
+  useEffect(() => {
+    setPromoting(false);
+    setPromoteErr(null);
+  }, [p?.id]);
+
+  if (!p) return null;
+
+  const contacted = p.stage === "contacted" || p.stage === "discarded";
+  const canPromote =
+    !contacted &&
+    Boolean(p.email || (p.company && (p.contactName || p.title)));
+
+  async function promote() {
+    if (!p || promoting) return;
+    setPromoting(true);
+    setPromoteErr(null);
+    try {
+      const body: Record<string, string> = {};
+      if (p.contactName) body.name = p.contactName;
+      if (p.email) body.email = p.email;
+      if (p.company) body.company = p.company;
+      if (p.snippet) body.need = p.snippet.slice(0, 400);
+      if (p.url) body.notes = `Origen: prospect #${p.id} (${p.source}) — ${p.url}`;
+      else if (p.title) body.notes = `Origen: prospect #${p.id} (${p.source}) — ${p.title}`;
+      const res = await fetch("/api/admin/leads", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-lead-source": `prospect:${p.id}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data?.id !== "number") {
+        setPromoteErr(
+          data?.error === "db_unavailable_or_empty"
+            ? "DB no disponible o sin datos suficientes para crear el lead"
+            : `Error ${res.status}: ${data?.error ?? "falló"}`,
+        );
+        return;
+      }
+      onPromoted(p.id, data.id);
+      onClose();
+    } finally {
+      setPromoting(false);
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {p && (
+        // single root so framer-motion can drive the enter/exit as one unit;
+        // backdrop and drawer slide together instead of fighting AnimatePresence
+        <motion.div
+          key="modal-root"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-40"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Detalle del prospecto ${p.company ?? p.title ?? p.id}`}
+        >
+          <div
+            onClick={onClose}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
+          <motion.aside
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 320, damping: 36 }}
+            className="absolute inset-y-0 right-0 flex w-full max-w-[560px] flex-col border-l border-white/10 bg-[#0a0a0c] shadow-2xl"
+          >
+            <header className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 p-5">
+              <div className="min-w-0">
+                <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+                  Prospect #{p.id} · {p.source === "email_drop" ? "📩 drop" : "🕸 scout"}
+                </p>
+                <h2 className="mt-1 truncate text-xl font-bold text-white">
+                  {p.company || p.title || "—"}
+                </h2>
+                {p.company && p.title && (
+                  <p className="mt-0.5 truncate text-sm text-white/55">{p.title}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {(p.stage === "qualify" || p.stage === "contact" || contacted) && (
+                  <ScoreRing score={p.score} />
+                )}
+                <button
+                  onClick={onClose}
+                  aria-label="Cerrar detalle"
+                  className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 hover:border-white/30"
+                >
+                  Cerrar ✕
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-5">
+              {p.url && (
+                <DetailRow label="URL">
+                  <a
+                    href={p.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-all text-cyan-300 hover:text-cyan-200"
+                  >
+                    {p.url}
+                  </a>
+                </DetailRow>
+              )}
+              {p.contactName && (
+                <DetailRow label="Contacto">
+                  <span>{p.contactName}</span>
+                  {p.email && (
+                    <>
+                      {" · "}
+                      <a href={`mailto:${p.email}`} className="text-cyan-300 hover:text-cyan-200">
+                        {p.email}
+                      </a>
+                    </>
+                  )}
+                </DetailRow>
+              )}
+              {p.snippet && (
+                <DetailRow label="Snippet original">
+                  <p className="whitespace-pre-wrap">{p.snippet}</p>
+                </DetailRow>
+              )}
+              {p.enrichment && (
+                <DetailRow label="Enrichment (búsqueda fina)">
+                  <p className="whitespace-pre-wrap text-white/75">{p.enrichment}</p>
+                </DetailRow>
+              )}
+              {p.fitReason && (
+                <DetailRow label="Fit">
+                  <p>{p.fitReason}</p>
+                </DetailRow>
+              )}
+              {p.nextAction && (
+                <DetailRow label="Next action">
+                  <p className="rounded-lg border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2 text-emerald-200">
+                    → {p.nextAction}
+                  </p>
+                </DetailRow>
+              )}
+              {!p.snippet && !p.enrichment && !p.fitReason && (
+                <p className="rounded-lg border border-white/10 bg-white/[0.02] p-4 text-center text-sm text-white/40">
+                  Esta card todavía no tiene señal capturada — mové el pipeline para enriquecerla.
+                </p>
+              )}
+            </div>
+
+            <footer className="shrink-0 space-y-2 border-t border-white/10 bg-black/40 p-5">
+              {promoteErr && (
+                <p className="rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2 text-xs text-red-200">
+                  {promoteErr}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {!contacted && (
+                  <button
+                    onClick={() => onStage(p.id, "discarded")}
+                    className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-red-400/40 hover:text-red-300"
+                  >
+                    Descartar
+                  </button>
+                )}
+                {p.stage === "contact" && !contacted && (
+                  <button
+                    onClick={() => onStage(p.id, "contacted")}
+                    className="rounded-full border border-emerald-400/50 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-400/10"
+                  >
+                    Marcar contactado
+                  </button>
+                )}
+                <button
+                  onClick={promote}
+                  disabled={!canPromote || promoting}
+                  title={
+                    canPromote
+                      ? "Crea un lead en el pipeline inbound (session_id NULL)"
+                      : "Necesita email o empresa + nombre/título para promover"
+                  }
+                  className="rounded-full bg-cyan-400 px-4 py-1.5 text-xs font-bold text-black hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {promoting ? "Promoviendo…" : "Promover a lead →"}
+                </button>
+              </div>
+              <p className="text-right text-[10px] text-white/30">
+                Esc cierra · backdrop también · stage actual: <code className="text-white/50">{p.stage}</code>
+              </p>
+            </footer>
+          </motion.aside>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export function ProspectBoard() {
+  const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [dropText, setDropText] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [lastReport, setLastReport] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Prospect | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/prospects");
+      const data = await res.json();
+      if (Array.isArray(data?.prospects)) setProspects(data.prospects);
+    } catch {
+      /* board keeps last known state */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function act(body: Record<string, unknown>, label: string) {
+    if (busy) return;
+    setBusy(label);
+    try {
+      const res = await fetch("/api/admin/prospects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (body.action === "process" && typeof data?.processed === "number") {
+        setLastReport(
+          data.processed > 0
+            ? `Pipeline: ${data.processed} card${data.processed === 1 ? "" : "s"} avanzaron`
+            : "Pipeline al día — nada para mover",
+        );
+      }
+      if (body.action === "ingest" && data?.ok) {
+        setDropText("");
+        setLastReport("Lead ingestado en la red 🕸");
+      }
+      if (body.action === "stage" && data?.ok) {
+        // keep the drawer open on the same prospect if it's still on the board
+        setLastReport("Estado actualizado");
+      }
+      await refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const onStage = (id: number, stage: string) => {
+    // local optimistic update so the kanban moves immediately, then sync
+    setProspects((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stage, updatedAt: new Date().toISOString() } : p)),
+    );
+    // if the drawer was open on this prospect, mirror the change
+    setSelected((cur) => (cur && cur.id === id ? { ...cur, stage } : cur));
+    void act({ action: "stage", id, stage }, "stage");
+  };
+
+  const onPromoted = (prospectId: number, leadId: number) => {
+    // mark the prospect contacted locally + tell the admin what happened
+    setProspects((prev) =>
+      prev.map((p) =>
+        p.id === prospectId ? { ...p, stage: "contacted", updatedAt: new Date().toISOString() } : p,
+      ),
+    );
+    setLastReport(`Promovido a lead #${leadId} · el prospecto pasó a contactado`);
+  };
+
+  async function onDropFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (!file || !/\.(eml|txt|md)$/i.test(file.name)) return;
+    const text = await file.text();
+    void act({ action: "ingest", text: text.slice(0, 20000) }, "ingest");
+  }
+
+  const discarded = prospects.filter((p) => p.stage === "discarded").length;
+
+  return (
+    <div className="mt-6">
+      {/* intake bar: paste or drop — same river as the scout */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void onDropFiles(e.dataTransfer.files);
+        }}
+        className={`rounded-2xl border p-4 transition-colors ${
+          dragOver ? "border-emerald-400/70 bg-emerald-400/10" : "border-white/10 bg-white/[0.02]"
+        }`}
+      >
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-[260px] flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+              📩 Dropear un lead — pegá un email o arrastrá un .eml/.txt
+            </p>
+            <textarea
+              value={dropText}
+              onChange={(e) => setDropText(e.target.value)}
+              rows={3}
+              placeholder="Pegá acá el email o los datos del lead… el sistema lo parsea y lo tira a la misma red que el scout."
+              className="mt-2 w-full resize-none rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs leading-relaxed text-white outline-none focus:border-emerald-400/60"
+            />
+          </div>
+          <div className="flex flex-col gap-2 pt-5">
+            <button
+              onClick={() => dropText.trim().length >= 10 && act({ action: "ingest", text: dropText }, "ingest")}
+              disabled={!!busy || dropText.trim().length < 10}
+              className="rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-300 disabled:opacity-40"
+            >
+              {busy === "ingest" ? "Ingestando…" : "🕸 Ingestar lead"}
+            </button>
+            <button
+              onClick={() => act({ action: "process" }, "process")}
+              disabled={!!busy}
+              className="rounded-full border border-cyan-400/50 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-400/10 disabled:opacity-40"
+            >
+              {busy === "process" ? "Procesando…" : "⚙ Avanzar pipeline"}
+            </button>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-[11px] text-white/35">
+          <span>{lastReport ?? "El scout diario alimenta la ingesta solo; este botón corre un batch a demanda."}</span>
+          {discarded > 0 && <span>{discarded} descartados por la red</span>}
+        </div>
+      </div>
+
+      {/* the kanban */}
+      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {COLUMNS.map((col) => {
+          const items = prospects.filter((p) =>
+            col.stage === "contact"
+              ? p.stage === "contact" || p.stage === "contacted"
+              : p.stage === col.stage,
+          );
+          return (
+            <section key={col.stage} className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+              <header className="mb-3 flex items-center justify-between px-1">
+                <div>
+                  <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: col.color }}>
+                    {col.label}
+                  </h2>
+                  <p className="text-[9px] text-white/30">{col.hint}</p>
+                </div>
+                <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-white/50">
+                  {items.length}
+                </span>
+              </header>
+              <div className="space-y-2.5">
+                <AnimatePresence mode="popLayout">
+                  {items.length === 0 ? (
+                    <p className="px-1 py-6 text-center text-xs text-white/25">vacío</p>
+                  ) : (
+                    items.map((p) => (
+                      <Card key={p.id} p={p} onStage={onStage} onOpen={setSelected} />
+                    ))
+                  )}
+                </AnimatePresence>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      {/* drawer — opens when you click a card; closes on Esc or backdrop click */}
+      <ProspectDrawer
+        p={selected}
+        onClose={() => setSelected(null)}
+        onStage={onStage}
+        onPromoted={onPromoted}
+      />
+    </div>
+  );
+}

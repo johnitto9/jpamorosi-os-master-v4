@@ -2,6 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- Amorosi Labs: holographic lab background (RC2 visual pass) ------------- */
+/* Bright scanline travels the FULL viewport height. */
+@keyframes lab-scan-y {
+  0%   { transform: translateY(-12vh); opacity: 0; }
+  6%   { opacity: 0.85; }
+  94%  { opacity: 0.85; }
+  100% { transform: translateY(112vh); opacity: 0; }
+}
+/* CRT stripe flicker / glitch. */
+@keyframes lab-glitch {
+  0%, 46%, 100% { opacity: 0.35; transform: translateX(0); }
+  48% { opacity: 0.85; transform: translateX(1px); }
+  50% { opacity: 0.15; transform: translateX(-2px); }
+  52% { opacity: 0.85; transform: translateX(1px); }
+}
+@keyframes lab-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(12px, -14px); }
+}
+/* Holographic cyan grid — visible, fades toward the edges. */
+.lab-grid {
+  background-image:
+    linear-gradient(to right, rgba(0,242,255,0.075) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,242,255,0.075) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 95% 85% at 50% 35%, #000 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 95% 85% at 50% 35%, #000 55%, transparent 100%);
+}
+.lab-scanline   { animation: lab-scan-y 7s linear infinite; }
+.lab-scanline-2 { animation: lab-scan-y 11s linear infinite; animation-delay: 3s; }
+.lab-glitch     { animation: lab-glitch 3.5s steps(1) infinite; }
+.lab-node       { animation: lab-drift 11s ease-in-out infinite; }
+
+/* particle-wave field: very slow drift + gentle breathing */
+@keyframes lab-wave-drift {
+  0%, 100% { transform: translateX(0) translateY(0); opacity: 0.9; }
+  50% { transform: translateX(-8px) translateY(-3px); opacity: 1; }
+}
+.lab-wave-anim { animation: lab-wave-drift 14s ease-in-out infinite; }
+
+/* hero orbital wave: very slow rotation */
+@keyframes lab-orbit { to { transform: rotate(360deg); } }
+.lab-orbit { animation: lab-orbit 44s linear infinite; }
+
+/* Hall-of-Fame "Live" badge: soft pulse (not aggressive) */
+@keyframes lab-livepulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.lab-livedot { animation: lab-livepulse 2.4s ease-in-out infinite; }
+
+/* Hero title: a slow iridescent sheen panning across gradient-clipped text */
+@keyframes lab-shimmer {
+  0% { background-position: 200% 50%; }
+  100% { background-position: -200% 50%; }
+}
+.lab-shimmer-text {
+  background: linear-gradient(
+    100deg,
+    #ffffff 0%, #ffffff 38%,
+    #7ff5ff 46%, #c9b8ff 52%, #7ff5ff 58%,
+    #ffffff 66%, #ffffff 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lab-shimmer 7s ease-in-out infinite;
+}
+
+/* Glass-aurora blobs: independent slow drifts so the light feels alive */
+@keyframes lab-blob-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(36px, 24px) scale(1.12); }
+}
+@keyframes lab-blob-b {
+  0%, 100% { transform: translate(0, 0) scale(1.08); }
+  50% { transform: translate(-42px, -18px) scale(0.95); }
+}
+@keyframes lab-blob-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -30px) scale(1.15); }
+}
+.lab-blob-a { animation: lab-blob-a 14s ease-in-out infinite; }
+.lab-blob-b { animation: lab-blob-b 18s ease-in-out infinite; }
+.lab-blob-c { animation: lab-blob-c 16s ease-in-out infinite; }
+
+/* Hero scroll cue: a dot sliding down a slim capsule */
+@keyframes lab-scrollcue {
+  0% { transform: translateY(0); opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateY(14px); opacity: 0; }
+}
+.lab-scrollcue-dot { animation: lab-scrollcue 1.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-scanline, .lab-scanline-2, .lab-glitch, .lab-node,
+  .lab-wave-anim, .lab-livedot, .lab-orbit, .lab-scrollcue-dot,
+  .lab-blob-a, .lab-blob-b, .lab-blob-c { animation: none; }
+  .lab-shimmer-text { animation: none; color: #fff; background: none; }
+}
+
 @layer base {
   * {
     @apply border-gray-600;
@@ -94,6 +197,17 @@
   .no-scrollbar {
     -ms-overflow-style: none;  /* IE y Edge */
     scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Interactive/draggable UI (BuenPick criterion, applied SURGICALLY — never
+     global): carousels, cards, nav knobs. Kills the blue drag-selection and
+     the mobile tap flash. Body text/email/CV stay copyable. */
+  .ui-interactive,
+  .ui-interactive * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
 }
 

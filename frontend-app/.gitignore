@@ -16,8 +16,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files (keep *.example templates tracked)
 .env*
+!.env.example
+!.env.local.example
+!.env.production.example
+!.env.docker.local.example
+
+# local-json project store (runtime data, not source)
+/data
 
 # vercel
 .vercel

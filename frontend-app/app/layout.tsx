@@ -1,26 +1,31 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
+import { AuroraLayer } from '@/components/visual/AuroraLayer'
+import { CookieConsent } from '@/components/CookieConsent'
+import { CampaignCatcher } from '@/components/CampaignCatcher'
 
 // SEO Metadata
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.jpamorosi.dev'),
   title: {
-    default: 'jpamorosi.dev — Personal OS · Interactive CV',
-    template: '%s | jpamorosi.dev'
+    default: 'Juan Pablo Amorosi — AI Product Engineer & Systems Architect',
+    template: '%s | Amorosi Labs'
   },
-  description: 'An interactive CV in "desktop OS" format: projects, AI, hardware, and contact. Explore my experience as a Builder & AI Hacker.',
+  description:
+    "Amorosi Labs is the Hall of Fame of Juan Pablo Amorosi's shipped systems: AI orchestration engines, production agent workflows, and live founder-built products.",
   keywords: [
     'Juan Pablo Amorosi',
     'jpamorosi',
+    'Amorosi Labs',
+    'AI Product Engineer',
+    'AI Systems Architect',
+    'multi-model orchestration',
+    'AI agents',
+    'production AI',
+    'full-stack AI',
+    'founder',
     'portfolio',
-    'interactive CV',
-    'developer',
-    'AI',
-    'artificial intelligence',
-    'projects',
-    'next.js',
-    'react',
-    'three.js'
+    'next.js'
   ],
   authors: [{ name: 'Juan Pablo Amorosi', url: 'https://www.jpamorosi.dev' }],
   creator: 'Juan Pablo Amorosi',
@@ -32,15 +37,15 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    siteName: 'jpamorosi.os',
-    title: 'jpamorosi.os — Interactive CV',
-    description: 'Explore my personal OS: projects, AI, hardware, and contact. A unique interactive CV.',
+    siteName: 'Amorosi Labs',
+    title: 'Juan Pablo Amorosi — AI Product Engineer & Systems Architect',
+    description: 'The Hall of Fame of shipped AI systems: multi-model orchestration, production agent workflows, and live founder-built products.',
     images: [
       {
         url: '/imgs/avif/og.avif',
         width: 1200,
         height: 630,
-        alt: 'jpamorosi.os - Personal Operating System',
+        alt: 'Amorosi Labs — Juan Pablo Amorosi',
         type: 'image/avif'
       }
     ]
@@ -49,8 +54,8 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@jpamorosi',
     creator: '@jpamorosi',
-    title: 'jpamorosi.os — Interactive CV',
-    description: 'My interactive desktop on the web. Explore my experience as a Builder & AI Hacker.',
+    title: 'Juan Pablo Amorosi — AI Product Engineer & Systems Architect',
+    description: 'Amorosi Labs: shipped AI systems — orchestration engines, production agents, and live founder-built products.',
     images: ['/imgs/avif/og.avif']
   },
   robots: {
@@ -117,22 +122,22 @@ export default function RootLayout({
               '@type': 'Person',
               name: 'Juan Pablo Amorosi',
               url: 'https://www.jpamorosi.dev/',
-              jobTitle: 'Builder & AI Hacker',
-              description: 'Developer specialized in AI, hardware, and innovative projects',
+              jobTitle: 'AI Product Engineer & Systems Architect',
+              description:
+                'AI Product Engineer and Systems Architect building AI-powered products that survive contact with reality: multi-model orchestration, production agent workflows, and live founder-built products.',
               knowsAbout: [
                 'Artificial Intelligence',
-                'Machine Learning',
-                'Hardware Development',
-                'Web Development',
-                'React',
+                'Multi-model Orchestration',
+                'AI Agents',
+                'RAG',
+                'Systems Architecture',
+                'Full-Stack Engineering',
                 'Next.js',
-                'Three.js'
+                'Python'
               ],
               sameAs: [
-                'https://github.com/jpamorosi',
-                'https://www.linkedin.com/in/jpamorosi'
+                'https://github.com/johnitto9'
               ],
-              alumniOf: 'University',
               workLocation: {
                 '@type': 'Place',
                 name: 'Argentina'
@@ -146,9 +151,9 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebSite',
-              name: 'jpamorosi.dev',
+              name: 'Amorosi Labs',
               url: 'https://www.jpamorosi.dev/',
-              description: 'Interactive CV and personal portfolio of Juan Pablo Amorosi',
+              description: "Amorosi Labs — the Hall of Fame of Juan Pablo Amorosi's shipped AI systems and products.",
               author: {
                 '@type': 'Person',
                 name: 'Juan Pablo Amorosi'
@@ -159,19 +164,9 @@ export default function RootLayout({
             })
           }}
         />
-        {/* WhatsApp and Social Media Optimization */}
-        <meta property="og:image" content="https://www.jpamorosi.dev/og.jpg" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:type" content="image/jpeg" />
-        <meta property="og:image:alt" content="jpamorosi.os - Personal Operating System" />
-        <meta property="og:url" content="https://www.jpamorosi.dev/" />
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="jpamorosi.os — Interactive CV" />
-        <meta property="og:description" content="Explore my personal OS: projects, AI, hardware, and contact. A unique interactive CV." />
-        <meta property="og:site_name" content="jpamorosi.os" />
-        <meta property="og:locale" content="en_US" />
-        
+        {/* Open Graph / Twitter tags are emitted from the `metadata` export above
+            (single source of truth) — no hardcoded, conflicting tags here. */}
+
         {/* Security Headers */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="X-Frame-Options" content="DENY" />
@@ -181,10 +176,15 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
       </head>
-      <body className="bg-dark-bg text-primary-text h-screen w-screen overflow-hidden">
-        <div className="flex flex-col h-full w-full">
+      <body className="bg-[#05060b] text-primary-text h-screen w-screen overflow-hidden">
+        {/* Site-wide living aurora background (one fixed cycling palette). */}
+        <AuroraLayer />
+        <div className="relative z-10 flex flex-col h-full w-full">
           {children}
         </div>
+        {/* First-visit cookie consent (necessary vs assistant memory). */}
+        <CookieConsent />
+        <CampaignCatcher />
       </body>
     </html>
   )

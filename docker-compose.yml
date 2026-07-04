@@ -1,0 +1,173 @@
+# =============================================================================
+# Amorosi Labs - docker compose
+# -----------------------------------------------------------------------------
+# Two services / two purposes (see docs/HYBRID_DEPLOYMENT_STRATEGY.md):
+#
+#   web             -> production-like public image (STATIC, admin OFF).
+#                      Mirrors the Vercel public path. Runs by default.
+#     docker compose up --build            (run-amorosi-labs.bat docker-up)
+#     docker compose down                  (run-amorosi-labs.bat docker-down)
+#
+#   amorosi-backend -> local backend/admin EMULATOR (local-json, admin ON),
+#                      port 3001, persistent volume. Future Dokploy target.
+#                      Gated behind the "backend" profile.
+#     docker compose --profile backend up --build   (bat backend-up)
+#     docker compose --profile backend down         (bat backend-down)
+#
+# NOTE: `--profile backend up` also starts the default `web` service (compose
+# always includes non-profiled services). To run only the emulator, append the
+# service name: `docker compose --profile backend up --build amorosi-backend`.
+#
+# Docker is NOT required for normal development (use `pnpm dev`). It does NOT
+# replace Vercel — it is our prod-like backend lab.
+# =============================================================================
+
+services:
+  # --- Public production-like image (mirrors Vercel: static, admin off) -------
+  web:
+    build:
+      context: ./frontend-app
+      dockerfile: Dockerfile
+    image: amorosi-labs-web
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      APP_ENV: production
+      # Mirror Vercel defaults: read-only static content, admin disabled.
+      PROJECT_STORAGE_DRIVER: static
+      ADMIN_ENABLED: "false"
+    # Optional overrides. File is not required to exist.
+    env_file:
+      - path: ./frontend-app/.env.production
+        required: false
+    restart: unless-stopped
+
+  # --- Local backend/admin emulator (durable local-json, admin on) -----------
+  amorosi-backend:
+    profiles: ["backend"]
+    build:
+      context: ./frontend-app
+      dockerfile: Dockerfile
+    image: amorosi-labs-backend
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      APP_ENV: local
+      # Writable content on a mounted volume; admin secrets come from env_file.
+      PROJECT_STORAGE_DRIVER: local-json
+      PROJECTS_JSON_PATH: /app/data/projects.json
+      # Live public content so /preview reflects local-json edits (Docker only).
+      PROJECT_PUBLIC_CONTENT_MODE: live
+      # Agent memory + leads live in Postgres. If the DB is down the assistant
+      # degrades gracefully to memory-lite (no crash, no silence).
+      # To move project content into Postgres too, flip the driver above to:
+      #   PROJECT_STORAGE_DRIVER: postgres   (table auto-seeds from static content)
+      DATABASE_URL: postgres://amorosi:amorosi@postgres:5432/amorosi
+      # LLM brain (optional): set OPENROUTER_API_KEY in .env.docker.local to
+      # enable GLM 5.2; without it the deterministic assistant still answers.
+      OPENROUTER_MODEL: z-ai/glm-5.2
+    # Provides ADMIN_* / OPENROUTER_* secrets. Copy .env.docker.local.example first.
+    env_file:
+      - path: ./frontend-app/.env.docker.local
+        required: false
+    volumes:
+      - amorosi_backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # /api/health reports db/flags; any 200 means the app is alive
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      - autoheal=true # the autoheal service force-restarts us when unhealthy
+    restart: unless-stopped
+
+  # --- Postgres: agent memory, leads, optional project store -----------------
+  # Runs only with the backend profile — the public `web` image stays static
+  # and DB-free, mirroring Vercel.
+  postgres:
+    profiles: ["backend"]
+    # pgvector/pgvector:pg16 = official postgres 16 (Debian) + vector extension
+    # compiled in. Bootstrap runs CREATE EXTENSION IF NOT EXISTS vector
+    # (guarded — a plain postgres image also keeps working, keyword-only).
+    # MIGRATION NOTE: the old volume was initialized by postgres:16-alpine
+    # (musl libc). Same pg major, but collations differ across libc — for the
+    # local dev volume just recreate it:  docker compose --profile backend down -v
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: amorosi
+      POSTGRES_PASSWORD: amorosi
+      POSTGRES_DB: amorosi
+    ports:
+      # host 5433 to avoid clashing with any local postgres on 5432.
+      # SECURITY: bound to LOOPBACK only. Postgres must never be published on a
+      # public interface (prod = no host mapping at all; the app reaches it over
+      # the internal docker network as postgres:5432). 127.0.0.1 keeps local
+      # `pnpm dev` + debugging working without exposing the DB to the VPS's
+      # public IP. See docs/final-refactor/17_SECURITY_BASELINE.md.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - amorosi_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amorosi -d amorosi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # --- Worker: kubernetes-lite sidecar (health observer + daily scout cron) --
+  # Plain node:alpine + one dependency-free script. Probes the backend, logs
+  # loudly, and fires POST /api/cron/daily-scout once a day (SCOUT_HOUR).
+  worker:
+    profiles: ["backend"]
+    image: node:20-alpine
+    command: ["node", "/app/worker.mjs"]
+    volumes:
+      - ./frontend-app/scripts/worker.mjs:/app/worker.mjs:ro
+    environment:
+      BACKEND_URL: http://amorosi-backend:3000
+      HEALTH_INTERVAL_S: "60"
+      SCOUT_HOUR: "9"
+    # INTERNAL_API_TOKEN comes from the same env_file as the backend
+    env_file:
+      - path: ./frontend-app/.env.docker.local
+        required: false
+    depends_on:
+      amorosi-backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Autoheal: restarts any unhealthy container labeled autoheal=true -----
+  # This is the "kubelet" of our kubernetes-lite: Docker healthchecks detect,
+  # autoheal enforces. Needs the docker socket (read-only trigger surface).
+  autoheal:
+    profiles: ["backend"]
+    image: willfarrell/autoheal:latest
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: "15"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+
+  # NOTE deliberately NOT added (anti over-engineering):
+  #   - redis: nothing needs a queue/cache at this traffic level. Add it the
+  #     day the agent needs rate-limited async jobs.
+  #   - a SECOND "plain" postgres: pgvector/pgvector:pg16 IS a standard
+  #     postgres 16 with one extra extension — relational data (leads,
+  #     sessions, events) and future vectors share the same instance.
+
+volumes:
+  # Durable store for the backend emulator (and future Dokploy deploy).
+  amorosi_backend_data:
+  amorosi_pg_data:

@@ -322,11 +322,10 @@ const ScrollWatermark: React.FC<ScrollWatermarkProps> = ({
                           
                           <div className="absolute right-1 top-1 bottom-1 w-2 bg-white/10 rounded-full">
                             <motion.div
-                              className="absolute w-full rounded-full"
+                              className="absolute w-full rounded-full shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                               style={{
                                 height: '35%',
                                 background: 'linear-gradient(180deg, rgba(6,182,212,0.9) 0%, rgba(168,85,247,0.7) 100%)',
-                                boxShadow: '0 0 10px rgba(6,182,212,0.5)',
                               }}
                               animate={{
                                 top: ['5%', '60%', '5%'],

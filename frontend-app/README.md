@@ -140,15 +140,35 @@ Los fondos 3D se cargan automáticamente en desktop. Para desactivar, usar `?no3
 ### Activar Web Components Vue
 Los componentes Vue se registran automáticamente. Para alternar entre React y Vue 3D, usar `?renderer=vue`.
 
-### Activar Resend
+### Activar Resend (emails + magic link admin)
 1. Copiar `.env.example` a `.env.local`
-2. Agregar tu API key de Resend
-3. Configurar el email de origen
+2. `RESEND_API_KEY` + `RESEND_FROM_EMAIL` (dominio verificado) +
+   `RESEND_ADMIN_TO_EMAIL`. Sin key: los emails se loguean (`email_logs`),
+   nada se rompe. Detalle: `docs/resend-email-system.md`.
 
-### Deploy a Vercel
-1. Conectar el repositorio
-2. Configurar las variables de entorno
-3. Deploy automático desde main
+### Admin
+- Login por **magic link** (email permitido: `ADMIN_EMAIL`) o password
+  (`ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`). Sesión firmada HTTP-only 8h.
+- Requiere `ADMIN_ENABLED=true` + `ADMIN_SESSION_SECRET`.
+
+### Agente de ventas
+- `OPENROUTER_API_KEY` activa el cerebro LLM (GLM 5.2) + mockups Seedream 4.5
+  (`OPENROUTER_IMAGE_MODEL`); `WEB_SEARCH_API_KEY` (serper.dev) habilita
+  `web_search`. Sin keys: asistente determinista no-silence.
+- Arquitectura completa: `docs/agent-architecture.md`.
+
+### Storage
+- Con `R2_*` configurado los uploads del admin van a Cloudflare R2; sin eso,
+  volumen local durable. Ver `docs/storage-r2.md`.
+
+### APIs
+- Salud: `/api/health`, `/api/status`. Públicas: `/api/projects`, `/api/leads`,
+  `/api/sessions`, `/api/ai/chat`. Internas (`INTERNAL_API_TOKEN`):
+  `/api/internal/*`. Referencia: `docs/internal-api.md`.
+
+### Deploy
+- Vercel (front público): conectar repo + env vars, deploy desde main.
+- Backend/VPS: `docs/deploy-vps.md`. Secrets: `docs/secrets-and-deploy.md`.
 
 ## Tecnologías
 

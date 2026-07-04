@@ -67,10 +67,7 @@ export function AvatarLoader({ progress = 0, isVisible = true }: AvatarLoaderPro
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-accent-cyan to-transparent opacity-90"
-            style={{
-              boxShadow: '0 0 20px rgba(6, 182, 212, 0.8)',
-            }}
+            className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-accent-cyan to-transparent opacity-90 shadow-[0_0_20px_rgba(6,182,212,0.8)]"
           />
         </motion.div>
 
