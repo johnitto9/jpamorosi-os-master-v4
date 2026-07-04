@@ -190,6 +190,81 @@ CREATE TABLE IF NOT EXISTS memory_items (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS memory_items_session_idx ON memory_items (session_id, id DESC);
+
+-- =========================================================================
+-- Unified Project + Brand Foundation (T04, docs/final-refactor/04_DATA_AND_
+-- PERSISTENCE_CONTRACTS). session_projects IS the Project — we EXTEND it and
+-- attach BrandDNA / Assets / StackDecisions / VisualPlans rather than building
+-- a parallel model. Project Room, Branding, Omni promotion and the admin
+-- dossier all read this same truth. All additive (safe on existing volumes).
+-- =========================================================================
+
+-- brand-foundation fields on the session project (nullable, backfilled by use)
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS summary text;
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS problem text;
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS audience text;
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS product_type text;
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS brand_vision text;
+-- palette confirmation gate (heavy generation only after colors are confirmed)
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS palette_confirmed_at timestamptz;
+
+-- BrandDNA: exactly one per project (personality, tone, keywords, do/dont...).
+CREATE TABLE IF NOT EXISTS brand_dna (
+  project_id        bigint PRIMARY KEY REFERENCES session_projects(id) ON DELETE CASCADE,
+  personality       text,
+  tone              text,
+  keywords          jsonb NOT NULL DEFAULT '[]'::jsonb,
+  do_list           jsonb NOT NULL DEFAULT '[]'::jsonb,
+  dont_list         jsonb NOT NULL DEFAULT '[]'::jsonb,
+  visual_direction  text,
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+-- Asset: one contract for EVERY generated/uploaded visual (was: loose files +
+-- a single logo_url). role = logo|reference|storyboard|screen:*|campaign|other.
+CREATE TABLE IF NOT EXISTS assets (
+  id              bigserial PRIMARY KEY,
+  project_id      bigint NOT NULL REFERENCES session_projects(id) ON DELETE CASCADE,
+  role            text NOT NULL DEFAULT 'other',
+  source          text NOT NULL DEFAULT 'generated',
+  storage_key     text,
+  url             text,
+  mime_type       text,
+  width           integer,
+  height          integer,
+  prompt_summary  text,
+  parent_ids      jsonb NOT NULL DEFAULT '[]'::jsonb,
+  status          text NOT NULL DEFAULT 'ready',
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assets_project_idx ON assets (project_id, id DESC);
+
+-- StackDecision: structured, confirmable stack choices (source user|ai|inferred).
+CREATE TABLE IF NOT EXISTS stack_decisions (
+  id            bigserial PRIMARY KEY,
+  project_id    bigint NOT NULL REFERENCES session_projects(id) ON DELETE CASCADE,
+  category      text NOT NULL,
+  option        text NOT NULL,
+  reason        text,
+  source        text NOT NULL DEFAULT 'ai',
+  confidence    integer,
+  confirmed_at  timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS stack_decisions_project_idx ON stack_decisions (project_id, id DESC);
+
+-- VisualPlan: declared BEFORE multi-image generation (PLAN FIRST, max 9 default).
+CREATE TABLE IF NOT EXISTS visual_plans (
+  id              bigserial PRIMARY KEY,
+  project_id      bigint NOT NULL REFERENCES session_projects(id) ON DELETE CASCADE,
+  product_surface text,
+  items           jsonb NOT NULL DEFAULT '[]'::jsonb,
+  max_items       integer NOT NULL DEFAULT 9,
+  rationale       text,
+  approved_at     timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS visual_plans_project_idx ON visual_plans (project_id, id DESC);
 `;
 
 let ready: Promise<void> | null = null;
