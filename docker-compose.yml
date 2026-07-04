@@ -82,8 +82,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      # /api/health reports db/flags; any 200 means the app is alive
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      # /api/health reports db/flags; any 200 means the app is alive.
+      # MUST use 127.0.0.1, not localhost: the app binds IPv4 0.0.0.0 while
+      # `localhost` resolves to IPv6 ::1 in the container -> "connection refused"
+      # -> perpetual unhealthy -> autoheal restart loop every ~99s.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
