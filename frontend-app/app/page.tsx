@@ -165,7 +165,7 @@ export default async function HomePage() {
               </div>
             </div>
             {/* Real contact form — same Formspree inbox as the OS ContactApp */}
-            <ContactSection />
+            <ContactSection t={t.contactForm} />
           </div>
         </div>
       </section>

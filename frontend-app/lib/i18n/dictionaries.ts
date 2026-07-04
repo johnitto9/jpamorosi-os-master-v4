@@ -28,6 +28,7 @@ type Dict = {
   browseAll: string;
   contactEyebrow: string; contactTitle: string; contactBody: string;
   contactEmail: string; contactExplore: string;
+  contactForm: { name: string; namePh: string; email: string; emailPh: string; message: string; messagePh: string; send: string; sending: string; sentTitle: string; sentBody: string };
   osTitle: string; osBody: string; osCta: string;
   langNudge: string;
   heroRole: string; heroTagline: string; heroThesis: string;
@@ -48,6 +49,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "Available for AI Product Engineering, AI Systems Architecture, and Full-Stack AI roles.",
     contactBody: "I design AI architecture, ship full-stack products, and turn messy founder problems into systems that survive contact with reality. If that's what you're hiring for, let's talk.",
     contactEmail: "Email directly", contactExplore: "Explore Projects",
+    contactForm: { name: "Name", namePh: "Your name", email: "Email", emailPh: "you@company.com", message: "Message", messagePh: "Tell me about your project, role, or idea…", send: "Send message →", sending: "Sending…", sentTitle: "Message sent", sentBody: "Thanks for reaching out — I'll get back to you soon." },
     osTitle: "Want the full experience?",
     osBody: "The original interactive CV lives on as a personal operating system — windows, dock, and a 3D avatar. Boot it up.",
     osCta: "Launch jpamorosi.os →",
@@ -71,6 +73,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "Disponible para roles de AI Product Engineering, Arquitectura de Sistemas IA y Full-Stack AI.",
     contactBody: "Diseño arquitectura de IA, entrego productos full-stack y convierto problemas difusos de founders en sistemas que sobreviven al contacto con la realidad. Si buscás eso, hablemos.",
     contactEmail: "Enviar email", contactExplore: "Explorar proyectos",
+    contactForm: { name: "Nombre", namePh: "Tu nombre", email: "Email", emailPh: "vos@empresa.com", message: "Mensaje", messagePh: "Contame sobre tu proyecto, rol o idea…", send: "Enviar mensaje →", sending: "Enviando…", sentTitle: "Mensaje enviado", sentBody: "Gracias por escribir — te respondo pronto." },
     osTitle: "¿Querés la experiencia completa?",
     osBody: "El CV interactivo original vive como un sistema operativo personal — ventanas, dock y un avatar 3D. Encendelo.",
     osCta: "Iniciar jpamorosi.os →",
@@ -94,6 +97,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "Disponível para funções de AI Product Engineering, Arquitetura de Sistemas de IA e Full-Stack AI.",
     contactBody: "Projeto arquitetura de IA, entrego produtos full-stack e transformo problemas difusos de founders em sistemas que sobrevivem ao contato com a realidade. Se é isso que você procura, vamos conversar.",
     contactEmail: "Enviar email", contactExplore: "Explorar projetos",
+    contactForm: { name: "Nome", namePh: "Seu nome", email: "Email", emailPh: "voce@empresa.com", message: "Mensagem", messagePh: "Conte sobre seu projeto, cargo ou ideia…", send: "Enviar mensagem →", sending: "Enviando…", sentTitle: "Mensagem enviada", sentBody: "Obrigado por escrever — respondo em breve." },
     osTitle: "Quer a experiência completa?",
     osBody: "O CV interativo original vive como um sistema operacional pessoal — janelas, dock e um avatar 3D. Inicie.",
     osCta: "Abrir jpamorosi.os →",
@@ -117,6 +121,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "Disponible pour des rôles d'AI Product Engineering, d'architecture de systèmes IA et de Full-Stack AI.",
     contactBody: "Je conçois des architectures IA, je livre des produits full-stack et je transforme des problèmes flous en systèmes qui survivent au contact de la réalité. Si c'est ce que vous cherchez, parlons-en.",
     contactEmail: "Envoyer un email", contactExplore: "Explorer les projets",
+    contactForm: { name: "Nom", namePh: "Votre nom", email: "Email", emailPh: "vous@entreprise.com", message: "Message", messagePh: "Parlez-moi de votre projet, poste ou idée…", send: "Envoyer le message →", sending: "Envoi…", sentTitle: "Message envoyé", sentBody: "Merci de votre message — je vous réponds bientôt." },
     osTitle: "Envie de l'expérience complète ?",
     osBody: "Le CV interactif original vit comme un système d'exploitation personnel — fenêtres, dock et avatar 3D. Démarrez-le.",
     osCta: "Lancer jpamorosi.os →",
@@ -140,6 +145,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "Доступен для ролей AI Product Engineering, архитектуры ИИ-систем и Full-Stack AI.",
     contactBody: "Проектирую ИИ-архитектуру, выпускаю full-stack продукты и превращаю размытые задачи в системы, выживающие при контакте с реальностью. Если вы ищете это — давайте поговорим.",
     contactEmail: "Написать на email", contactExplore: "Смотреть проекты",
+    contactForm: { name: "Имя", namePh: "Ваше имя", email: "Email", emailPh: "you@company.com", message: "Сообщение", messagePh: "Расскажите о вашем проекте, роли или идее…", send: "Отправить →", sending: "Отправка…", sentTitle: "Сообщение отправлено", sentBody: "Спасибо за сообщение — скоро отвечу." },
     osTitle: "Хотите полный опыт?",
     osBody: "Оригинальное интерактивное CV живёт как персональная ОС — окна, док и 3D-аватар. Запустите её.",
     osCta: "Запустить jpamorosi.os →",
@@ -163,6 +169,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "可担任 AI 产品工程、AI 系统架构与全栈 AI 相关职位。",
     contactBody: "我设计 AI 架构，交付全栈产品，把模糊的创业问题变成经得起现实考验的系统。如果这正是你要找的，聊聊吧。",
     contactEmail: "直接发邮件", contactExplore: "浏览项目",
+    contactForm: { name: "姓名", namePh: "你的名字", email: "邮箱", emailPh: "you@company.com", message: "留言", messagePh: "介绍一下你的项目、职位或想法…", send: "发送 →", sending: "发送中…", sentTitle: "已发送", sentBody: "感谢联系——我会尽快回复。" },
     osTitle: "想要完整体验？",
     osBody: "最初的交互式简历作为个人操作系统存在——窗口、程序坞与 3D 头像。启动它。",
     osCta: "启动 jpamorosi.os →",
@@ -186,6 +193,7 @@ export const DICTS: Record<Lang, Dict> = {
     contactTitle: "متاح لأدوار هندسة منتجات الذكاء الاصطناعي وهندسة أنظمة الذكاء الاصطناعي و Full-Stack AI.",
     contactBody: "أصمم بنى الذكاء الاصطناعي وأطلق منتجات متكاملة وأحوّل مشاكل المؤسسين الغامضة إلى أنظمة تصمد أمام الواقع. إن كان هذا ما تبحث عنه، فلنتحدث.",
     contactEmail: "أرسل بريداً", contactExplore: "استكشف المشاريع",
+    contactForm: { name: "الاسم", namePh: "اسمك", email: "البريد", emailPh: "you@company.com", message: "الرسالة", messagePh: "أخبرني عن مشروعك أو دورك أو فكرتك…", send: "إرسال ←", sending: "جارٍ الإرسال…", sentTitle: "تم الإرسال", sentBody: "شكراً لتواصلك — سأرد قريباً." },
     osTitle: "أتريد التجربة الكاملة؟",
     osBody: "السيرة التفاعلية الأصلية تعيش كنظام تشغيل شخصي — نوافذ وشريط تطبيقات وصورة رمزية ثلاثية الأبعاد. شغّلها.",
     osCta: "تشغيل jpamorosi.os ←",
