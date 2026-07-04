@@ -126,8 +126,23 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
 
 // --- The scroll engine -------------------------------------------------------
 // Builds ONE scrubbed timeline per scene, bound to the real ScrollStage scroller.
-// `build(tl, q)` authors the choreography; `q` is a scoped selector.
-function useSceneChoreography(build: (tl: gsap.core.Timeline, q: (s: string) => Element[]) => void): RefObject<HTMLDivElement> {
+// `build(tl, q)` authors the desktop choreography; `mobileBuild(tl, q)` (optional)
+// authors a parallel vertical scrubbed timeline for the mobile scene block.
+//
+// ARCHITECTURE (1:1 parity): both desktop and mobile share the SAME shape —
+// one shared timeline per scene, scrubbed to that scene's scroll progress,
+// every element animated within it. Mobile just lays out elements vertically
+// and uses vertical transforms (cards enter from below / exit above, words
+// dance stacked, thread grows top-to-bottom) instead of the desktop's
+// horizontal-axis choreography.
+//
+// `q` is a scoped selector (gsap.utils.selector) — desktop query is scoped to
+// rootEl, mobile query to the mobile scene subtree, so the same `.il-*` class
+// contract can drive both without collisions.
+function useSceneChoreography(
+  build: (tl: gsap.core.Timeline, q: (s: string) => Element[]) => void,
+  mobileBuild?: (tl: gsap.core.Timeline, q: (s: string) => Element[]) => void,
+): RefObject<HTMLDivElement> {
   const container = useContext(ScrollContainerContext);
   const root = useRef<HTMLDivElement>(null);
 
@@ -142,57 +157,51 @@ function useSceneChoreography(build: (tl: gsap.core.Timeline, q: (s: string) => 
         (typeof document !== "undefined" ? document.querySelector<HTMLElement>("main") : null) ??
         undefined;
       const section = rootEl?.querySelector<HTMLElement>("[data-scene]") ?? undefined;
-      if (!rootEl || !scroller || !section) return; // leave the readable base layout
+      const mobileSection = rootEl?.querySelector<HTMLElement>("[data-scene-mobile]") ?? undefined;
+      if (!rootEl || !scroller) return; // leave the readable base layout
 
-      // gsap.matchMedia: the skill's responsive gate — builds only on desktop
-      // with motion allowed, and auto-reverts when the query stops matching.
+      // gsap.matchMedia: the skill's responsive gate — builds only on the
+      // matched viewport with motion allowed, auto-reverts otherwise.
       const mm = gsap.matchMedia();
-      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
-        const q = gsap.utils.selector(rootEl);
-        const tl = gsap.timeline({
-          defaults: { ease: "none" },
-          scrollTrigger: {
-            trigger: section,
-            scroller,
-            start: "top top",
-            end: "bottom bottom",
-            scrub: 1,
-          },
-        });
-        build(tl, q);
-      });
 
-      // Mobile / narrow: no sticky-pin stage (a phone viewport can't afford the
-      // 300vh scrub). A lighter, always-readable reveal choreography on the
-      // visible mobile block — each element rises + fades as it enters the
-      // viewport, milestone chips pop in a stagger. Reduced-motion never
-      // matches -> static.
-      //
-      // NOTE on scope: each scene now has TWO `[data-scene-mobile]` blocks
-      // (MobileStatic = reduced-motion fallback + MobileScene* = rich). Only
-      // one is visible at a time via motion-safe/motion-reduce, so we have
-      // to iterate BOTH and let CSS hide the wrong one. Using querySelector
-      // (singular) here was a silent bug — it grabbed MobileStatic (hidden on
-      // motion-safe) and left MobileScene* without any reveals.
-      mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
-        const blocks = rootEl.querySelectorAll<HTMLElement>("[data-scene-mobile]");
-        if (!blocks.length) return;
-        blocks.forEach((mob) => {
-          gsap.utils.toArray<HTMLElement>(mob.querySelectorAll(".m-rise")).forEach((el) => {
-            gsap.from(el, {
-              autoAlpha: 0, y: 30, duration: 0.6, ease: "power3.out",
-              scrollTrigger: { trigger: el, scroller, start: "top 88%", toggleActions: "play none none reverse" },
-            });
+      // Desktop: sticky horizontal scrubbed timeline (unchanged architecture)
+      if (section) {
+        mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+          const q = gsap.utils.selector(rootEl);
+          const tl = gsap.timeline({
+            defaults: { ease: "none" },
+            scrollTrigger: {
+              trigger: section,
+              scroller,
+              start: "top top",
+              end: "bottom bottom",
+              scrub: 1,
+            },
           });
-          const chips = mob.querySelectorAll(".m-chip");
-          if (chips.length) {
-            gsap.from(chips, {
-              autoAlpha: 0, y: 16, scale: 0.9, duration: 0.4, ease: "back.out(1.6)", stagger: 0.08,
-              scrollTrigger: { trigger: chips[0] as Element, scroller, start: "top 90%", toggleActions: "play none none reverse" },
-            });
-          }
+          build(tl, q);
         });
-      });
+      }
+
+      // Mobile: vertical scrubbed timeline (1:1 architectural parity).
+      // mobileBuild is the per-scene choreography function; the section is the
+      // SAME shape as desktop (sticky stage inside a tall section) so a single
+      // scrubbed timeline drives all element transforms.
+      if (mobileBuild && mobileSection) {
+        mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
+          const q = gsap.utils.selector(mobileSection);
+          const tl = gsap.timeline({
+            defaults: { ease: "none" },
+            scrollTrigger: {
+              trigger: mobileSection,
+              scroller,
+              start: "top top",
+              end: "bottom bottom",
+              scrub: 1,
+            },
+          });
+          mobileBuild(tl, q);
+        });
+      }
 
       // photos may 404 to the CSS fallback + fonts can shift layout
       const id = window.setTimeout(() => ScrollTrigger.refresh(), 500);
@@ -228,166 +237,124 @@ function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: A
 // fades as it enters the viewport via the existing GSAP reveal; .m-chip staggers.
 // Reduced-motion never matches -> the MobileStatic fallback above renders. */
 
-// SCENE 1 (mobile) — Before the Systems: shop + workshop prints stacked with
-// a milestone pull-quote between them and the chips clustered at the end.
+// SCENE 1 (mobile) — Before the Systems: vertical scrubbed choreography.
+// Sticky stage inside a tall section; cards travel vertically (enter from
+// below, exit above), milestone words dance stacked, thread grows top-to-bottom.
+// Architecturally 1:1 with the desktop scene — same ONE shared scrubbed
+// timeline, same element contract (.il-*), just vertical transforms.
 function MobileScene1({ t }: { t: InterludeCopy }) {
-  const a = ACCENT.amber;
+  const words = t.items;
   return (
-    <div data-scene-mobile className="relative lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[280vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="mixed" />
-      <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-12">
-        <div className="m-rise"><EyebrowPill accent="amber">{t.eyebrow}</EyebrowPill></div>
-        <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
-        <p className="m-rise mt-4 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
-
-        {/* first print — full-bleed, anchors the scene */}
-        <div className="m-rise mt-10">
-          <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="aspect-[4/3] w-full" />
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6">
+        {/* narrative at top, centred, with vertical thread on its left */}
+        <div className="relative z-10 mt-20 w-full max-w-md text-center">
+          <span className="il-thread absolute left-1/2 top-12 h-[calc(100vh-13rem)] w-px -translate-x-1/2"
+            aria-hidden
+            style={{ background: "linear-gradient(to bottom, rgba(240,165,0,0.8), rgba(0,242,255,0.7))" }} />
+          <div className="il-eyebrow flex justify-center"><EyebrowPill accent="amber">{t.eyebrow}</EyebrowPill></div>
+          <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
+          <p className="il-body mt-3 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
         </div>
 
-        {/* pull-quote from the first milestone — frames the transition */}
-        {t.items[0] && (
-          <div className="m-rise mt-6 flex items-start gap-3 border-l-2 border-amber-400/40 pl-4">
-            <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.3em] text-amber-300/80">— 01</span>
-            <p className="text-base font-medium text-white/85">{t.items[0]}</p>
+        {/* prints — vertical travellers. Same `.il-card-a/b` contract as desktop */}
+        <div className="il-card-a absolute left-1/2 top-[58%] h-44 w-72 -translate-x-1/2 -translate-y-1/2">
+          <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="h-full w-full" />
+        </div>
+        <div className="il-card-b absolute left-1/2 top-[62%] h-40 w-64 -translate-x-1/2 -translate-y-1/2">
+          <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="h-full w-full" />
+        </div>
+
+        {/* milestone words band — same `.il-word` contract, vertical dance */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 flex h-14 justify-center">
+          <div className="relative w-full">
+            {words.map((m) => (
+              <span key={m} className="il-word absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap text-2xl font-bold text-amber-200 sm:text-3xl">{m}</span>
+            ))}
           </div>
-        )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* second print — offset right, smaller (echoes the desktop overlap) */}
-        <div className="m-rise mt-10 ml-auto w-3/4 pr-2">
-          <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="aspect-square w-full" />
+// SCENE 2 (mobile) — Inside the Proof: vertical scrubbed choreography.
+// The system screen arrives from depth (below), holds; stack layer cards
+// assemble bottom-up over the screen. Same `.il-screen` / `.il-layer`
+// contract as desktop, vertical transforms.
+function MobileScene2({ t }: { t: InterludeCopy }) {
+  return (
+    <div data-scene-mobile className="relative block min-h-[260vh] lg:hidden motion-reduce:hidden">
+      <SceneGlow tone="cyan" />
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6">
+        {/* narrative at top */}
+        <div className="relative z-10 mt-20 w-full max-w-md text-center">
+          <div className="il-eyebrow flex justify-center"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
+          <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
+          <p className="il-body mt-3 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
         </div>
 
-        {/* milestone chips — staggered reveal */}
-        <div className="m-rise mt-10">
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">Milestones</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {t.items.map((it) => (
-              <span key={it} className={cn("m-chip rounded-full border bg-white/[0.03] px-3 py-1.5 text-xs text-white/85", a.border)}>{it}</span>
+        {/* the running system — large, anchored in middle-lower, arrives from below */}
+        <div className="il-screen absolute left-1/2 top-[55%] h-44 w-72 -translate-x-1/2 -translate-y-1/2">
+          <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="h-full w-full" />
+        </div>
+
+        {/* stack layer cards assemble bottom-up; each its own reveal within
+            the shared scrubbed timeline, same .il-layer contract as desktop */}
+        <div className="absolute inset-x-4 bottom-14 space-y-2">
+          {t.items.map((l, i) => (
+            <div key={l} className="il-layer flex items-center gap-3 rounded-xl border border-cyan-400/25 bg-white/[0.04] px-4 py-2.5 backdrop-blur-sm"
+              style={{ boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}>
+              <span className="font-mono text-[11px] text-cyan-300/70" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" aria-hidden />
+              <span className="text-sm text-white/85">{l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// SCENE 3 (mobile) — The Living Layer: vertical scrubbed choreography.
+// Drifting backdrop, one flow word pulses at a time stacked in centre,
+// violet→cyan rail advances. Same `.il-flow` / `.il-rail` / `.il-dot` /
+// `.il-backdrop` contract as desktop, vertical transforms.
+function MobileScene3({ t }: { t: InterludeCopy }) {
+  const words = t.items;
+  return (
+    <div data-scene-mobile className="relative block min-h-[300vh] lg:hidden motion-reduce:hidden">
+      <SceneGlow tone="violet" />
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6">
+        {/* narrative at top */}
+        <div className="relative z-10 mt-20 w-full max-w-md text-center">
+          <div className="il-eyebrow flex justify-center"><EyebrowPill accent="violet">{t.eyebrow}</EyebrowPill></div>
+          <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
+          <p className="il-body mt-3 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+        </div>
+
+        {/* stage with drifting backdrop + stacked flow words */}
+        <div className="relative mt-6 h-44 w-full max-w-sm">
+          <div className="il-backdrop absolute inset-0 opacity-40">
+            <InterludeImage src={IMG.living1} accent="violet" emoji="🌀" className="h-full w-full" />
+          </div>
+          <div className="relative flex h-full items-center justify-center">
+            {words.map((w) => (
+              <span key={w} className="il-flow absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-2xl font-bold text-white sm:text-4xl"
+                style={{ textShadow: "0 0 30px rgba(139,92,246,0.5)" }}>{w}</span>
             ))}
           </div>
         </div>
 
-        {/* closing signature — the last milestone framed as a line */}
-        {t.items.length > 1 && (
-          <p className="m-rise mt-10 text-right font-mono text-[11px] uppercase tracking-[0.3em] text-amber-300/70">
-            · {t.items[t.items.length - 1]} ·
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// SCENE 2 (mobile) — Inside the Proof: the running screen + a vertical stack of
-// the layer cards (one per items entry), each its own reveal, framed by the
-// pull-quote at the bottom.
-function MobileScene2({ t }: { t: InterludeCopy }) {
-  const a = ACCENT.cyan;
-  return (
-    <div data-scene-mobile className="relative lg:hidden motion-reduce:hidden">
-      <SceneGlow tone="cyan" />
-      <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-12">
-        <div className="m-rise"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
-        <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
-        <p className="m-rise mt-4 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
-
-        {/* the running system — large, anchored top-right with a slight tilt */}
-        <div className="m-rise mt-10">
-          <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="aspect-[16/10] w-full" />
-        </div>
-
-        {/* stack header */}
-        <div className="m-rise mt-10 flex items-center justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-cyan-300">Stack</p>
-          <span className="font-mono text-[10px] text-white/40">0{t.items.length} layers</span>
-        </div>
-
-        {/* layer cards — one per item, each its own reveal with a soft glow */}
-        <ol className="mt-4 space-y-2.5">
-          {t.items.map((l, i) => (
-            <li
-              key={l}
-              className="m-rise flex items-center gap-3 rounded-xl border border-cyan-400/25 bg-white/[0.04] px-4 py-3 backdrop-blur-sm"
-              style={{ marginLeft: `${Math.min(i, 4) * 8}px`, boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}
-            >
-              <span className="font-mono text-[11px] text-cyan-300/70" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" aria-hidden />
-              <span className="text-sm text-white/85 sm:text-base">{l}</span>
-            </li>
-          ))}
-        </ol>
-
-        {/* closing line — last layer framed as the system's heartbeat */}
-        {t.items.length > 1 && (
-          <div className="m-rise mt-10 flex items-start gap-3 border-l-2 border-cyan-400/40 pl-4">
-            <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.3em] text-cyan-300/80">— running</span>
-            <p className="text-base font-medium text-white/85">{t.items[t.items.length - 1]}</p>
+        {/* advancing rail + step dots — same .il-rail / .il-dot contract */}
+        <div className="mt-8 flex w-full max-w-xs flex-col items-center gap-3">
+          <div className="relative h-px w-full bg-white/10">
+            <div className="il-rail absolute inset-y-0 left-0 w-full" aria-hidden
+              style={{ background: "linear-gradient(90deg, rgba(139,92,246,0.9), rgba(0,242,255,0.7))" }} />
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// SCENE 3 (mobile) — The Living Layer: backdrop + numbered flow-word cards
-// stepping through the journey, plus a violet→cyan rail visualization at the end.
-function MobileScene3({ t }: { t: InterludeCopy }) {
-  const a = ACCENT.violet;
-  return (
-    <div data-scene-mobile className="relative lg:hidden motion-reduce:hidden">
-      <SceneGlow tone="violet" />
-      <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-12">
-        <div className="m-rise"><EyebrowPill accent="violet">{t.eyebrow}</EyebrowPill></div>
-        <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
-        <p className="m-rise mt-4 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
-
-        {/* backdrop — dimmed, anchors the ambient feel */}
-        <div className="m-rise mt-10">
-          <InterludeImage src={IMG.living1} accent="violet" emoji="🌀" className="aspect-[16/10] w-full opacity-90" />
-        </div>
-
-        {/* journey header */}
-        <div className="m-rise mt-10 flex items-center justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-violet-300">The journey</p>
-          <span className="font-mono text-[10px] text-white/40">0{t.items.length} steps</span>
-        </div>
-
-        {/* flow words as numbered cards — each its own reveal */}
-        <ol className="mt-4 space-y-3">
-          {t.items.map((w, i) => (
-            <li
-              key={w}
-              className="m-rise flex items-center gap-4 rounded-xl border border-violet-400/25 bg-white/[0.04] px-4 py-3 backdrop-blur-sm"
-              style={{ boxShadow: "0 0 24px -12px rgba(139,92,246,0.4)" }}
-            >
-              <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-400/40 font-mono text-[11px] text-violet-200"
-                aria-hidden
-              >
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="text-base font-semibold text-white">{w}</span>
-            </li>
-          ))}
-        </ol>
-
-        {/* closing rail visualization */}
-        <div className="m-rise mt-10">
-          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">Signal</p>
-          <div className="relative h-1 w-full rounded-full bg-white/10">
-            <div
-              aria-hidden
-              className="absolute inset-y-0 left-0 w-full rounded-full"
-              style={{ background: "linear-gradient(90deg, rgba(139,92,246,0.9), rgba(0,242,255,0.7))" }}
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between font-mono text-[10px] text-white/40">
-            <span>arrival</span>
-            <span>·</span>
-            <span>memory</span>
-            <span>·</span>
-            <span>action</span>
+          <div className="flex items-center gap-3">
+            {words.map((w) => (<span key={w} className="il-dot h-1.5 w-1.5 rounded-full bg-violet-300" aria-hidden />))}
           </div>
         </div>
       </div>
@@ -403,29 +370,54 @@ function MobileScene3({ t }: { t: InterludeCopy }) {
 // =============================================================================
 export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
   const words = t.items;
-  const root = useSceneChoreography((tl, q) => {
-    // narrative core: VISIBLE at 0, only settles (fail-safe)
-    tl.from(q(".il-eyebrow"), { y: 26, duration: 0.5, ease: "power2.out" }, 0)
-      .from(q(".il-head"), { y: 44, rotate: -2, duration: 0.7, ease: "power3.out" }, 0.05)
-      .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
-      .to(q(".il-head"), { y: -26, duration: 5, ease: "none" }, 0.9) // drifts, stays visible
-      // thread grows through the whole scene (secondary motion)
-      .fromTo(q(".il-thread"), { scaleY: 0 }, { scaleY: 1, duration: 5, ease: "none", transformOrigin: "top center" }, 0.4)
-      // print A: enters deep-right, crosses, then recedes (still faintly there)
-      .fromTo(q(".il-card-a"), { xPercent: 150, autoAlpha: 0, rotate: -9, scale: 0.78, transformPerspective: 900 },
-        { xPercent: 4, autoAlpha: 1, rotate: -4, scale: 1, duration: 1.7, ease: "power3.out" }, 0.5)
-      .to(q(".il-card-a"), { xPercent: -46, autoAlpha: 0.18, rotate: -1, scale: 0.9, duration: 2, ease: "none" }, 2.4)
-      // print B: rises from below while A is still present (overlap, oclusion)
-      .fromTo(q(".il-card-b"), { yPercent: 130, xPercent: 24, autoAlpha: 0, rotate: 7, scale: 0.82 },
-        { yPercent: 0, xPercent: 0, autoAlpha: 1, rotate: 3, scale: 1, duration: 1.6, ease: "power3.out" }, 2.1)
-      .to(q(".il-card-b"), { xPercent: -140, autoAlpha: 0, rotate: 1, duration: 1.6, ease: "power1.in" }, 4.3);
-    // milestone words dance up, handing off (last stays lit)
-    q(".il-word").forEach((w, i) => {
-      const at = 1.2 + i * 0.62;
-      tl.fromTo(w, { autoAlpha: 0, yPercent: 90, rotate: i % 2 ? 5 : -5 }, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)" }, at);
-      if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
-    });
-  });
+  const root = useSceneChoreography(
+    (tl, q) => {
+      // narrative core: VISIBLE at 0, only settles (fail-safe)
+      tl.from(q(".il-eyebrow"), { y: 26, duration: 0.5, ease: "power2.out" }, 0)
+        .from(q(".il-head"), { y: 44, rotate: -2, duration: 0.7, ease: "power3.out" }, 0.05)
+        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
+        .to(q(".il-head"), { y: -26, duration: 5, ease: "none" }, 0.9) // drifts, stays visible
+        // thread grows through the whole scene (secondary motion)
+        .fromTo(q(".il-thread"), { scaleY: 0 }, { scaleY: 1, duration: 5, ease: "none", transformOrigin: "top center" }, 0.4)
+        // print A: enters deep-right, crosses, then recedes (still faintly there)
+        .fromTo(q(".il-card-a"), { xPercent: 150, autoAlpha: 0, rotate: -9, scale: 0.78, transformPerspective: 900 },
+          { xPercent: 4, autoAlpha: 1, rotate: -4, scale: 1, duration: 1.7, ease: "power3.out" }, 0.5)
+        .to(q(".il-card-a"), { xPercent: -46, autoAlpha: 0.18, rotate: -1, scale: 0.9, duration: 2, ease: "none" }, 2.4)
+        // print B: rises from below while A is still present (overlap, oclusion)
+        .fromTo(q(".il-card-b"), { yPercent: 130, xPercent: 24, autoAlpha: 0, rotate: 7, scale: 0.82 },
+          { yPercent: 0, xPercent: 0, autoAlpha: 1, rotate: 3, scale: 1, duration: 1.6, ease: "power3.out" }, 2.1)
+        .to(q(".il-card-b"), { xPercent: -140, autoAlpha: 0, rotate: 1, duration: 1.6, ease: "power1.in" }, 4.3);
+      // milestone words dance up, handing off (last stays lit)
+      q(".il-word").forEach((w, i) => {
+        const at = 1.2 + i * 0.62;
+        tl.fromTo(w, { autoAlpha: 0, yPercent: 90, rotate: i % 2 ? 5 : -5 }, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)" }, at);
+        if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
+      });
+    },
+    // MOBILE BUILD — same single scrubbed timeline, vertical transforms.
+    // Cards enter from below and exit up; thread grows top→bottom; words dance stacked.
+    (tl, q) => {
+      tl.from(q(".il-eyebrow"), { y: 26, duration: 0.5, ease: "power2.out" }, 0)
+        .from(q(".il-head"), { y: 44, rotate: -2, duration: 0.7, ease: "power3.out" }, 0.05)
+        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
+        .to(q(".il-head"), { y: -22, duration: 5, ease: "none" }, 0.9)
+        .fromTo(q(".il-thread"), { scaleY: 0 }, { scaleY: 1, duration: 5, ease: "none", transformOrigin: "top center" }, 0.4)
+        // card A: rises from below, settles, then exits up
+        .fromTo(q(".il-card-a"), { yPercent: 130, autoAlpha: 0, scale: 0.85 },
+          { yPercent: 0, autoAlpha: 1, scale: 1, duration: 1.5, ease: "power3.out" }, 0.5)
+        .to(q(".il-card-a"), { yPercent: -130, autoAlpha: 0, scale: 0.9, duration: 1.4, ease: "power1.in" }, 2.6)
+        // card B: rises from below while A is still present
+        .fromTo(q(".il-card-b"), { yPercent: 140, autoAlpha: 0, scale: 0.85 },
+          { yPercent: 0, autoAlpha: 1, scale: 1, duration: 1.5, ease: "power3.out" }, 2.0)
+        .to(q(".il-card-b"), { yPercent: -140, autoAlpha: 0, duration: 1.2, ease: "power1.in" }, 4.4);
+      // milestone words dance stacked (vertical)
+      q(".il-word").forEach((w, i) => {
+        const at = 1.2 + i * 0.62;
+        tl.fromTo(w, { autoAlpha: 0, yPercent: 90, rotate: i % 2 ? 5 : -5 }, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)" }, at);
+        if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
+      });
+    },
+  );
 
   return (
     <section ref={root} id="before-the-systems" className="relative scroll-mt-20">
@@ -471,19 +463,35 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
 // the stack layers assemble bottom-up and STAY (the system builds before you).
 // =============================================================================
 export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
-  const root = useSceneChoreography((tl, q) => {
-    tl.from(q(".il-eyebrow"), { x: -32, duration: 0.5, ease: "power2.out" }, 0)
-      .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
-      .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
-      // the running system arrives from depth and holds
-      .fromTo(q(".il-screen"), { autoAlpha: 0, xPercent: 46, scale: 0.8, rotateY: 14, transformPerspective: 1000 },
-        { autoAlpha: 1, xPercent: 0, scale: 1, rotateY: 0, duration: 1.5, ease: "power3.out" }, 0.5)
-      .to(q(".il-screen"), { yPercent: -6, duration: 5, ease: "sine.inOut" }, 2.2); // subtle float, stays
-    // layers assemble one on top of the other and STAY
-    q(".il-layer").forEach((l, i) => {
-      tl.fromTo(l, { autoAlpha: 0, y: 64, xPercent: -10 }, { autoAlpha: 1, y: 0, xPercent: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.4 + i * 0.72);
-    });
-  });
+  const root = useSceneChoreography(
+    (tl, q) => {
+      tl.from(q(".il-eyebrow"), { x: -32, duration: 0.5, ease: "power2.out" }, 0)
+        .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
+        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
+        // the running system arrives from depth and holds
+        .fromTo(q(".il-screen"), { autoAlpha: 0, xPercent: 46, scale: 0.8, rotateY: 14, transformPerspective: 1000 },
+          { autoAlpha: 1, xPercent: 0, scale: 1, rotateY: 0, duration: 1.5, ease: "power3.out" }, 0.5)
+        .to(q(".il-screen"), { yPercent: -6, duration: 5, ease: "sine.inOut" }, 2.2); // subtle float, stays
+      // layers assemble one on top of the other and STAY
+      q(".il-layer").forEach((l, i) => {
+        tl.fromTo(l, { autoAlpha: 0, y: 64, xPercent: -10 }, { autoAlpha: 1, y: 0, xPercent: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.4 + i * 0.72);
+      });
+    },
+    // MOBILE BUILD — same single timeline; system screen rises from below
+    // and floats up, layer cards assemble bottom-up.
+    (tl, q) => {
+      tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
+        .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
+        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
+        .fromTo(q(".il-screen"), { yPercent: 130, autoAlpha: 0, scale: 0.85 },
+          { yPercent: 0, autoAlpha: 1, scale: 1, duration: 1.5, ease: "power3.out" }, 0.5)
+        .to(q(".il-screen"), { yPercent: -14, duration: 5, ease: "sine.inOut" }, 2.2);
+      // layers assemble bottom-up (vertical stack)
+      q(".il-layer").forEach((l, i) => {
+        tl.fromTo(l, { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.5 + i * 0.55);
+      });
+    },
+  );
 
   return (
     <section ref={root} id="inside-the-proof" className="relative scroll-mt-20">
@@ -528,25 +536,47 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
 // =============================================================================
 export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
   const words = t.items;
-  const root = useSceneChoreography((tl, q) => {
-    tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
-      .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
-      .from(q(".il-body"), { y: 20, duration: 0.6, ease: "power2.out" }, 0.35)
-      .fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -12, scale: 1, duration: 6, ease: "none" }, 0)
-      .fromTo(q(".il-rail"), { scaleX: 0 }, { scaleX: 1, duration: 5.4, ease: "none", transformOrigin: "left center" }, 0.6);
-    // flow words crossfade centre-stage with a scale dance (last stays)
-    const dots = q(".il-dot");
-    q(".il-flow").forEach((w, i) => {
-      const at = 0.9 + i * 0.66;
-      tl.fromTo(w, { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" },
-        { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, at);
-      if (dots[i]) tl.fromTo(dots[i], { scale: 1, autoAlpha: 0.3 }, { scale: 1.5, autoAlpha: 1, duration: 0.5 }, at);
-      if (i < words.length - 1) {
-        tl.to(w, { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.5, ease: "power1.in" }, at + 0.7);
-        if (dots[i]) tl.to(dots[i], { scale: 1, autoAlpha: 0.5, duration: 0.5 }, at + 0.7);
-      }
-    });
-  });
+  const root = useSceneChoreography(
+    (tl, q) => {
+      tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
+        .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
+        .from(q(".il-body"), { y: 20, duration: 0.6, ease: "power2.out" }, 0.35)
+        .fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -12, scale: 1, duration: 6, ease: "none" }, 0)
+        .fromTo(q(".il-rail"), { scaleX: 0 }, { scaleX: 1, duration: 5.4, ease: "none", transformOrigin: "left center" }, 0.6);
+      // flow words crossfade centre-stage with a scale dance (last stays)
+      const dots = q(".il-dot");
+      q(".il-flow").forEach((w, i) => {
+        const at = 0.9 + i * 0.66;
+        tl.fromTo(w, { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" },
+          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, at);
+        if (dots[i]) tl.fromTo(dots[i], { scale: 1, autoAlpha: 0.3 }, { scale: 1.5, autoAlpha: 1, duration: 0.5 }, at);
+        if (i < words.length - 1) {
+          tl.to(w, { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.5, ease: "power1.in" }, at + 0.7);
+          if (dots[i]) tl.to(dots[i], { scale: 1, autoAlpha: 0.5, duration: 0.5 }, at + 0.7);
+        }
+      });
+    },
+    // MOBILE BUILD — same single timeline; backdrop drifts, flow words pulse
+    // stacked vertically, rail advances, dots scale on each step.
+    (tl, q) => {
+      tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
+        .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
+        .from(q(".il-body"), { y: 20, duration: 0.6, ease: "power2.out" }, 0.35)
+        .fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -12, scale: 1, duration: 6, ease: "none" }, 0)
+        .fromTo(q(".il-rail"), { scaleX: 0 }, { scaleX: 1, duration: 5.4, ease: "none", transformOrigin: "left center" }, 0.6);
+      const dots = q(".il-dot");
+      q(".il-flow").forEach((w, i) => {
+        const at = 0.9 + i * 0.66;
+        tl.fromTo(w, { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" },
+          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, at);
+        if (dots[i]) tl.fromTo(dots[i], { scale: 1, autoAlpha: 0.3 }, { scale: 1.5, autoAlpha: 1, duration: 0.5 }, at);
+        if (i < words.length - 1) {
+          tl.to(w, { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.5, ease: "power1.in" }, at + 0.7);
+          if (dots[i]) tl.to(dots[i], { scale: 1, autoAlpha: 0.5, duration: 0.5 }, at + 0.7);
+        }
+      });
+    },
+  );
 
   return (
     <section ref={root} id="living-layer" className="relative scroll-mt-20">

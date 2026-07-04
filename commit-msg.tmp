@@ -1,0 +1,26 @@
+feat(finalprod-s4): 1:1 mobile/desktop architectural parity — vertical scrubbed timelines
+
+useSceneChoreography now accepts an optional mobileBuild parameter. matchMedia
+attaches a SECOND scrubbed timeline to [data-scene-mobile] (mirror of the
+desktop pattern on [data-scene]). Each scene provides a mobileBuild with
+vertical transforms:
+
+- Scene 1 (Before the Systems): cards rise from below and exit up; thread
+  grows top→bottom; words dance stacked
+- Scene 2 (Inside the Proof): system screen rises from below; layer cards
+  assemble bottom-up
+- Scene 3 (Living Layer): backdrop drifts; flow words pulse stacked; rail
+  advances with dots
+
+MobileScene1/2/3 rewritten with sticky stage (min-h-[260-300vh] + sticky
+top-0 h-screen flex-col items-center) and same .il-* selector contract as
+desktop. MobileStatic remains the motion-reduce/no-JS fallback.
+
+Same architectural shape, same scrub, same single shared timeline per scene —
+only the transform axis differs (vertical instead of horizontal/3D).
+
+tsc clean. Backend rebuilt and recreated on :3001, /api/health=200. Bundle
+page-173d83df4adf0a8c.js verified: 6 sticky stages, 28 yPercent transforms,
+all .il-* contracts present.
+
+See develop-history/PHASE_FINALPROD_S4_2026-07-04.md
