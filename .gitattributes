@@ -1,0 +1,29 @@
+# Normalize line endings: store everything as LF in git, check out LF.
+# Fixes the pervasive CRLF<->LF churn that made ~1200 files show as "modified".
+# (Applied on the next commit / `git add --renormalize .` — does not rewrite the
+#  working tree until then.)
+* text=auto eol=lf
+
+# Windows batch files must keep CRLF or they break.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets: never touch, never diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.mp4 binary
+*.webm binary
+*.pdf binary
+*.zip binary
+*.glb binary
+*.gltf binary

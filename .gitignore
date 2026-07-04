@@ -1,0 +1,43 @@
+# =============================================================================
+# Root .gitignore — Amorosi Labs portfolio monorepo
+# SECURITY FIRST: local secrets and reference repos NEVER enter version control.
+# =============================================================================
+
+# Sensitive local secrets
+secrets/
+.secrets/
+*.secret
+*.secrets
+credentials.txt
+credentials.local.txt
+secrets.local.md
+
+# Env files (examples stay versionable)
+.env
+.env.*
+!.env.example
+!.env.production.example
+!.env.local.example
+!.env.docker.local.example
+
+# Local reference repos — do not commit inside this repo
+proyecto_buen_pick/
+BBNfinprod/
+lumenscriot14-slim/
+delibot/
+
+# Node / build
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+# Logs (dev server output, etc.)
+*.log
+
+# Local data volumes (docker fallback storage)
+frontend-app/data/
