@@ -7,7 +7,6 @@ import { FeaturedSystemsGrid } from '@/components/hall/FeaturedSystemsGrid';
 import { LabArchiveGrid } from '@/components/hall/LabArchiveGrid';
 import { AssistantWidget } from '@/components/assistant/AssistantWidget';
 import { GuidedTour } from '@/components/assistant/GuidedTour';
-import { AssetVault } from '@/components/assistant/AssetVault';
 import { ContactSection } from '@/components/hall/ContactSection';
 import { BeforeTheSystems, PortfolioSystemInterlude, LivingLayerInterlude } from '@/components/hall/Interludes';
 import { ChapterNav } from '@/components/ui/chapter-nav';
@@ -15,7 +14,6 @@ import { ScrollStage } from '@/components/ui/scroll-stage';
 import { SectionTransition } from '@/components/ui/section-transition';
 import { GlassAurora } from '@/components/ui/glass-aurora';
 import { getPublicGroupedAuto } from '@/lib/projects/public-projects';
-import { getSiteSettings } from '@/lib/media/store';
 import { getDict } from '@/lib/i18n/server';
 import { localizeProjects } from '@/lib/i18n/translate';
 import { LanguageSwitch } from '@/components/ui/language-switch';
@@ -52,7 +50,6 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const grouped = await getPublicGroupedAuto();
-  const settings = await getSiteSettings();
   const { lang, t, r } = await getDict(); // al_lang cookie -> translated shell (SSR)
   // CONTENT follows the visitor too: project copy through the LLM translation
   // cache (EN passthrough; first render per language warms the cache once)
@@ -76,13 +73,13 @@ export default async function HomePage() {
       />
       <div className="relative z-10">
       <HallHero />
-      <SectionTransition>
-        <BeforeTheSystems t={t.il1} />
-      </SectionTransition>
+      {/* Interludes drive their OWN scroll choreography (GSAP ScrollTrigger).
+          They must NOT sit inside SectionTransition's transform, which creates a
+          containing block that breaks the interlude's position:sticky stage. */}
+      <BeforeTheSystems t={t.il1} />
       <SectionTransition blur={4}>
         <HallOfFameGrid
           projects={hall}
-          heroVideo={settings.heroVideo}
           header={{ eyebrow: t.hallEyebrow, title: t.hallTitle, description: t.hallDesc }}
           enterLabel={r.enter}
         />
@@ -95,9 +92,7 @@ export default async function HomePage() {
           {t.browseAll}
         </Link>
       </div>
-      <SectionTransition>
-        <PortfolioSystemInterlude t={t.il2} />
-      </SectionTransition>
+      <PortfolioSystemInterlude t={t.il2} />
       <SectionTransition>
         <FeaturedSystemsGrid
           projects={featured}
@@ -105,9 +100,7 @@ export default async function HomePage() {
           enterLabel={r.enter}
         />
       </SectionTransition>
-      <SectionTransition>
-        <LivingLayerInterlude t={t.il3} />
-      </SectionTransition>
+      <LivingLayerInterlude t={t.il3} />
       <SectionTransition>
         <LabArchiveGrid
           projects={archive}
@@ -214,7 +207,6 @@ export default async function HomePage() {
       </div>
       <AssistantWidget />
       <GuidedTour />
-      <AssetVault />
     </ScrollStage>
   );
 }

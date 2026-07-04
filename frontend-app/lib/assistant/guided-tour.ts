@@ -107,10 +107,62 @@ const COPY: Record<Lang, TourCopy> = {
   },
 };
 
+// Short captions ("notes") surfaced as floating annotations while the tour
+// travels the CV: an anchored bubble next to the highlighted section + a stacked
+// toast that logs the journey. Only states with a scroll target carry a note —
+// welcome/route have no section to anchor to. Kept apart from COPY so the copy
+// blocks above stay untouched; merged in by resolveTourState.
+const NOTES: Record<Lang, Partial<Record<TourStateId, string>>> = {
+  en: {
+    builder: "The origin: commerce before code.",
+    proof: "Systems that survived contact with reality.",
+    portfolio: "This very portfolio is one of the systems.",
+    living: "Orbe remembers — and turns a chat into a project.",
+  },
+  es: {
+    builder: "El origen: comercio antes que código.",
+    proof: "Sistemas que sobrevivieron a la realidad.",
+    portfolio: "Este mismo portfolio es uno de los sistemas.",
+    living: "Orbe recuerda — y convierte la charla en proyecto.",
+  },
+  pt: {
+    builder: "A origem: comércio antes do código.",
+    proof: "Sistemas que sobreviveram ao contato com a realidade.",
+    portfolio: "Este próprio portfólio é um dos sistemas.",
+    living: "Orbe lembra — e transforma a conversa em projeto.",
+  },
+  fr: {
+    builder: "L'origine : le commerce avant le code.",
+    proof: "Des systèmes qui ont survécu au réel.",
+    portfolio: "Ce portfolio même est l'un des systèmes.",
+    living: "Orbe se souvient — et transforme un échange en projet.",
+  },
+  ru: {
+    builder: "Начало: торговля прежде кода.",
+    proof: "Системы, выжившие при встрече с реальностью.",
+    portfolio: "Само это портфолио — одна из систем.",
+    living: "Orbe помнит — и превращает разговор в проект.",
+  },
+  zh: {
+    builder: "起点：商业先于代码。",
+    proof: "经受住现实考验的系统。",
+    portfolio: "你正在用的这个作品集本身就是其中一个系统。",
+    living: "Orbe 会记忆——并把对话变成项目。",
+  },
+  ar: {
+    builder: "الأصل: التجارة قبل الكود.",
+    proof: "أنظمة نجت من الاصطدام بالواقع.",
+    portfolio: "هذه المحفظة نفسها هي أحد الأنظمة.",
+    living: "Orbe يتذكّر — ويحوّل المحادثة إلى مشروع.",
+  },
+};
+
 export type ResolvedTourState = {
   id: TourStateId;
   message: string;
   scrollTo?: string;
+  /** Short caption for the floating annotation (only when a section is targeted). */
+  note?: string;
   actions: Array<{ label: string; effect: TourEffect }>;
 };
 
@@ -122,6 +174,7 @@ export function resolveTourState(id: TourStateId, lang: Lang): ResolvedTourState
     id,
     message: copy.message,
     scrollTo: node.scrollTo,
+    note: (NOTES[lang] ?? NOTES.en)[id],
     actions: node.effects.map((effect, i) => ({ label: copy.actions[i] ?? "", effect })),
   };
 }

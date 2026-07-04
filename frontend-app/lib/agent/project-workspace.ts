@@ -98,7 +98,10 @@ export async function upsertBrandDNA(
 // ---- Assets (one contract for every visual) --------------------------------
 
 export type AssetRole =
-  | "logo" | "reference" | "storyboard" | "screen" | "campaign" | "other";
+  | "logo" | "reference" | "storyboard" | "screen" | "campaign" | "other"
+  // guided-flow generation targets (Fase 3): the consolidated map, the home's
+  // images and device mockups derived from an existing screen/home asset.
+  | "map" | "home" | "mockup";
 
 export type Asset = {
   id: number;
@@ -154,6 +157,19 @@ export async function addAsset(projectId: number, a: NewAsset): Promise<Asset | 
   const asset = res?.rows[0] ?? null;
   if (asset) await recordEvent("asset.created", { projectId, role: a.role, source: a.source ?? "generated" });
   return asset;
+}
+
+/** How many GENERATED assets a project has in one role — feeds the per-project
+ *  generation ceilings (Fase 3 replaces the old 3-per-session mockup cap).
+ *  Uploads don't count: only generation costs money. */
+export async function countGeneratedAssets(projectId: number, role: string): Promise<number> {
+  if (!(await dbReady())) return 0;
+  const res = await tryQuery<{ n: number }>(
+    `SELECT count(*)::int AS n FROM assets
+     WHERE project_id = $1 AND role = $2 AND source = 'generated'`,
+    [projectId, role],
+  );
+  return res?.rows[0]?.n ?? 0;
 }
 
 export async function listAssets(projectId: number): Promise<Asset[]> {

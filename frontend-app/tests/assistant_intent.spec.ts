@@ -5,7 +5,7 @@ import { isAllowedHref } from "@/lib/assistant/guardrails";
 import { buildCvData } from "@/lib/cv/build-cv-data";
 
 const slugs = (r: ReturnType<typeof buildResponse>) => [
-  ...r.cards.map((c) => (c.type === "project" ? c.slug : c.src)),
+  ...r.cards.map((c) => (c.type === "project" ? c.slug : c.type === "image" ? c.src : c.type)),
   ...r.actions.map((a) => ("projectSlug" in a ? a.projectSlug : "")),
 ];
 

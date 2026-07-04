@@ -24,7 +24,17 @@ export type AssistantAction =
 export type AssistantCard =
   | { type: "project"; slug: string }
   // generated mockup (Seedream) — src is always an internal /api/media path
-  | { type: "image"; src: string; alt: string };
+  | { type: "image"; src: string; alt: string }
+  // decision cards (decisions phase, Fase 2d) — options render as buttons; the
+  // pick persists as a StackDecision via /api/assistant/decisions
+  | { type: "decisions"; items: DecisionProposal[] };
+
+// One open decision the agent proposes (propose_decisions tool).
+export type DecisionProposal = {
+  id: string; // category slug ("stack", "core", "apis", …)
+  question: string;
+  options: Array<{ label: string; detail?: string }>;
+};
 
 export type AssistantSafety = {
   source: "site_content" | "guardrail" | "fallback";

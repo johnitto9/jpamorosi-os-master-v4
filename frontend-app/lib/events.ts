@@ -25,6 +25,7 @@ export type EventType =
   | "ai.tool.failed"
   | "project.viewed"
   | "project.created"
+  | "project.phase"
   | "mockup.generated"
   | "prospect.created"
   | "prospect.advanced"

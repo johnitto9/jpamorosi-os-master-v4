@@ -124,7 +124,12 @@ export function enforceResponse(res: AssistantResponse): AssistantResponse {
       .slice(0, ASSISTANT_LIMITS.maxActions),
     cards: res.cards
       // image cards may only point at our own media server (generated mockups)
-      .filter((c) => c.type === "project" || c.src.startsWith("/api/media/"))
+      .filter(
+        (c) =>
+          c.type === "project" ||
+          c.type === "decisions" ||
+          c.src.startsWith("/api/media/"),
+      )
       .slice(0, ASSISTANT_LIMITS.maxCards),
   };
 }

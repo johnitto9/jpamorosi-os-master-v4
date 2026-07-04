@@ -7,6 +7,23 @@
 import { z } from "zod";
 import { isDbConfigured, tryQuery } from "@/lib/db/pool";
 import { ensureSchema } from "@/lib/db/bootstrap";
+import { recordEvent } from "@/lib/events";
+
+// Guided-flow state machine. The Project Room reads `phase` to decide what to
+// offer (preset "Generate branding" → branding wizard → decision cards →
+// generation), instead of a free rambling chat. Ordered; the flow advances it.
+export const PROJECT_PHASES = [
+  "created",       // wizard done (name+kind+concept+colors). Offers "Generate branding".
+  "branding",      // working the Branding tab (logo/representative/storyboard).
+  "decisions",     // resolving doubts + stack/features/core via cards.
+  "consolidated",  // decisions locked; generation unlocked.
+  "generating",    // map/home/screens being produced.
+  "ready",         // consolidated + generated; freer conversation.
+] as const;
+export type ProjectPhase = (typeof PROJECT_PHASES)[number];
+export function isProjectPhase(v: unknown): v is ProjectPhase {
+  return typeof v === "string" && (PROJECT_PHASES as readonly string[]).includes(v);
+}
 
 export const projectPatchSchema = z
   .object({
@@ -30,6 +47,7 @@ export type SessionProject = {
   palette: string[];
   logoUrl: string | null;
   status: string;
+  phase: ProjectPhase;
   createdAt: string;
   updatedAt: string;
 };
@@ -47,7 +65,7 @@ async function dbReady(): Promise<boolean> {
 // id::int — node-postgres returns bigserial as STRING; cast so ids are
 // numbers end-to-end (client pinning, route validation, orbit filtering)
 const SELECT = `id::int AS id, session_id AS "sessionId", name, kind, concept, stack, palette,
-  logo_url AS "logoUrl", status, created_at::text AS "createdAt", updated_at::text AS "updatedAt"`;
+  logo_url AS "logoUrl", status, phase, created_at::text AS "createdAt", updated_at::text AS "updatedAt"`;
 
 export async function createSessionProject(
   sessionId: string,
@@ -78,6 +96,24 @@ export async function listSessionProjects(sessionId: string): Promise<SessionPro
     [sessionId],
   );
   return res?.rows ?? [];
+}
+
+/** Advance the guided-flow state machine. Own-session guard; validated value.
+ *  Idempotent (setting the same phase is a no-op). Emits a project.phase event. */
+export async function setProjectPhase(
+  sessionId: string,
+  id: number,
+  phase: ProjectPhase,
+): Promise<SessionProject | null> {
+  if (!(await dbReady())) return null;
+  const res = await tryQuery<SessionProject>(
+    `UPDATE session_projects SET phase = $3, updated_at = now()
+     WHERE id = $2 AND session_id = $1 RETURNING ${SELECT}`,
+    [sessionId, id, phase],
+  );
+  const project = res?.rows[0] ?? null;
+  if (project) await recordEvent("project.phase", { sessionId, id, phase });
+  return project;
 }
 
 /** Partial update — only own-session projects (id + session guard). */

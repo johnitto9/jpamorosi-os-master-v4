@@ -207,6 +207,10 @@ ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS product_type text;
 ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS brand_vision text;
 -- palette confirmation gate (heavy generation only after colors are confirmed)
 ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS palette_confirmed_at timestamptz;
+-- guided-flow state machine: drives what the Project Room offers at each step.
+-- created -> branding -> decisions -> consolidated -> generating -> ready.
+-- The wizard leaves a project at 'created' (name+kind+concept+colors done).
+ALTER TABLE session_projects ADD COLUMN IF NOT EXISTS phase text NOT NULL DEFAULT 'created';
 
 -- BrandDNA: exactly one per project (personality, tone, keywords, do/dont...).
 CREATE TABLE IF NOT EXISTS brand_dna (

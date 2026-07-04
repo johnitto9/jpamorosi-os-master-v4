@@ -36,6 +36,9 @@ export type SessionProjectLite = {
   stack: string[];
   palette: string[];
   logoUrl: string | null;
+  // guided-flow state machine (Fase 2a): created|branding|decisions|consolidated|
+  // generating|ready. Optional on the client until the UI (2b) consumes it.
+  phase?: string;
 };
 
 const KIND_META: Record<string, { icon: string }> = {
@@ -46,6 +49,19 @@ const KIND_META: Record<string, { icon: string }> = {
   saas: { icon: "☁️" },
   brand: { icon: "🎨" },
 };
+
+// Suggested starting palette per kind — the visitor confirms or tweaks it in the
+// colors step. These are just sensible defaults; the agent can refine later
+// (confirm_palette) or the visitor edits them inline. Always valid #rrggbb.
+const DEFAULT_PALETTE: Record<string, string[]> = {
+  app: ["#00e5ff", "#8b5cf6", "#0a0a14"],
+  web: ["#38bdf8", "#6366f1", "#0b1020"],
+  ecommerce: ["#f59e0b", "#10b981", "#111827"],
+  agent: ["#22d3ee", "#a855f7", "#0a0f1e"],
+  saas: ["#3b82f6", "#14b8a6", "#0d1117"],
+  brand: ["#ec4899", "#f97316", "#faf5ff"],
+};
+const FALLBACK_PALETTE = ["#00e5ff", "#8b5cf6", "#0a0a14"];
 
 // Business needs — written for non-devs. The agent translates them into
 // concrete stack decisions later; the visitor never has to name a technology.
@@ -168,6 +184,9 @@ export function ProjectSetup({
   const [devStackOpen, setDevStackOpen] = useState(false); // collapsed by default
   const [devStack, setDevStack] = useState("");          // free-form (parsed on submit)
   const [vision, setVision] = useState("");              // the "what & why" pitch
+  const [palette, setPalette] = useState<string[]>([]);  // brand colors (seeded from kind)
+  // NB: logo/visual identity moved OUT of this wizard — it's now the first step
+  // of the Branding tab (upload OR generate). The wizard ends at colors.
   // building = staged foundation sequence; doneIdx advances one line at a time
   const [building, setBuilding] = useState(false);
   const [doneIdx, setDoneIdx] = useState(-1);
@@ -179,6 +198,21 @@ export function ProjectSetup({
 
   const toggleNeed = (id: string) =>
     setNeeds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  // Seed the palette from the chosen kind the first time the colors step opens
+  // (and only if the visitor hasn't set anything yet, so we never stomp edits).
+  useEffect(() => {
+    if (step === 6 && palette.length === 0) {
+      setPalette(DEFAULT_PALETTE[kind] ?? FALLBACK_PALETTE);
+    }
+  }, [step, kind, palette.length]);
+
+  const setColorAt = (i: number, color: string) =>
+    setPalette((prev) => prev.map((c, idx) => (idx === i ? color : c)));
+  const removeColorAt = (i: number) =>
+    setPalette((prev) => prev.filter((_, idx) => idx !== i));
+  const addColor = () =>
+    setPalette((prev) => (prev.length < 5 ? [...prev, "#22d3ee"] : prev));
 
   // Compose the labeled brief the agent reads from `concept`. Each block is
   // optional; we only emit lines for fields the visitor actually filled.
@@ -220,6 +254,7 @@ export function ProjectSetup({
         kind,
         concept: buildConcept() || undefined,
         stack: parseStackList(devStack),
+        palette: palette.length > 0 ? palette : undefined,
       }),
     })
       .then(async (res) => {
@@ -253,7 +288,7 @@ export function ProjectSetup({
   const stepTitle = STEP_TITLES[step];
   // Steps the visitor may skip without filling anything (everything except
   // name + kind, which the server needs to actually create a project).
-  const SKIPPABLE = new Set([1, 3, 4, 5]);
+  const SKIPPABLE = new Set([1, 3, 4, 5, 6]);
 
   return (
     <motion.div
@@ -458,6 +493,52 @@ export function ProjectSetup({
                     autoFocus
                     className="mt-2 w-full resize-none rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm leading-relaxed text-white outline-none focus:border-cyan-400/60"
                   />
+                </>
+              )}
+
+              {step === 6 && (
+                <>
+                  <p className="mt-2 text-[11px] text-white/45">{t.paletteHint}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {palette.map((c, i) => (
+                      <div key={i} className="group relative">
+                        <input
+                          type="color"
+                          value={c}
+                          onChange={(e) => setColorAt(i, e.target.value)}
+                          aria-label={`Color ${i + 1}`}
+                          className="h-10 w-10 cursor-pointer rounded-lg border border-white/15 bg-transparent p-0"
+                        />
+                        {palette.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeColorAt(i)}
+                            aria-label="Remove color"
+                            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-black text-[10px] text-white/60 opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {palette.length < 5 && (
+                      <button
+                        type="button"
+                        onClick={addColor}
+                        aria-label="Add color"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-white/20 text-lg text-white/40 transition-colors hover:border-cyan-400/60 hover:text-cyan-300"
+                      >
+                        +
+                      </button>
+                    )}
+                  </div>
+                  {palette.length > 0 && (
+                    <div className="mt-3 flex gap-1 overflow-hidden rounded-full">
+                      {palette.map((c, i) => (
+                        <span key={i} className="h-2 flex-1" style={{ background: c }} />
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>

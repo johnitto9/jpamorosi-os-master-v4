@@ -16,8 +16,6 @@ import { BackgroundVideoPanel } from "@/components/visual/BackgroundVideoPanel";
 import { resolveMediaUrl, resolveVideoUrl } from "@/lib/media/resolve";
 import { cn } from "@/lib/utils";
 
-type HeroVideo = { mp4?: string; poster?: string } | undefined;
-
 function DichroicBeams({ accent }: { accent: string }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -43,12 +41,10 @@ function DichroicBeams({ accent }: { accent: string }) {
 
 export function HallOfFameGrid({
   projects,
-  heroVideo,
   header,
   enterLabel,
 }: {
   projects?: Project[];
-  heroVideo?: HeroVideo;
   /** i18n: translated section header (defaults to English) */
   header?: { eyebrow: string; title: string; description: string };
   /** i18n: translated card CTA */
@@ -93,19 +89,19 @@ export function HallOfFameGrid({
   const active = items[activeIdx];
   const accent = active.theme.accent;
 
-  // Per-project background footage: prefer the selected flagship's own loop
-  // video, else the site-wide hero video. URLs go through the media resolver
+  // Per-project background footage ONLY: each flagship shows its OWN loop video
+  // (assets.heroVideo). No site-wide fallback — a single global video pinned to
+  // the whole section (settings.heroVideo) read as "stuck, never changes per
+  // project", so we dropped it. Projects without their own video show the
+  // premium gradient (BackgroundVideoPanel). URLs go through the media resolver
   // (Cloudflare Stream/R2 ready — see lib/media/resolve.ts).
   const activeVideo = useMemo(() => {
     const own = resolveVideoUrl(active?.assets.heroVideo);
     if (own) {
       return { mp4: own, poster: resolveMediaUrl(active?.assets.heroVideoPoster) };
     }
-    if (heroVideo?.mp4) {
-      return { mp4: resolveVideoUrl(heroVideo.mp4), poster: resolveMediaUrl(heroVideo.poster) };
-    }
     return null;
-  }, [active, heroVideo]);
+  }, [active]);
 
   // Dots address projects, not slides: jump to whichever duplicate of the
   // project is closest to the current position (shortest wrap distance).

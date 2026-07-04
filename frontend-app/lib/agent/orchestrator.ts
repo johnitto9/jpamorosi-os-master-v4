@@ -25,6 +25,7 @@ import type {
   AssistantIntent,
   AssistantAction,
   AssistantCard,
+  DecisionProposal,
 } from "@/lib/assistant/types";
 import { guardInput, enforceResponse } from "@/lib/assistant/guardrails";
 import { buildResponse } from "@/lib/assistant/response-builder";
@@ -80,6 +81,31 @@ const llmReplySchema = z.object({
     .optional(),
   lead: leadPatchSchema.optional(),
 });
+
+// propose_decisions tool arg (Fase 2d) — decision cards the client renders.
+// Hard product limits: ≤4 decisions per card, 2-4 options each, short strings.
+const proposeDecisionsArgSchema = z
+  .object({
+    items: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(40),
+          question: z.string().min(1).max(160),
+          options: z
+            .array(
+              z.object({
+                label: z.string().min(1).max(60),
+                detail: z.string().max(120).optional(),
+              }),
+            )
+            .min(2)
+            .max(4),
+        }),
+      )
+      .min(1)
+      .max(4),
+  })
+  .strict();
 
 // brand-foundation tool arg (validated, never trusted) — feeds upsertBrandDNA
 const brandDnaArgSchema = z
@@ -138,7 +164,7 @@ function systemPrompt(
     `HARD RULES:`,
     `- Answer ONLY from the site facts below. Never invent projects, metrics or links.`,
     `- Keep replies short (2-4 sentences), warm, concrete, in the visitor's language.`,
-    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna"].join(", ")}.`,
+    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna", "propose_decisions"].join(", ")}.`,
     webSearchEnabled()
       ? `- web_search(arg: query): research the visitor's company/product when they name it — use sparingly, once per conversation.`
       : ``,
@@ -146,11 +172,15 @@ function systemPrompt(
       ? `- generate_mockup(arg: visual description): render a quick visual mock of THEIR idea when it helps them see it real (max 3 per visitor).`
       : ``,
     activeProjects.length > 0
-      ? `ACTIVE PRE-PROJECT${activeProjects.length > 1 ? "S" : ""} (the ORBIT — everything revolves around ${activeProjects.length > 1 ? "them" : "it"}): ${JSON.stringify(activeProjects.map((pr) => ({ id: pr.id, name: pr.name, kind: pr.kind, concept: pr.concept, stack: pr.stack, palette: pr.palette })))}.
+      ? `ACTIVE PRE-PROJECT${activeProjects.length > 1 ? "S" : ""} (the ORBIT — everything revolves around ${activeProjects.length > 1 ? "them" : "it"}): ${JSON.stringify(activeProjects.map((pr) => ({ id: pr.id, name: pr.name, kind: pr.kind, concept: pr.concept, stack: pr.stack, palette: pr.palette, phase: pr.phase })))}.
 - Ground every reply in this project: refine its concept, decide its stack, shape its identity, and steer toward a meeting/contact with Juan to build it.
 - MANDATORY: whenever the visitor confirms or requests ANY change to stack, name, concept or palette, your "tools" array MUST include (same reply, no exceptions): {"name":"update_project","arg":"{\\"id\\":${activeProjects[0].id},\\"stack\\":[...full updated array...]}"} — arg is a JSON STRING, only changed fields plus id, stack always the COMPLETE resulting list.
 - generate_mockup must reflect this project's name/concept/palette.
-- BRAND FOUNDATION: once the 3-color identity is agreed with the visitor, call {"name":"confirm_palette"} ONCE (this unlocks heavier visual generation). When you capture the brand's personality/tone/keywords, persist them with {"name":"set_brand_dna","arg":"{\\"personality\\":\\"...\\",\\"tone\\":\\"...\\",\\"keywords\\":[\\"...\\"]}"} (arg is a JSON STRING).`
+- BRAND FOUNDATION: once the 3-color identity is agreed with the visitor, call {"name":"confirm_palette"} ONCE (this unlocks heavier visual generation). When you capture the brand's personality/tone/keywords, persist them with {"name":"set_brand_dna","arg":"{\\"personality\\":\\"...\\",\\"tone\\":\\"...\\",\\"keywords\\":[\\"...\\"]}"} (arg is a JSON STRING).${
+          activeProjects[0]?.phase === "decisions"
+            ? `\n- DECISIONS PHASE: the project is resolving its open decisions. When the visitor raises a doubt (or you spot one worth settling), call {"name":"propose_decisions","arg":"{\\"items\\":[{\\"id\\":\\"stack\\",\\"question\\":\\"...\\",\\"options\\":[{\\"label\\":\\"...\\",\\"detail\\":\\"...\\"}]}]}"} (arg is a JSON STRING) — max 4 decisions, 2-4 options each, plain language for non-devs, NO tech jargon in labels. The visitor picks on a card; picks persist automatically. Keep the message short: the card does the talking.`
+            : ``
+        }`
       : ``,
     `PROJECT CO-CREATION: when the visitor describes their own project, act as a pre-project architect — progressively estimate the MINIMAL viable stack and keep it captured in lead.notes (e.g. "stack: Next.js + Postgres + WhatsApp API"). Once the idea is clear, offer a short marketing-style pitch of the pre-project${mockupsEnabled() ? " and a generate_mockup visual to make it tangible" : ""} — then move to contact.`,
     `- If the message contains [visitor shared an image: ...] you cannot see the pixels: acknowledge it warmly, ask what it shows / what matters in it, and treat it as project context.`,
@@ -283,6 +313,25 @@ async function tryLlmResponse(
     }
   }
 
+  // propose_decisions (Fase 2d): validated decision cards ride the reply; the
+  // client renders them and persists picks via /api/assistant/decisions.
+  let decisionsCard: AssistantCard | null = null;
+  const askedDecisions = (parsed.tools ?? []).find((t) => t.name === "propose_decisions");
+  if (askedDecisions && typeof brandProjectId === "number") {
+    try {
+      const arg = proposeDecisionsArgSchema.parse(JSON.parse(argToString(askedDecisions.arg)));
+      // zod's inferred output widens to all-optional here; parse() guarantees the
+      // required shape at runtime, so narrow to DecisionProposal[] explicitly.
+      decisionsCard = { type: "decisions", items: arg.items as DecisionProposal[] };
+      await recordEvent("ai.tool.called", { tool: "propose_decisions", id: brandProjectId });
+    } catch (err) {
+      await recordEvent("ai.tool.failed", {
+        tool: "propose_decisions",
+        error: (err as Error).message.slice(0, 120),
+      });
+    }
+  }
+
   let mockupCard: AssistantCard | null = null;
   const askedMockup = (parsed.tools ?? []).find((t) => t.name === "generate_mockup");
   if (askedMockup && mockupsEnabled()) {
@@ -323,6 +372,7 @@ async function tryLlmResponse(
     cards = [...cards, ...res.cards];
   }
   if (mockupCard) cards = [mockupCard, ...cards];
+  if (decisionsCard) cards = [decisionsCard, ...cards];
 
   const response = enforceResponse({
     message: parsed.message,

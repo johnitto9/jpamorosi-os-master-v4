@@ -14,7 +14,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import type { AssistantResponse } from "@/lib/assistant/types";
+import type { AssistantResponse, DecisionProposal } from "@/lib/assistant/types";
+import { OMNI_TOUR, matchesTourTrigger } from "@/lib/assistant/omni-tour";
 import { personalizationAllowed } from "@/lib/consent";
 import { getDeviceId } from "@/lib/identity";
 import {
@@ -44,12 +45,21 @@ function templateFor(kind: ThreadKind, lang: Lang) {
 }
 import { AssistantAvatar } from "./AssistantAvatar";
 import { AssistantMessage, type ChatTurn } from "./AssistantMessage";
+import { AssetVault } from "./AssetVault";
 import {
   ProjectStrip,
   ProjectSetup,
-  BrandingBoard,
   type SessionProjectLite,
 } from "./AssistantProjectOrbit";
+import {
+  PhaseCreatedCard,
+  BrandingPointer,
+  BrandingEmptyGate,
+  BrandingDone,
+  BrandingWizard,
+  DecisionsBoard,
+  GenerationBoard,
+} from "./AssistantFlow";
 
 // ---- conversation tabs (max 5 per session) ----------------------------------
 // Each tab is a THREAD on the server (agent_messages.thread) + its own local
@@ -83,6 +93,20 @@ type Attention = { kind: "greeting" } | { kind: "preset"; nudge: PresetNudge };
 const NUDGE_KEY = "al_assistant_nudge_done";
 const TURNS_KEY = "al_assistant_turns"; // per-thread suffix: _0.._4
 const PRESETS_KEY = "al_assistant_presets_shown";
+
+// The greeting popup is now the SINGLE entry to the interactive tour (merge
+// 2026-07-04): one button here fires `al-tour-start`, which GuidedTour listens
+// for. Localized inline (same pattern as GuidedTour's own label maps) to avoid
+// threading a new key through the 7-language ASSISTANT dict.
+const TOUR_CTA: Record<Lang, string> = {
+  en: "Take the 2-min tour",
+  es: "Hacé el tour de 2 min",
+  pt: "Faça o tour de 2 min",
+  fr: "Faire la visite de 2 min",
+  ru: "Пройти 2-мин тур",
+  zh: "开始 2 分钟导览",
+  ar: "خذ جولة الدقيقتين",
+};
 
 function loadTurns(thread: number): ChatTurn[] {
   try {
@@ -257,13 +281,93 @@ export function AssistantWidget() {
     setSetupOpen(false);
   };
 
-  // project/branding tabs push the setup when the orbit is empty
-  const needsSetup =
-    kind !== "omni" && projects.length === 0 && !setupOpen ? true : setupOpen;
-  // foundations first: in project/branding the chat stays LOCKED until a
-  // pre-project is pinned — the wizard is the pre-creation screen, not a form
-  // floating over an already-usable chat
-  const composerLocked = kind !== "omni" && !activeProject;
+  // ONLY the project tab auto-pushes the setup wizard when its orbit is empty.
+  // The branding tab, without a project, shows a soft derivation instead
+  // (BrandingEmptyGate) — never a full wizard the visitor didn't ask for.
+  const needsSetup = setupOpen || (kind === "project" && projects.length === 0);
+
+  // guided-flow phase of the pinned project (created until the server says else)
+  const activePhase = activeProject?.phase ?? "created";
+  // foundations first: the composer stays LOCKED while there's no pinned project,
+  // through the whole branding tab, and during the created/branding phases of the
+  // project tab. It UNLOCKS once decisions begin (free conversation from there on).
+  const composerLocked =
+    kind !== "omni" &&
+    (!activeProject ||
+      kind === "branding" ||
+      activePhase === "created" ||
+      activePhase === "branding");
+
+  // ---- guided-flow helpers (Fase 2b: wiring the state machine) --------------
+  // patchPhase: advance the server-side phase AND the local orbit (optimistic).
+  const patchPhase = useCallback(async (id: number, phase: string) => {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, phase } : p)));
+    try {
+      const res = await fetch("/api/assistant/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, phase }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.project) {
+        setProjects((prev) => prev.map((p) => (p.id === id ? (data.project as SessionProjectLite) : p)));
+      }
+    } catch {
+      /* optimistic value stays — the server just wasn't reachable */
+    }
+  }, []);
+
+  // syncPhase: the generate endpoint ALREADY advanced the phase server-side —
+  // just mirror it locally (no redundant PATCH).
+  const syncPhase = useCallback((id: number, phase: string) => {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, phase } : p)));
+  }, []);
+
+  // goToThread: jump to the (first) tab of a given kind — creating it if needed —
+  // and optionally pin a project into it (single focus). This is how the flow
+  // derives created→branding→(back to) project without the visitor hunting tabs.
+  const goToThread = useCallback(
+    (k: ThreadKind, pinId?: number) => {
+      let idx = threads.findIndex((th) => th.kind === k);
+      if (idx === -1) {
+        if (threads.length >= MAX_THREADS) return; // no room — stay put
+        const next = [...threads, { kind: k, title: ASSISTANT[lang].threads[k].title }];
+        setThreads(next);
+        try { localStorage.setItem(THREADS_KEY, JSON.stringify(next)); } catch { /* ui */ }
+        idx = next.length - 1;
+      }
+      if (typeof pinId === "number") {
+        setPinned((prev) => {
+          const map = { ...prev, [idx]: [pinId] };
+          try { localStorage.setItem("al_thread_projects", JSON.stringify(map)); } catch { /* ui */ }
+          return map;
+        });
+      }
+      setActiveThread(idx);
+      setTurns(personalizationAllowed() ? loadTurns(idx) : []);
+      setPicker(false);
+      setSetupOpen(false);
+    },
+    [threads, lang],
+  );
+
+  // a decision card pick (agent-proposed OR preset board) persists to the project
+  const onDecision = useCallback(
+    (item: DecisionProposal, option: string) => {
+      if (!activeProject) return;
+      void fetch("/api/assistant/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: activeProject.id, category: item.id, option }),
+      })
+        .then(() => window.dispatchEvent(new CustomEvent("al-workspace-refresh")))
+        .catch(() => undefined);
+    },
+    [activeProject],
+  );
+
+  // omni tour quick-replies (chips over the composer after the preset visit)
+  const [quickReplies, setQuickReplies] = useState<string[]>([]);
 
   const addThread = (k: ThreadKind) => {
     if (threads.length >= MAX_THREADS) return;
@@ -436,12 +540,46 @@ export function AssistantWidget() {
     setOpen(true);
   }, [dismissAttention]);
 
+  // single-button handoff to the interactive Guided Tour (GuidedTour listens for
+  // `al-tour-start`). Dismiss the popup first so the tour has the stage.
+  const startTour = useCallback(() => {
+    dismissAttention();
+    window.dispatchEvent(new CustomEvent("al-tour-start"));
+  }, [dismissAttention]);
+
   // Guided Tour handoff target: open Orbe and optionally seed a first message.
   // `send` is a hoisted function declaration below — safe to reference here.
   seedHandlerRef.current = (seed?: string) => {
     openPanel();
     if (seed?.trim()) void send(seed);
   };
+
+  // Fase 1: the omni "guided visit" plays entirely client-side — staged assistant
+  // turns with real project cards + nav links, ZERO LLM calls, ending in quick
+  // replies that DO reach the agent. Intercepted in send() before the fetch.
+  const playOmniTour = useCallback(() => {
+    const tour = OMNI_TOUR[lang];
+    setQuickReplies([]);
+    let at = 0;
+    tour.steps.forEach((step, i) => {
+      const gap = reduce ? 0 : 1100;
+      window.setTimeout(() => setLoading(true), at);
+      at += gap;
+      window.setTimeout(() => {
+        const response: AssistantResponse = {
+          message: step.text,
+          intent: "unknown",
+          actions: (step.links ?? []).map((l) => ({ type: "navigate", label: l.label, href: l.href })),
+          cards: (step.slugs ?? []).map((s) => ({ type: "project", slug: s })),
+          safety: { source: "site_content", confidence: "high" },
+        };
+        setLoading(false);
+        setTurns((prev) => [...prev, { role: "assistant", content: step.text, response }]);
+        if (i === tour.steps.length - 1) setQuickReplies(tour.replies);
+      }, at);
+      at += 40;
+    });
+  }, [lang, reduce]);
 
   async function send(text: string) {
     const message = text.trim() || (pendingImage ? "Compartí una imagen 📎" : "");
@@ -455,6 +593,12 @@ export function AssistantWidget() {
     ]);
     setInput("");
     setPendingImage(null);
+    setQuickReplies([]); // any real send clears the leftover tour chips
+    // Fase 1: intercept the preset tour trigger BEFORE the LLM — play it locally
+    if (kind === "omni" && !pendingImage && matchesTourTrigger(message)) {
+      playOmniTour();
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/assistant", {
@@ -552,11 +696,13 @@ export function AssistantWidget() {
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
+                  {/* single, prominent entry to the interactive tour */}
                   <button
-                    onClick={() => sendAndOpen(ASSISTANT[lang].threads.omni.suggestions[0])}
-                    className="rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-black hover:bg-cyan-300"
+                    onClick={startTour}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-black hover:bg-cyan-300"
                   >
-                    {ASSISTANT[lang].popup.ctaPrimary}
+                    <span aria-hidden>✦</span>
+                    {TOUR_CTA[lang]}
                   </button>
                   <button
                     onClick={openPanel}
@@ -595,6 +741,14 @@ export function AssistantWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* project vault — lives INSIDE the chat (project/branding rooms), not on
+          the home. Shows only when the chat is open on a project-bearing thread. */}
+      <AssetVault
+        active={open && kind !== "omni"}
+        scope={kind === "branding" ? "branding" : "project"}
+        projectId={activeProject?.id}
+      />
 
       {/* launcher — the mascot itself, with an attention ping until touched */}
       <button
@@ -722,13 +876,6 @@ export function AssistantWidget() {
                   onNew={() => setSetupOpen(true)}
                   lang={lang}
                 />
-                {kind === "branding" && activeProject && (
-                  <BrandingBoard
-                    project={activeProject}
-                    lang={lang}
-                    onGenerate={(prompt) => send(prompt)}
-                  />
-                )}
 
                 {/* template picker */}
                 <AnimatePresence>
@@ -765,68 +912,162 @@ export function AssistantWidget() {
                 data-lenis-prevent
                 className="flex-1 space-y-3 overflow-y-auto px-5 py-4"
               >
-                {/* pre-creation screen: the wizard REPLACES the conversation
-                    until the foundations exist (or the "+" flow is cancelled) */}
-                {needsSetup ? (
-                  <div className="flex min-h-full flex-col justify-center">
-                    <ProjectSetup
-                      lang={lang}
-                      onCreated={onProjectCreated}
-                      onCancel={() => setSetupOpen(false)}
-                      cancelable={projects.length > 0 || kind === "omni"}
-                    />
-                  </div>
-                ) : composerLocked ? (
-                  /* projects exist but none is pinned to this tab */
-                  <div className="flex min-h-full flex-col items-center justify-center gap-3 text-center">
-                    <p className="text-sm text-white/60">
-                      {ASSISTANT[lang].panel.lockedBody}
-                    </p>
-                    <button
-                      onClick={() => setSetupOpen(true)}
-                      className="rounded-full border border-cyan-400/50 px-4 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/10"
-                    >
-                      + {WIZARD[lang].stripNew}
-                    </button>
-                  </div>
-                ) : null}
-                {!needsSetup && !composerLocked && turns.map((t, i) => (
-                  <AssistantMessage key={i} turn={t} />
-                ))}
-                {!needsSetup && !composerLocked && loading && (
-                  <div className="flex items-center gap-2.5 pl-1" role="status" aria-label={ASSISTANT[lang].panel.typing}>
-                    {[0, 1, 2].map((i) => (
+                {/* The transcript is driven by the guided-flow state machine.
+                    Priority: explicit setup wizard → branding workspace →
+                    project-room phases → locked derivation → free conversation. */}
+                {(() => {
+                  const loadingDots = loading ? (
+                    <div className="flex items-center gap-2.5 pl-1" role="status" aria-label={ASSISTANT[lang].panel.typing}>
+                      {[0, 1, 2].map((i) => (
+                        <motion.span
+                          key={i}
+                          className="h-1.5 w-1.5 rounded-full bg-cyan-300/80"
+                          animate={reduce ? undefined : { y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                          transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
+                        />
+                      ))}
                       <motion.span
-                        key={i}
-                        className="h-1.5 w-1.5 rounded-full bg-cyan-300/80"
-                        animate={reduce ? undefined : { y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
-                      />
-                    ))}
-                    {/* staged process indicator */}
-                    <motion.span
-                      key={stepIdx}
-                      initial={reduce ? false : { opacity: 0, x: -4 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="text-[11px] text-white/40"
-                    >
-                      {ASSISTANT[lang].thinking[stepIdx]}
-                    </motion.span>
-                  </div>
-                )}
-                {!needsSetup && !composerLocked && turns.length > 0 && turns.length <= 1 && !loading && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {templateFor(kind, lang).suggestions.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => send(s)}
-                        className="rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs text-white/75 transition-colors hover:border-cyan-400/50 hover:text-cyan-200"
+                        key={stepIdx}
+                        initial={reduce ? false : { opacity: 0, x: -4 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-[11px] text-white/40"
                       >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                        {ASSISTANT[lang].thinking[stepIdx]}
+                      </motion.span>
+                    </div>
+                  ) : null;
+
+                  // 1) explicit setup wizard (project tab empty, or "+" pressed)
+                  if (needsSetup) {
+                    return (
+                      <div className="flex min-h-full flex-col justify-center">
+                        <ProjectSetup
+                          lang={lang}
+                          onCreated={onProjectCreated}
+                          onCancel={() => setSetupOpen(false)}
+                          cancelable={projects.length > 0 || kind === "omni"}
+                        />
+                      </div>
+                    );
+                  }
+
+                  // 2) branding tab — the visual-universe workspace
+                  if (kind === "branding") {
+                    if (!activeProject)
+                      return <BrandingEmptyGate lang={lang} onStart={() => goToThread("project")} />;
+                    if (activePhase === "created")
+                      return (
+                        <PhaseCreatedCard
+                          project={activeProject}
+                          lang={lang}
+                          onStartBranding={() => void patchPhase(activeProject.id, "branding")}
+                        />
+                      );
+                    if (activePhase === "branding")
+                      return (
+                        <BrandingWizard
+                          project={activeProject}
+                          lang={lang}
+                          onComplete={() => void patchPhase(activeProject.id, "decisions")}
+                        />
+                      );
+                    return <BrandingDone lang={lang} onBack={() => goToThread("project", activeProject.id)} />;
+                  }
+
+                  // 3) project tab with a pinned project — driven by phase
+                  if (kind === "project" && activeProject) {
+                    if (activePhase === "created")
+                      return (
+                        <PhaseCreatedCard
+                          project={activeProject}
+                          lang={lang}
+                          onStartBranding={() => {
+                            void patchPhase(activeProject.id, "branding");
+                            goToThread("branding", activeProject.id);
+                          }}
+                        />
+                      );
+                    if (activePhase === "branding")
+                      return <BrandingPointer lang={lang} onGo={() => goToThread("branding", activeProject.id)} />;
+                    // decisions / consolidated / generating / ready → chat + board
+                    return (
+                      <>
+                        {turns.map((t, i) => (
+                          <AssistantMessage key={i} turn={t} onDecision={onDecision} />
+                        ))}
+                        {loadingDots}
+                        {activePhase === "decisions" ? (
+                          <DecisionsBoard
+                            project={activeProject}
+                            lang={lang}
+                            onConsolidate={() => void patchPhase(activeProject.id, "consolidated")}
+                          />
+                        ) : (
+                          <GenerationBoard
+                            project={activeProject}
+                            lang={lang}
+                            onPhase={(p) => syncPhase(activeProject.id, p)}
+                          />
+                        )}
+                      </>
+                    );
+                  }
+
+                  // 4) project tab, projects exist but none pinned here → locked
+                  if (composerLocked) {
+                    return (
+                      <div className="flex min-h-full flex-col items-center justify-center gap-3 text-center">
+                        <p className="text-sm text-white/60">{ASSISTANT[lang].panel.lockedBody}</p>
+                        <button
+                          onClick={() => setSetupOpen(true)}
+                          className="rounded-full border border-cyan-400/50 px-4 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/10"
+                        >
+                          + {WIZARD[lang].stripNew}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // 5) omni (or any unlocked free conversation)
+                  const suggestions =
+                    kind === "omni"
+                      ? [OMNI_TOUR[lang].trigger, ...templateFor(kind, lang).suggestions.slice(1)]
+                      : templateFor(kind, lang).suggestions;
+                  return (
+                    <>
+                      {turns.map((t, i) => (
+                        <AssistantMessage key={i} turn={t} onDecision={onDecision} />
+                      ))}
+                      {loadingDots}
+                      {turns.length > 0 && turns.length <= 1 && !loading && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {suggestions.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => send(s)}
+                              className="rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs text-white/75 transition-colors hover:border-cyan-400/50 hover:text-cyan-200"
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {quickReplies.length > 0 && !loading && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {quickReplies.map((q) => (
+                            <button
+                              key={q}
+                              onClick={() => send(q)}
+                              className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-100 transition-colors hover:bg-cyan-400/20"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* composer */}

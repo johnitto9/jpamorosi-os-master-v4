@@ -30,11 +30,29 @@ type Workspace = { brandDNA: BrandDNA; assets: Asset[]; stackDecisions: StackDec
 
 const OPEN_KEY = "al_vault_open";
 
-export function AssetVault() {
+// `active` gates visibility: the vault lives INSIDE the chat window (project/
+// branding rooms), not floating on the home. The widget passes active=open &&
+// project-thread, plus the current `scope` (which sections to surface) and the
+// pinned `projectId`. Hooks still run (state stays warm); we render nothing when
+// inactive.
+//   scope="branding" -> only palette + brand DNA + logo/reference/storyboard
+//   scope="project"  -> everything grouped by role (branding, map, home,
+//                       screens (collapsible), mockups) + decisions as chips
+export function AssetVault({
+  active = true,
+  scope = "project",
+  projectId,
+}: {
+  active?: boolean;
+  scope?: "project" | "branding";
+  projectId?: number;
+}) {
   const [project, setProject] = useState<SessionProjectLite | null>(null);
   const [ws, setWs] = useState<Workspace>(null);
   const [open, setOpen] = useState(false);
   const [lightbox, setLightbox] = useState<Asset | null>(null);
+  const [screensOpen, setScreensOpen] = useState(false);
+  const [mockupBusy, setMockupBusy] = useState<"mobile" | "web" | null>(null);
   const activeIdRef = useRef<number | null>(null); // avoids stale closure in listeners
 
   const loadWorkspace = useCallback(async (projectId: number) => {
@@ -96,6 +114,12 @@ export function AssetVault() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // the widget steers the vault to the tab's pinned project — refocus on change
+  useEffect(() => {
+    if (typeof projectId === "number") void pickProject(projectId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
   const toggle = useCallback(() => {
     setOpen((o) => {
       const next = !o;
@@ -104,11 +128,60 @@ export function AssetVault() {
     });
   }, []);
 
-  if (!project) return null;
+  // derive a mockup (mobile/web frame) from a home/screen asset, right here in
+  // the vault (it already knows the project) — then refresh so the new asset lands.
+  const makeMockup = useCallback(
+    async (parent: Asset, device: "mobile" | "web") => {
+      if (!project) return;
+      setMockupBusy(device);
+      try {
+        const res = await fetch("/api/assistant/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: project.id, target: "mockup", parentAssetId: parent.id, device }),
+        });
+        if (res.ok) {
+          window.dispatchEvent(new CustomEvent("al-workspace-refresh"));
+          setLightbox(null);
+        }
+      } catch {
+        /* generation unavailable — leave the lightbox as is */
+      } finally {
+        setMockupBusy(null);
+      }
+    },
+    [project],
+  );
+
+  if (!active || !project) return null;
 
   const assets = ws?.assets ?? [];
   const brand = ws?.brandDNA ?? null;
   const decisions = ws?.stackDecisions ?? [];
+  // asset grouping by role for the project scope
+  const withUrl = assets.filter((a) => a.url);
+  const byRoles = (roles: string[]) => withUrl.filter((a) => roles.includes(a.role));
+  const brandingAssets = byRoles(["logo", "reference", "storyboard"]);
+  const mapAssets = byRoles(["map"]);
+  const homeAssets = byRoles(["home"]);
+  const screenAssets = byRoles(["screen"]);
+  const mockupAssets = byRoles(["mockup"]);
+  const screensShown = screensOpen ? screenAssets.slice(0, 9) : screenAssets.slice(0, 3);
+
+  // shared thumbnail (same chrome across every group + the flat fallback)
+  const renderThumb = (a: Asset) => (
+    <button
+      key={a.id}
+      type="button"
+      onClick={() => setLightbox(a)}
+      className="group relative aspect-square overflow-hidden rounded-lg border border-white/10"
+      title={`${a.role}${a.promptSummary ? " — " + a.promptSummary : ""}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={a.url as string} alt={a.role} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+      <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[9px] text-white/70">{a.role}</span>
+    </button>
+  );
 
   return (
     <>
@@ -166,42 +239,75 @@ export function AssetVault() {
               </section>
             )}
 
-            {/* stack */}
-            {(project.stack.length > 0 || decisions.length > 0) && (
-              <section>
-                <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-violet-300">Stack</p>
-                <div className="flex flex-wrap gap-1">
-                  {project.stack.map((s) => (
-                    <span key={s} className="rounded border border-violet-400/30 px-1.5 py-0.5 text-[11px] text-violet-200">{s}</span>
-                  ))}
-                </div>
-                {decisions.length > 0 && (
-                  <ul className="mt-1.5 space-y-0.5 text-[12px] text-white/60">
-                    {decisions.slice(0, 8).map((d) => (
-                      <li key={d.id}><b className="text-white/40">{d.category}:</b> {d.option}{d.confirmedAt ? " ✓" : ""}</li>
-                    ))}
-                  </ul>
+            {/* branding scope: palette + brand DNA (above) + branding assets only */}
+            {scope === "branding" ? (
+              brandingAssets.length > 0 && (
+                <section>
+                  <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-violet-300">Visual universe ({brandingAssets.length})</p>
+                  <div className="grid grid-cols-3 gap-2">{brandingAssets.map(renderThumb)}</div>
+                </section>
+              )
+            ) : (
+              <>
+                {/* stack + decisions (chips) */}
+                {(project.stack.length > 0 || decisions.length > 0) && (
+                  <section>
+                    <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-violet-300">Stack &amp; decisions</p>
+                    <div className="flex flex-wrap gap-1">
+                      {project.stack.map((s) => (
+                        <span key={s} className="rounded border border-violet-400/30 px-1.5 py-0.5 text-[11px] text-violet-200">{s}</span>
+                      ))}
+                      {decisions.slice(0, 12).map((d) => (
+                        <span key={d.id} title={d.category} className="rounded-full border border-emerald-400/30 bg-emerald-400/5 px-2 py-0.5 text-[11px] text-emerald-200">
+                          {d.option}{d.confirmedAt ? " ✓" : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
                 )}
-              </section>
+
+                {/* assets grouped by role */}
+                {brandingAssets.length > 0 && (
+                  <section>
+                    <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-white/40">Branding ({brandingAssets.length})</p>
+                    <div className="grid grid-cols-3 gap-2">{brandingAssets.map(renderThumb)}</div>
+                  </section>
+                )}
+                {mapAssets.length > 0 && (
+                  <section>
+                    <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-cyan-300">Map</p>
+                    <div className="grid grid-cols-3 gap-2">{mapAssets.map(renderThumb)}</div>
+                  </section>
+                )}
+                {homeAssets.length > 0 && (
+                  <section>
+                    <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-cyan-300">Home ({homeAssets.length})</p>
+                    <div className="grid grid-cols-3 gap-2">{homeAssets.map(renderThumb)}</div>
+                  </section>
+                )}
+                {screenAssets.length > 0 && (
+                  <section>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <p className="font-mono text-[10px] uppercase tracking-wider text-cyan-300">Screens ({screenAssets.length})</p>
+                      {screenAssets.length > 3 && (
+                        <button type="button" onClick={() => setScreensOpen((v) => !v)} className="text-[10px] text-white/40 hover:text-cyan-300">
+                          {screensOpen ? "Collapse" : "Show all"}
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">{screensShown.map(renderThumb)}</div>
+                  </section>
+                )}
+                {mockupAssets.length > 0 && (
+                  <section>
+                    <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-white/40">Mockups ({mockupAssets.length})</p>
+                    <div className="grid grid-cols-3 gap-2">{mockupAssets.map(renderThumb)}</div>
+                  </section>
+                )}
+              </>
             )}
 
-            {/* assets */}
-            {assets.length > 0 && (
-              <section>
-                <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-white/40">Assets ({assets.length})</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {assets.filter((a) => a.url).map((a) => (
-                    <button key={a.id} type="button" onClick={() => setLightbox(a)} className="group relative aspect-square overflow-hidden rounded-lg border border-white/10" title={`${a.role}${a.promptSummary ? " — " + a.promptSummary : ""}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={a.url as string} alt={a.role} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                      <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[9px] text-white/70">{a.role}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {!brand && assets.length === 0 && decisions.length === 0 && project.palette.length === 0 && (
+            {!brand && withUrl.length === 0 && decisions.length === 0 && project.palette.length === 0 && (
               <p className="text-[13px] text-white/40">Nothing here yet — shape this project with Orbe and it fills in: palette, brand DNA, stack and visuals.</p>
             )}
           </div>
@@ -218,6 +324,27 @@ export function AssetVault() {
               <span className="font-mono uppercase tracking-wider text-cyan-300">{lightbox.role}</span>
               <button type="button" onClick={() => setLightbox(null)} className="rounded border border-white/20 px-2 py-1 hover:text-white">Close</button>
             </div>
+            {/* derive device mockups from a home/screen image */}
+            {(lightbox.role === "screen" || lightbox.role === "home") && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={mockupBusy !== null}
+                  onClick={() => void makeMockup(lightbox, "mobile")}
+                  className="rounded-full border border-cyan-400/50 px-3 py-1.5 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-400/10 disabled:opacity-40"
+                >
+                  {mockupBusy === "mobile" ? "Generating…" : "📱 Mockup mobile"}
+                </button>
+                <button
+                  type="button"
+                  disabled={mockupBusy !== null}
+                  onClick={() => void makeMockup(lightbox, "web")}
+                  className="rounded-full border border-violet-400/50 px-3 py-1.5 text-[11px] font-semibold text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
+                >
+                  {mockupBusy === "web" ? "Generating…" : "🖥 Mockup web"}
+                </button>
+              </div>
+            )}
             {lightbox.promptSummary && <p className="mt-1 max-w-3xl text-xs text-white/50">{lightbox.promptSummary}</p>}
           </div>
         </div>

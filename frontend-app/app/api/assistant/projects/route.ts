@@ -8,6 +8,8 @@ import {
   createSessionProject,
   listSessionProjects,
   projectPatchSchema,
+  setProjectPhase,
+  isProjectPhase,
 } from "@/lib/agent/projects";
 import { getLead } from "@/lib/agent/leads";
 import { touchSession } from "@/lib/agent/memory";
@@ -77,4 +79,23 @@ export async function POST(request: Request) {
     });
   }
   return res;
+}
+
+// Advance the guided-flow state machine for a project.
+//   PATCH { id: number, phase: ProjectPhase }
+// Session-guarded (no cookie -> nothing to own -> 401). The flow calls this at
+// each transition (created -> branding -> decisions -> consolidated -> ...).
+export async function PATCH(request: Request) {
+  const sessionId = sid(request);
+  if (!sessionId) return NextResponse.json({ error: "no_session" }, { status: 401 });
+
+  const body = (await request.json().catch(() => ({}))) as { id?: unknown; phase?: unknown };
+  const id = typeof body.id === "number" ? body.id : Number(body.id);
+  if (!Number.isInteger(id) || !isProjectPhase(body.phase)) {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
+  const project = await setProjectPhase(sessionId, id, body.phase);
+  if (!project) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  return NextResponse.json({ ok: true, project });
 }

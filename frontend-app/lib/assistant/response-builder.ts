@@ -33,7 +33,7 @@ function dedupeActions(actions: AssistantAction[]): AssistantAction[] {
 function dedupeCards(cards: AssistantCard[]): AssistantCard[] {
   const seen = new Set<string>();
   return cards.filter((c) => {
-    const key = c.type === "project" ? c.slug : c.src;
+    const key = c.type === "project" ? c.slug : c.type === "image" ? c.src : `decisions:${c.items.map((i) => i.id).join(",")}`;
     return seen.has(key) ? false : (seen.add(key), true);
   });
 }

@@ -72,6 +72,9 @@ services:
       # LLM brain (optional): set OPENROUTER_API_KEY in .env.docker.local to
       # enable GLM 5.2; without it the deterministic assistant still answers.
       OPENROUTER_MODEL: z-ai/glm-5.2
+      # House image model for ALL generation (logos, mockups, home, screens,
+      # storyboards) via OpenRouter's /api/v1/images endpoint.
+      OPENROUTER_IMAGE_MODEL: bytedance-seed/seedream-4.5
     # Provides ADMIN_* / OPENROUTER_* secrets. Copy .env.docker.local.example first.
     env_file:
       - path: ./frontend-app/.env.docker.local

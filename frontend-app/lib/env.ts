@@ -66,10 +66,10 @@ const schema = z.object({
 
   // --- Agent optional capabilities (env-gated tools).
   WEB_SEARCH_API_KEY: z.string().optional(), // serper.dev
-  // Image model for generate_mockup. Verified live on OpenRouter (2026-07):
-  // Seedream (bytedance-seed/seedream-4.5) is NOT in their catalog today —
-  // flip this env var the day it lands; nothing else changes.
-  OPENROUTER_IMAGE_MODEL: z.string().default("google/gemini-3.1-flash-lite-image"),
+  // Image model for generate_mockup. Seedream 4.5 via OpenRouter's dedicated
+  // /api/v1/images endpoint (b64_json). This is the house image model for
+  // EVERYTHING we generate (logos, mockups, home, screens, storyboards).
+  OPENROUTER_IMAGE_MODEL: z.string().default("bytedance-seed/seedream-4.5"),
 });
 
 export type AppEnv = z.infer<typeof schema>;

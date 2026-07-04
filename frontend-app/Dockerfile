@@ -10,7 +10,11 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# --no-frozen-lockfile: the WSL/Windows pnpm store split blocks updating the
+# lockfile on the host, so the container resolves any newly-added deps (gsap,
+# @gsap/react) against its own clean Linux store during build. Revert to
+# --frozen-lockfile once the lockfile is regenerated on a matching pnpm/store.
+RUN pnpm install --no-frozen-lockfile
 
 # ---- builder: compile the Next standalone output ----------------------------
 FROM node:20-alpine AS builder
