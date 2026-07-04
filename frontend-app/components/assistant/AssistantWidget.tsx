@@ -1,7 +1,7 @@
 "use client";
 
 // components/assistant/AssistantWidget.tsx
-// The lab guide, v4 — a character, not a chat bubble:
+// Orbe (the lab guide), v4 — a character, not a chat bubble:
 // - launcher is the animated holo-bot mascot (bobbing, blinking) with an
 //   attention ping until the visitor first interacts;
 // - it SPEAKS FIRST: a greeting popup (mascot waving + typed message) invites
@@ -26,7 +26,7 @@ import {
 } from "@/lib/i18n/dictionaries";
 
 // UI language (cookie al_lang, set by the LanguageSwitch). Every preset string
-// the lab guide speaks (greeting, suggestions, nudges, thinking steps) is
+// Orbe speaks (greeting, suggestions, nudges, thinking steps) is
 // sourced from ASSISTANT[lang]; the AGENT itself is told the language in the
 // request body, so replies, button labels and follow-ups all flow in it.
 function readLangCookie(): Lang {

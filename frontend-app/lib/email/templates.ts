@@ -218,7 +218,7 @@ export const templates = {
       subject: "Recover your Amorosi Labs session",
       html: shell(
         "Pick up where you left off",
-        `<p>This link restores your conversation with Juan's lab guide — everything you discussed, your project brief and preferences — on ANY device. Valid for ${d.days} days, single use.</p>
+        `<p>This link restores your conversation with Orbe, Juan's lab intelligence — everything you discussed, your project brief and preferences — on ANY device. Valid for ${d.days} days, single use.</p>
          ${button(d.link, "Restore my session →")}
          <p style="color:#9aa3b2;font-size:12px">Didn't request this? Ignore it — nothing happens without the link.</p>`,
       ),

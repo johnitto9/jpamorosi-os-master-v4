@@ -33,7 +33,7 @@ export default async function AdminLeads() {
         <div>
           <h1 className="text-2xl font-bold">Leads — assistant qualification</h1>
           <p className="mt-1 text-sm text-white/50">
-            What the lab guide learned per visitor session. Contact data is only
+            What Orbe learned per visitor session. Contact data is only
             stored when the visitor shares it in conversation.
           </p>
         </div>

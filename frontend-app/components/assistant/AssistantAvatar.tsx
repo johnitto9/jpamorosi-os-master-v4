@@ -1,7 +1,7 @@
 "use client";
 
 // components/assistant/AssistantAvatar.tsx
-// The lab guide's mascot: a friendly floating holo-bot, hand-built SVG driven
+// Orbe's mascot: a friendly floating holo-bot, hand-built SVG driven
 // by framer-motion (no Lottie asset needed, <2KB). It bobs, blinks, and its
 // antenna light pulses — enough personality to invite a tap without being a
 // cartoon circus. `waving` adds a little hand wave for the greeting popup.
