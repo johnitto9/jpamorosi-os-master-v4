@@ -29,6 +29,9 @@ type Dict = {
   contactEyebrow: string; contactTitle: string; contactBody: string;
   contactEmail: string; contactExplore: string;
   contactForm: { name: string; namePh: string; email: string; emailPh: string; message: string; messagePh: string; send: string; sending: string; sentTitle: string; sentBody: string };
+  il1: { eyebrow: string; heading: string; body: string; items: string[] };
+  il2: { eyebrow: string; heading: string; body: string; items: string[] };
+  il3: { eyebrow: string; heading: string; body: string; items: string[] };
   osTitle: string; osBody: string; osCta: string;
   langNudge: string;
   heroRole: string; heroTagline: string; heroThesis: string;
@@ -50,6 +53,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "I design AI architecture, ship full-stack products, and turn messy founder problems into systems that survive contact with reality. If that's what you're hiring for, let's talk.",
     contactEmail: "Email directly", contactExplore: "Explore Projects",
     contactForm: { name: "Name", namePh: "Your name", email: "Email", emailPh: "you@company.com", message: "Message", messagePh: "Tell me about your project, role, or idea…", send: "Send message →", sending: "Sending…", sentTitle: "Message sent", sentBody: "Thanks for reaching out — I'll get back to you soon." },
+    il1: { eyebrow: "BEFORE THE SYSTEMS", heading: "The builder came first.", body: "Before the AI and the architecture there was a kid in Bahía Blanca taking things apart — commerce, real-world friction, and software as the instrument that tied it all together.", items: ["Commerce", "Real-world friction", "Software as instrument", "Bahía Blanca", "Alún"] },
+    il2: { eyebrow: "YOU'RE INSIDE THE PROOF", heading: "This portfolio is a running system.", body: "The page you're reading runs on the same stack it shows off: a Next.js front, Orbe answering with memory, Postgres and R2 holding state, and an autonomous scout working in the background.", items: ["Public UI", "Orbe · intelligence", "Postgres · memory", "Scout · autonomy"] },
+    il3: { eyebrow: "THE LIVING LAYER", heading: "It remembers, connects and builds.", body: "No login required. Orbe keeps context between visits, turns a conversation into a real project with its own brand DNA and assets, and picks up right where you left off.", items: ["arrival", "conversation", "intent", "memory", "project DNA", "assets", "next action"] },
     osTitle: "Want the full experience?",
     osBody: "The original interactive CV lives on as a personal operating system — windows, dock, and a 3D avatar. Boot it up.",
     osCta: "Launch jpamorosi.os →",
@@ -74,6 +80,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "Diseño arquitectura de IA, entrego productos full-stack y convierto problemas difusos de founders en sistemas que sobreviven al contacto con la realidad. Si buscás eso, hablemos.",
     contactEmail: "Enviar email", contactExplore: "Explorar proyectos",
     contactForm: { name: "Nombre", namePh: "Tu nombre", email: "Email", emailPh: "vos@empresa.com", message: "Mensaje", messagePh: "Contame sobre tu proyecto, rol o idea…", send: "Enviar mensaje →", sending: "Enviando…", sentTitle: "Mensaje enviado", sentBody: "Gracias por escribir — te respondo pronto." },
+    il1: { eyebrow: "ANTES DE LOS SISTEMAS", heading: "Primero estuvo el constructor.", body: "Antes de la IA y la arquitectura hubo un pibe en Bahía Blanca desarmando cosas — comercio, fricción del mundo real y el software como el instrumento que lo unía todo.", items: ["Comercio", "Fricción real", "Software como instrumento", "Bahía Blanca", "Alún"] },
+    il2: { eyebrow: "ESTÁS DENTRO DE LA PRUEBA", heading: "Este portfolio también está corriendo.", body: "La página que estás leyendo corre sobre el mismo stack que muestra: un front en Next.js, Orbe respondiendo con memoria, Postgres y R2 guardando estado, y un scout autónomo trabajando en segundo plano.", items: ["UI pública", "Orbe · inteligencia", "Postgres · memoria", "Scout · autonomía"] },
+    il3: { eyebrow: "LA CAPA VIVA", heading: "Recuerda, conecta y construye.", body: "Sin login. Orbe mantiene el contexto entre visitas, convierte una conversación en un proyecto real con su propio Brand DNA y assets, y retoma justo donde lo dejaste.", items: ["llegada", "conversación", "intención", "memoria", "Brand DNA", "assets", "próxima acción"] },
     osTitle: "¿Querés la experiencia completa?",
     osBody: "El CV interactivo original vive como un sistema operativo personal — ventanas, dock y un avatar 3D. Encendelo.",
     osCta: "Iniciar jpamorosi.os →",
@@ -98,6 +107,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "Projeto arquitetura de IA, entrego produtos full-stack e transformo problemas difusos de founders em sistemas que sobrevivem ao contato com a realidade. Se é isso que você procura, vamos conversar.",
     contactEmail: "Enviar email", contactExplore: "Explorar projetos",
     contactForm: { name: "Nome", namePh: "Seu nome", email: "Email", emailPh: "voce@empresa.com", message: "Mensagem", messagePh: "Conte sobre seu projeto, cargo ou ideia…", send: "Enviar mensagem →", sending: "Enviando…", sentTitle: "Mensagem enviada", sentBody: "Obrigado por escrever — respondo em breve." },
+    il1: { eyebrow: "ANTES DOS SISTEMAS", heading: "Primeiro veio o construtor.", body: "Antes da IA e da arquitetura houve um garoto em Bahía Blanca desmontando coisas — comércio, atrito do mundo real e o software como o instrumento que unia tudo.", items: ["Comércio", "Atrito real", "Software como instrumento", "Bahía Blanca", "Alún"] },
+    il2: { eyebrow: "VOCÊ ESTÁ DENTRO DA PROVA", heading: "Este portfólio também está rodando.", body: "A página que você está lendo roda no mesmo stack que exibe: um front em Next.js, o Orbe respondendo com memória, Postgres e R2 guardando estado, e um scout autônomo trabalhando em segundo plano.", items: ["UI pública", "Orbe · inteligência", "Postgres · memória", "Scout · autonomia"] },
+    il3: { eyebrow: "A CAMADA VIVA", heading: "Lembra, conecta e constrói.", body: "Sem login. O Orbe mantém o contexto entre visitas, transforma uma conversa num projeto real com seu próprio Brand DNA e assets, e retoma exatamente de onde você parou.", items: ["chegada", "conversa", "intenção", "memória", "Brand DNA", "assets", "próxima ação"] },
     osTitle: "Quer a experiência completa?",
     osBody: "O CV interativo original vive como um sistema operacional pessoal — janelas, dock e um avatar 3D. Inicie.",
     osCta: "Abrir jpamorosi.os →",
@@ -122,6 +134,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "Je conçois des architectures IA, je livre des produits full-stack et je transforme des problèmes flous en systèmes qui survivent au contact de la réalité. Si c'est ce que vous cherchez, parlons-en.",
     contactEmail: "Envoyer un email", contactExplore: "Explorer les projets",
     contactForm: { name: "Nom", namePh: "Votre nom", email: "Email", emailPh: "vous@entreprise.com", message: "Message", messagePh: "Parlez-moi de votre projet, poste ou idée…", send: "Envoyer le message →", sending: "Envoi…", sentTitle: "Message envoyé", sentBody: "Merci de votre message — je vous réponds bientôt." },
+    il1: { eyebrow: "AVANT LES SYSTÈMES", heading: "Le bâtisseur d'abord.", body: "Avant l'IA et l'architecture, il y a eu un gamin à Bahía Blanca qui démontait tout — le commerce, les frictions du monde réel, et le logiciel comme l'instrument qui reliait le tout.", items: ["Commerce", "Friction réelle", "Le logiciel comme instrument", "Bahía Blanca", "Alún"] },
+    il2: { eyebrow: "VOUS ÊTES DANS LA PREUVE", heading: "Ce portfolio est un système en marche.", body: "La page que vous lisez tourne sur la même stack qu'elle présente : un front Next.js, Orbe qui répond avec mémoire, Postgres et R2 qui gardent l'état, et un scout autonome qui travaille en arrière-plan.", items: ["UI publique", "Orbe · intelligence", "Postgres · mémoire", "Scout · autonomie"] },
+    il3: { eyebrow: "LA COUCHE VIVANTE", heading: "Elle se souvient, relie et construit.", body: "Sans connexion. Orbe garde le contexte entre les visites, transforme une conversation en projet réel avec son propre Brand DNA et ses assets, et reprend là où vous vous étiez arrêté.", items: ["arrivée", "conversation", "intention", "mémoire", "Brand DNA", "assets", "action suivante"] },
     osTitle: "Envie de l'expérience complète ?",
     osBody: "Le CV interactif original vit comme un système d'exploitation personnel — fenêtres, dock et avatar 3D. Démarrez-le.",
     osCta: "Lancer jpamorosi.os →",
@@ -146,6 +161,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "Проектирую ИИ-архитектуру, выпускаю full-stack продукты и превращаю размытые задачи в системы, выживающие при контакте с реальностью. Если вы ищете это — давайте поговорим.",
     contactEmail: "Написать на email", contactExplore: "Смотреть проекты",
     contactForm: { name: "Имя", namePh: "Ваше имя", email: "Email", emailPh: "you@company.com", message: "Сообщение", messagePh: "Расскажите о вашем проекте, роли или идее…", send: "Отправить →", sending: "Отправка…", sentTitle: "Сообщение отправлено", sentBody: "Спасибо за сообщение — скоро отвечу." },
+    il1: { eyebrow: "ДО СИСТЕМ", heading: "Сначала был строитель.", body: "До ИИ и архитектуры был мальчишка в Баия-Бланке, разбиравший всё на части — торговля, трение реального мира и софт как инструмент, связавший это вместе.", items: ["Торговля", "Реальное трение", "Софт как инструмент", "Баия-Бланка", "Alún"] },
+    il2: { eyebrow: "ВЫ ВНУТРИ ДОКАЗАТЕЛЬСТВА", heading: "Это портфолио — работающая система.", body: "Страница, которую вы читаете, работает на том же стеке, что и показывает: фронт на Next.js, Orbe отвечает с памятью, Postgres и R2 хранят состояние, а автономный scout работает в фоне.", items: ["Публичный UI", "Orbe · интеллект", "Postgres · память", "Scout · автономия"] },
+    il3: { eyebrow: "ЖИВОЙ СЛОЙ", heading: "Она помнит, связывает и строит.", body: "Без входа. Orbe хранит контекст между визитами, превращает разговор в реальный проект со своим Brand DNA и ассетами и продолжает ровно с того места, где вы остановились.", items: ["приход", "разговор", "намерение", "память", "Brand DNA", "ассеты", "следующий шаг"] },
     osTitle: "Хотите полный опыт?",
     osBody: "Оригинальное интерактивное CV живёт как персональная ОС — окна, док и 3D-аватар. Запустите её.",
     osCta: "Запустить jpamorosi.os →",
@@ -170,6 +188,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "我设计 AI 架构，交付全栈产品，把模糊的创业问题变成经得起现实考验的系统。如果这正是你要找的，聊聊吧。",
     contactEmail: "直接发邮件", contactExplore: "浏览项目",
     contactForm: { name: "姓名", namePh: "你的名字", email: "邮箱", emailPh: "you@company.com", message: "留言", messagePh: "介绍一下你的项目、职位或想法…", send: "发送 →", sending: "发送中…", sentTitle: "已发送", sentBody: "感谢联系——我会尽快回复。" },
+    il1: { eyebrow: "在系统之前", heading: "先有的是建造者。", body: "在 AI 与架构之前，是巴伊亚布兰卡的一个孩子在拆解万物——商业、现实世界的摩擦，以及作为把这一切串联起来的工具的软件。", items: ["商业", "现实摩擦", "软件作为工具", "巴伊亚布兰卡", "Alún"] },
+    il2: { eyebrow: "你正身处实证之中", heading: "这个作品集本身就是一个运行中的系统。", body: "你正在阅读的页面，运行在它所展示的同一套技术栈上：Next.js 前端、带记忆回答的 Orbe、保存状态的 Postgres 与 R2，以及在后台运行的自主 scout。", items: ["公开 UI", "Orbe · 智能", "Postgres · 记忆", "Scout · 自主"] },
+    il3: { eyebrow: "活的一层", heading: "它记忆、连接并构建。", body: "无需登录。Orbe 在多次访问间保持上下文，把一次对话变成拥有自己 Brand DNA 与素材的真实项目，并从你离开的地方继续。", items: ["到达", "对话", "意图", "记忆", "Brand DNA", "素材", "下一步"] },
     osTitle: "想要完整体验？",
     osBody: "最初的交互式简历作为个人操作系统存在——窗口、程序坞与 3D 头像。启动它。",
     osCta: "启动 jpamorosi.os →",
@@ -194,6 +215,9 @@ export const DICTS: Record<Lang, Dict> = {
     contactBody: "أصمم بنى الذكاء الاصطناعي وأطلق منتجات متكاملة وأحوّل مشاكل المؤسسين الغامضة إلى أنظمة تصمد أمام الواقع. إن كان هذا ما تبحث عنه، فلنتحدث.",
     contactEmail: "أرسل بريداً", contactExplore: "استكشف المشاريع",
     contactForm: { name: "الاسم", namePh: "اسمك", email: "البريد", emailPh: "you@company.com", message: "الرسالة", messagePh: "أخبرني عن مشروعك أو دورك أو فكرتك…", send: "إرسال ←", sending: "جارٍ الإرسال…", sentTitle: "تم الإرسال", sentBody: "شكراً لتواصلك — سأرد قريباً." },
+    il1: { eyebrow: "قبل الأنظمة", heading: "البنّاء أولاً.", body: "قبل الذكاء الاصطناعي والهندسة، كان هناك صبيٌّ في باهيا بلانكا يفكّك الأشياء — التجارة، واحتكاك العالم الحقيقي، والبرمجيات كأداة تربط ذلك كله.", items: ["التجارة", "احتكاك حقيقي", "البرمجيات كأداة", "باهيا بلانكا", "Alún"] },
+    il2: { eyebrow: "أنت داخل الدليل", heading: "هذه المحفظة نظام قيد التشغيل.", body: "الصفحة التي تقرأها تعمل على نفس المنظومة التي تعرضها: واجهة Next.js، وOrbe يجيب بذاكرة، وPostgres وR2 يحفظان الحالة، وscout مستقل يعمل في الخلفية.", items: ["واجهة عامة", "Orbe · ذكاء", "Postgres · ذاكرة", "Scout · استقلالية"] },
+    il3: { eyebrow: "الطبقة الحية", heading: "تتذكر، تربط، وتبني.", body: "بلا تسجيل دخول. يحتفظ Orbe بالسياق بين الزيارات، ويحوّل محادثة إلى مشروع حقيقي بهوية Brand DNA وأصول خاصة به، ويكمل من حيث توقفت.", items: ["الوصول", "محادثة", "نية", "ذاكرة", "Brand DNA", "أصول", "الخطوة التالية"] },
     osTitle: "أتريد التجربة الكاملة؟",
     osBody: "السيرة التفاعلية الأصلية تعيش كنظام تشغيل شخصي — نوافذ وشريط تطبيقات وصورة رمزية ثلاثية الأبعاد. شغّلها.",
     osCta: "تشغيل jpamorosi.os ←",

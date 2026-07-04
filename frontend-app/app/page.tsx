@@ -7,6 +7,7 @@ import { FeaturedSystemsGrid } from '@/components/hall/FeaturedSystemsGrid';
 import { LabArchiveGrid } from '@/components/hall/LabArchiveGrid';
 import { AssistantWidget } from '@/components/assistant/AssistantWidget';
 import { ContactSection } from '@/components/hall/ContactSection';
+import { BeforeTheSystems, PortfolioSystemInterlude, LivingLayerInterlude } from '@/components/hall/Interludes';
 import { ChapterNav } from '@/components/ui/chapter-nav';
 import { ScrollStage } from '@/components/ui/scroll-stage';
 import { SectionTransition } from '@/components/ui/section-transition';
@@ -73,6 +74,9 @@ export default async function HomePage() {
       />
       <div className="relative z-10">
       <HallHero />
+      <SectionTransition>
+        <BeforeTheSystems t={t.il1} />
+      </SectionTransition>
       <SectionTransition blur={4}>
         <HallOfFameGrid
           projects={hall}
@@ -90,11 +94,17 @@ export default async function HomePage() {
         </Link>
       </div>
       <SectionTransition>
+        <PortfolioSystemInterlude t={t.il2} />
+      </SectionTransition>
+      <SectionTransition>
         <FeaturedSystemsGrid
           projects={featured}
           header={{ eyebrow: t.featuredEyebrow, title: t.featuredTitle, description: t.featuredDesc }}
           enterLabel={r.enter}
         />
+      </SectionTransition>
+      <SectionTransition>
+        <LivingLayerInterlude t={t.il3} />
       </SectionTransition>
       <SectionTransition>
         <LabArchiveGrid
