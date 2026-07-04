@@ -41,3 +41,4 @@ Thumbs.db
 
 # Local data volumes (docker fallback storage)
 frontend-app/data/
+commit-msg.tmp
