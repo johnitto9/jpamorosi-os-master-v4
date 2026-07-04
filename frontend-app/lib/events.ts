@@ -29,6 +29,7 @@ export type EventType =
   | "prospect.created"
   | "prospect.advanced"
   | "prospect.updated"
+  | "prospect.email_found"
   | "agent.heartbeat"
   | "lead.followup.sent"
   | "admin.login.requested"

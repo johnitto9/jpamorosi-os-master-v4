@@ -11,9 +11,11 @@ import { guardAdmin } from "@/lib/auth/guard";
 import { isDbConfigured } from "@/lib/db/pool";
 import {
   listProspects,
+  listMailingCandidates,
   ingestDroppedText,
   processPipelineBatch,
   setProspectStage,
+  type Prospect,
 } from "@/lib/agent/prospects";
 
 export const runtime = "nodejs";
@@ -30,9 +32,45 @@ const bodySchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-export async function GET() {
+const CSV_COLS: Array<[string, (p: Prospect) => unknown]> = [
+  ["email", (p) => p.email],
+  ["contactName", (p) => p.contactName],
+  ["company", (p) => p.company],
+  ["title", (p) => p.title],
+  ["score", (p) => p.score],
+  ["stage", (p) => p.stage],
+  ["fitReason", (p) => p.fitReason],
+  ["nextAction", (p) => p.nextAction],
+  ["url", (p) => p.url],
+  ["createdAt", (p) => p.createdAt],
+];
+
+/** RFC-4180-ish CSV: quote every field, double internal quotes. */
+function toCsv(rows: Prospect[]): string {
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const header = CSV_COLS.map(([name]) => esc(name)).join(",");
+  const body = rows.map((p) => CSV_COLS.map(([, get]) => esc(get(p))).join(","));
+  return [header, ...body].join("\r\n");
+}
+
+export async function GET(request: Request) {
   const blocked = await guardAdmin();
   if (blocked) return blocked;
+
+  // ?format=csv -> download the mailing DB (qualified prospects with an email)
+  if (new URL(request.url).searchParams.get("format") === "csv") {
+    const csv = toCsv(await listMailingCandidates());
+    return new NextResponse(csv, {
+      status: 200,
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="mailing-candidates-${new Date()
+          .toISOString()
+          .slice(0, 10)}.csv"`,
+      },
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     dbOn: isDbConfigured(),

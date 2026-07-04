@@ -30,6 +30,14 @@ export default async function AdminProspects() {
           </p>
         </div>
         <div className="flex gap-2">
+          <a
+            href="/api/admin/prospects?format=csv"
+            download
+            className="rounded-lg border border-cyan-400/40 px-3 py-2 text-sm text-cyan-300 hover:bg-cyan-400/10"
+            title="Descargá los prospectos calificados que tienen email (mailing DB)"
+          >
+            Export CSV
+          </a>
           <Link href="/admin/pipeline" className="rounded-lg border border-violet-400/40 px-3 py-2 text-sm text-violet-300 hover:bg-violet-400/10">
             Inbound pipeline
           </Link>

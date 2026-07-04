@@ -101,6 +101,49 @@ export async function ingestSearchHits(
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const URL_RE = /https?:\/\/[^\s<>"')]+/i;
 
+// Emails that are never a real human contact (asset filenames, tracking, boilerplate).
+const EMAIL_JUNK =
+  /(example\.|sentry|wixpress|godaddy|cloudflare|no-?reply|noreply|donotreply|postmaster|webmaster@|@2x|\.(png|jpe?g|gif|webp|svg))/i;
+const EMAIL_DISCOVERY_TIMEOUT_MS = 7_000;
+
+function cleanEmail(candidate: string | undefined | null): string | null {
+  if (!candidate) return null;
+  const e = candidate.toLowerCase().trim();
+  return EMAIL_JUNK.test(e) ? null : e;
+}
+
+/** Best-effort email discovery for the mailing DB. Reuses text we already have,
+ *  then fetches the SINGLE page the scout already found (not a crawler). Bounded
+ *  by a timeout and a response cap; never throws, never blocks the pipeline. */
+async function discoverEmail(
+  url: string | null,
+  extraText: string | null,
+): Promise<string | null> {
+  // 1) free: scan the enrichment/snippets we already fetched
+  const fromText = cleanEmail(extraText?.match(EMAIL_RE)?.[0]);
+  if (fromText) return fromText;
+  // 2) fetch the one page we have (the job post / company URL), prefer mailto:
+  if (!url) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), EMAIL_DISCOVERY_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "user-agent": "Mozilla/5.0 (compatible; AmorosiScout/1.0)" },
+    });
+    if (!res.ok) return null;
+    const html = (await res.text()).slice(0, 300_000);
+    const mailto = cleanEmail(
+      html.match(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i)?.[1],
+    );
+    return mailto ?? cleanEmail(html.match(EMAIL_RE)?.[0]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Admin-dropped email/text about a lead. LLM parses when available; the
  *  regex fallback still produces a workable card. Never returns silence. */
 export async function ingestDroppedText(
@@ -163,6 +206,18 @@ export async function listProspects(limit = 300): Promise<Prospect[]> {
   const res = await tryQuery<Prospect>(
     `SELECT ${SELECT} FROM prospects ORDER BY updated_at DESC LIMIT $1`,
     [limit],
+  );
+  return res?.rows ?? [];
+}
+
+/** Mailing DB: prospects that reached qualify+ AND have a discovered email —
+ *  the export surface for warm/opt-in outreach. Highest fit first. */
+export async function listMailingCandidates(): Promise<Prospect[]> {
+  if (!(await dbReady())) return [];
+  const res = await tryQuery<Prospect>(
+    `SELECT ${SELECT} FROM prospects
+     WHERE email IS NOT NULL AND stage IN ('qualify','contact','contacted')
+     ORDER BY score DESC, updated_at DESC`,
   );
   return res?.rows ?? [];
 }
@@ -310,7 +365,15 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
           enrichment = "no additional public signal found";
         }
       }
-      await advance(p.id, "enrich", { enrichment: enrichment.slice(0, 2000) });
+      // best-effort: fill the mailing DB from the signals we already have
+      const email = p.email ?? (await discoverEmail(p.url, enrichment));
+      await advance(p.id, "enrich", {
+        enrichment: enrichment.slice(0, 2000),
+        email: email ?? undefined,
+      });
+      if (email && !p.email) {
+        await recordEvent("prospect.email_found", { id: p.id, email });
+      }
       moves.push({ id: p.id, from, to: "enrich" });
     } else if (p.stage === "enrich") {
       const q = await qualifyProspect(p);
