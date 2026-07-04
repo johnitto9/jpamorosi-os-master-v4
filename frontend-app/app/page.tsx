@@ -7,6 +7,7 @@ import { FeaturedSystemsGrid } from '@/components/hall/FeaturedSystemsGrid';
 import { LabArchiveGrid } from '@/components/hall/LabArchiveGrid';
 import { AssistantWidget } from '@/components/assistant/AssistantWidget';
 import { GuidedTour } from '@/components/assistant/GuidedTour';
+import { AssetVault } from '@/components/assistant/AssetVault';
 import { ContactSection } from '@/components/hall/ContactSection';
 import { BeforeTheSystems, PortfolioSystemInterlude, LivingLayerInterlude } from '@/components/hall/Interludes';
 import { ChapterNav } from '@/components/ui/chapter-nav';
@@ -213,6 +214,7 @@ export default async function HomePage() {
       </div>
       <AssistantWidget />
       <GuidedTour />
+      <AssetVault />
     </ScrollStage>
   );
 }
