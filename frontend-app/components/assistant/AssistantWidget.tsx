@@ -476,6 +476,8 @@ export function AssistantWidget() {
         ...prev,
         { role: "assistant", content: data.message, response: data },
       ]);
+      // a turn may have changed the project's brand/stack/assets -> refresh the vault
+      window.dispatchEvent(new CustomEvent("al-workspace-refresh"));
     } catch {
       setTurns((prev) => [
         ...prev,

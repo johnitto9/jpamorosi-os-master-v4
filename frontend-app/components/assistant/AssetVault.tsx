@@ -9,7 +9,7 @@
 // widget can point it at a project via the `al-workspace-focus` event.
 // Desktop panel (lg+); mobile drawer is a follow-up (see PENDING).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type SessionProjectLite = {
   id: number;
@@ -35,6 +35,7 @@ export function AssetVault() {
   const [ws, setWs] = useState<Workspace>(null);
   const [open, setOpen] = useState(false);
   const [lightbox, setLightbox] = useState<Asset | null>(null);
+  const activeIdRef = useRef<number | null>(null); // avoids stale closure in listeners
 
   const loadWorkspace = useCallback(async (projectId: number) => {
     try {
@@ -61,10 +62,12 @@ export function AssetVault() {
         const list: SessionProjectLite[] = data.projects ?? [];
         if (list.length === 0) {
           setProject(null);
+          activeIdRef.current = null;
           return;
         }
         const chosen = (preferId && list.find((p) => p.id === preferId)) || list[list.length - 1];
         setProject(chosen);
+        activeIdRef.current = chosen.id;
         await loadWorkspace(chosen.id);
       } catch {
         /* ignore */
@@ -81,8 +84,10 @@ export function AssetVault() {
     };
     // the widget can steer the vault to a specific pinned project
     window.addEventListener("al-workspace-focus", onFocus);
-    // and nudge it to refresh after it changes something
-    const onRefresh = () => project && loadWorkspace(project.id);
+    // and nudge it to refresh after it changes something (ref = no stale closure)
+    const onRefresh = () => {
+      if (activeIdRef.current) void loadWorkspace(activeIdRef.current);
+    };
     window.addEventListener("al-workspace-refresh", onRefresh);
     return () => {
       window.removeEventListener("al-workspace-focus", onFocus);
