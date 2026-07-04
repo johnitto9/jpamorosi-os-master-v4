@@ -47,7 +47,7 @@ import {
   projectPatchSchema,
   type SessionProject,
 } from "./projects";
-import { addAsset, addStackDecision } from "./project-workspace";
+import { addAsset, addStackDecision, confirmPalette, upsertBrandDNA } from "./project-workspace";
 import {
   serverToolNames,
   runWebSearch,
@@ -80,6 +80,18 @@ const llmReplySchema = z.object({
     .optional(),
   lead: leadPatchSchema.optional(),
 });
+
+// brand-foundation tool arg (validated, never trusted) — feeds upsertBrandDNA
+const brandDnaArgSchema = z
+  .object({
+    personality: z.string().max(200).optional(),
+    tone: z.string().max(200).optional(),
+    keywords: z.array(z.string().max(40)).max(12).optional(),
+    doList: z.array(z.string().max(80)).max(8).optional(),
+    dontList: z.array(z.string().max(80)).max(8).optional(),
+    visualDirection: z.string().max(400).optional(),
+  })
+  .strict();
 
 const KNOWN_INTENTS: AssistantIntent[] = [
   "hiring", "project_discovery", "specific_project", "capability", "cv",
@@ -126,7 +138,7 @@ function systemPrompt(
     `HARD RULES:`,
     `- Answer ONLY from the site facts below. Never invent projects, metrics or links.`,
     `- Keep replies short (2-4 sentences), warm, concrete, in the visitor's language.`,
-    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project"].join(", ")}.`,
+    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna"].join(", ")}.`,
     webSearchEnabled()
       ? `- web_search(arg: query): research the visitor's company/product when they name it — use sparingly, once per conversation.`
       : ``,
@@ -137,7 +149,8 @@ function systemPrompt(
       ? `ACTIVE PRE-PROJECT${activeProjects.length > 1 ? "S" : ""} (the ORBIT — everything revolves around ${activeProjects.length > 1 ? "them" : "it"}): ${JSON.stringify(activeProjects.map((pr) => ({ id: pr.id, name: pr.name, kind: pr.kind, concept: pr.concept, stack: pr.stack, palette: pr.palette })))}.
 - Ground every reply in this project: refine its concept, decide its stack, shape its identity, and steer toward a meeting/contact with Juan to build it.
 - MANDATORY: whenever the visitor confirms or requests ANY change to stack, name, concept or palette, your "tools" array MUST include (same reply, no exceptions): {"name":"update_project","arg":"{\\"id\\":${activeProjects[0].id},\\"stack\\":[...full updated array...]}"} — arg is a JSON STRING, only changed fields plus id, stack always the COMPLETE resulting list.
-- generate_mockup must reflect this project's name/concept/palette.`
+- generate_mockup must reflect this project's name/concept/palette.
+- BRAND FOUNDATION: once the 3-color identity is agreed with the visitor, call {"name":"confirm_palette"} ONCE (this unlocks heavier visual generation). When you capture the brand's personality/tone/keywords, persist them with {"name":"set_brand_dna","arg":"{\\"personality\\":\\"...\\",\\"tone\\":\\"...\\",\\"keywords\\":[\\"...\\"]}"} (arg is a JSON STRING).`
       : ``,
     `PROJECT CO-CREATION: when the visitor describes their own project, act as a pre-project architect — progressively estimate the MINIMAL viable stack and keep it captured in lead.notes (e.g. "stack: Next.js + Postgres + WhatsApp API"). Once the idea is clear, offer a short marketing-style pitch of the pre-project${mockupsEnabled() ? " and a generate_mockup visual to make it tangible" : ""} — then move to contact.`,
     `- If the message contains [visitor shared an image: ...] you cannot see the pixels: acknowledge it warmly, ask what it shows / what matters in it, and treat it as project context.`,
@@ -242,6 +255,31 @@ async function tryLlmResponse(
         tool: "update_project",
         error: (err as Error).message.slice(0, 120),
       });
+    }
+  }
+
+  // brand-foundation tools: persist palette confirmation + Brand DNA to the
+  // shared workspace (T04). Only when a project is active; JSON-string arg.
+  const brandProjectId = activeProjects[0]?.id;
+  if (typeof brandProjectId === "number") {
+    for (const t of parsed.tools ?? []) {
+      if (t.name === "confirm_palette") {
+        if (await confirmPalette(brandProjectId)) {
+          await recordEvent("ai.tool.called", { tool: "confirm_palette", id: brandProjectId });
+        }
+      } else if (t.name === "set_brand_dna") {
+        try {
+          const patch = brandDnaArgSchema.parse(JSON.parse(argToString(t.arg)));
+          if (await upsertBrandDNA(brandProjectId, patch)) {
+            await recordEvent("ai.tool.called", { tool: "set_brand_dna", id: brandProjectId });
+          }
+        } catch (err) {
+          await recordEvent("ai.tool.failed", {
+            tool: "set_brand_dna",
+            error: (err as Error).message.slice(0, 120),
+          });
+        }
+      }
     }
   }
 
