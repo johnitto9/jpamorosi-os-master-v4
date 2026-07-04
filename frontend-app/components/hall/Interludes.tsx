@@ -409,41 +409,48 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
         if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
       });
     },
-    // MOBILE BUILD — per-element scrollTrigger with toggleActions. Each
-    // element animates once when it enters the viewport. The narrative
-    // enters on its own trigger, the prints enter from below, the thread
-    // grows on its own scrub, the words dance in sequence.
-    (q, { scroller }) => {
-      // Defensive initial state — keep elements in their starting position
-      gsap.set(q(".il-card-a"), { yPercent: 100, autoAlpha: 0, scale: 0.85 });
-      gsap.set(q(".il-card-b"), { yPercent: 100, autoAlpha: 0, scale: 0.85 });
-      gsap.set(q(".il-word"), { autoAlpha: 0, yPercent: 80 });
-      gsap.set(q(".il-thread"), { scaleY: 0 });
+    // MOBILE BUILD — per-element animation triggered by the SECTION's scroll
+    // position (NOT the element's). The mobile section is a tall structure
+    // with a sticky inner stage — the element's viewport position is fixed
+    // (it never moves because the stage is pinned), so a per-element
+    // ScrollTrigger with `trigger: element` would never fire. Instead, the
+    // trigger is the SECTION, and each element gets a different `start`
+    // position so they animate in sequence as the user scrolls through the
+    // section.
+    //
+    // `toggleActions: "play none none none"` plays the animation once and
+    // keeps the final state (no reverse on scroll-back).
+    (q, { scroller, section }) => {
+      // Narrative: subtle entrance at the start of the section
+      gsap.fromTo(q(".il-eyebrow"), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 85%", toggleActions: "play none none none" } });
+      gsap.fromTo(q(".il-head"), { y: 30, rotate: -2, autoAlpha: 0 }, { y: 0, rotate: 0, autoAlpha: 1, duration: 0.6, ease: "power3.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 80%", toggleActions: "play none none none" } });
+      gsap.fromTo(q(".il-body"), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 75%", toggleActions: "play none none none" } });
 
-      // Narrative: subtle entrance
-      gsap.from(q(".il-eyebrow"), { y: 20, duration: 0.5, ease: "power2.out",
-        scrollTrigger: { trigger: q(".il-eyebrow")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
-      gsap.from(q(".il-head"), { y: 30, rotate: -2, duration: 0.6, ease: "power3.out",
-        scrollTrigger: { trigger: q(".il-head")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
-      gsap.from(q(".il-body"), { y: 20, duration: 0.5, ease: "power2.out",
-        scrollTrigger: { trigger: q(".il-body")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      // Card-a: rises from below when the user has scrolled 20% into the section
+      gsap.fromTo(q(".il-card-a"), { yPercent: 100, autoAlpha: 0, scale: 0.85 },
+        { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
+          scrollTrigger: { trigger: section, scroller, start: "top 70%", toggleActions: "play none none none" } });
 
-      // Card-a: rises from below, settles
-      gsap.to(q(".il-card-a"), { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
-        scrollTrigger: { trigger: q(".il-card-a")[0], scroller, start: "top 88%", toggleActions: "play none none reverse" } });
+      // Card-b: enters later (40% into the section)
+      gsap.fromTo(q(".il-card-b"), { yPercent: 100, autoAlpha: 0, scale: 0.85 },
+        { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
+          scrollTrigger: { trigger: section, scroller, start: "top 50%", toggleActions: "play none none none" } });
 
-      // Card-b: enters after card-a is settled (start position deeper into the section)
-      gsap.to(q(".il-card-b"), { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
-        scrollTrigger: { trigger: q(".il-card-b")[0], scroller, start: "top 88%", toggleActions: "play none none reverse" } });
+      // Thread: scrubbed grow from top across the section
+      gsap.fromTo(q(".il-thread"), { scaleY: 0 },
+        { scaleY: 1, duration: 1, ease: "none", transformOrigin: "top center",
+          scrollTrigger: { trigger: section, scroller, start: "top 70%", end: "top 20%", scrub: true } });
 
-      // Thread: grow from top, scrubbed to the section's own scroll
-      gsap.to(q(".il-thread"), { scaleY: 1, duration: 1.2, ease: "none", transformOrigin: "top center",
-        scrollTrigger: { trigger: q(".il-thread")[0], scroller, start: "top 80%", end: "bottom 30%", scrub: true } });
-
-      // Words: each appears in sequence with a back ease
-      q(".il-word").forEach((w) => {
-        gsap.to(w, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)",
-          scrollTrigger: { trigger: w, scroller, start: "top 88%", toggleActions: "play none none reverse" } });
+      // Words: each enters at a different scroll position (sequence)
+      const wordStarts = [55, 50, 45, 40, 35]; // % of viewport for each word's start
+      q(".il-word").forEach((w, i) => {
+        const startPct = wordStarts[i] ?? 30;
+        gsap.fromTo(w, { autoAlpha: 0, yPercent: 80, rotate: i % 2 ? 5 : -5 },
+          { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.4, ease: "back.out(1.7)",
+            scrollTrigger: { trigger: section, scroller, start: `top ${startPct}%`, toggleActions: "play none none none" } });
       });
     },
   );
@@ -506,25 +513,28 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
         tl.fromTo(l, { autoAlpha: 0, y: 64, xPercent: -10 }, { autoAlpha: 1, y: 0, xPercent: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.4 + i * 0.72);
       });
     },
-    // MOBILE BUILD — per-element scrollTrigger. The system screen rises
-    // from below; the layer cards assemble in sequence as the user scrolls.
-    (q, { scroller }) => {
-      gsap.set(q(".il-screen"), { yPercent: 100, autoAlpha: 0, scale: 0.85 });
-      gsap.set(q(".il-layer"), { autoAlpha: 0, y: 40 });
+    // MOBILE BUILD — see Scene 1 mobile note about why the trigger is the
+    // SECTION (not the element). Each element animates as the section's
+    // top passes a different scroll position, so the user sees a clear
+    // sequence: narrative → screen → layer cards in order.
+    (q, { scroller, section }) => {
+      gsap.fromTo(q(".il-eyebrow"), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 85%", toggleActions: "play none none none" } });
+      gsap.fromTo(q(".il-head"), { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.6, ease: "power3.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 80%", toggleActions: "play none none none" } });
+      gsap.fromTo(q(".il-body"), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 75%", toggleActions: "play none none none" } });
 
-      gsap.from(q(".il-eyebrow"), { y: 20, duration: 0.5, ease: "power2.out",
-        scrollTrigger: { trigger: q(".il-eyebrow")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
-      gsap.from(q(".il-head"), { y: 30, duration: 0.6, ease: "power3.out",
-        scrollTrigger: { trigger: q(".il-head")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
-      gsap.from(q(".il-body"), { y: 20, duration: 0.5, ease: "power2.out",
-        scrollTrigger: { trigger: q(".il-body")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      gsap.fromTo(q(".il-screen"), { yPercent: 100, autoAlpha: 0, scale: 0.85 },
+        { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
+          scrollTrigger: { trigger: section, scroller, start: "top 65%", toggleActions: "play none none none" } });
 
-      gsap.to(q(".il-screen"), { yPercent: 0, autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out",
-        scrollTrigger: { trigger: q(".il-screen")[0], scroller, start: "top 85%", toggleActions: "play none none reverse" } });
-
-      q(".il-layer").forEach((l) => {
-        gsap.to(l, { autoAlpha: 1, y: 0, duration: 0.6, ease: "back.out(1.4)",
-          scrollTrigger: { trigger: l, scroller, start: "top 90%", toggleActions: "play none none reverse" } });
+      const layerStarts = [55, 48, 41, 34];
+      q(".il-layer").forEach((l, i) => {
+        const startPct = layerStarts[i] ?? 27;
+        gsap.fromTo(l, { autoAlpha: 0, y: 40 },
+          { autoAlpha: 1, y: 0, duration: 0.6, ease: "back.out(1.4)",
+            scrollTrigger: { trigger: section, scroller, start: `top ${startPct}%`, toggleActions: "play none none none" } });
       });
     },
   );
@@ -592,32 +602,33 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
         }
       });
     },
-    // MOBILE BUILD — per-element scrollTrigger. Backdrop drifts subtly;
-    // flow words appear in sequence; rail grows from left.
-    (q, { scroller }) => {
-      gsap.set(q(".il-flow"), { autoAlpha: 0, yPercent: 50, scale: 0.7, filter: "blur(6px)" });
-      gsap.set(q(".il-rail"), { scaleX: 0 });
+    // MOBILE BUILD — see Scene 1 mobile note. Trigger is the SECTION, not
+    // the element. Each flow word animates in sequence as the user scrolls.
+    (q, { scroller, section }) => {
+      gsap.fromTo(q(".il-eyebrow"), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 85%", toggleActions: "play none none none" } });
+      gsap.fromTo(q(".il-head"), { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.6, ease: "power3.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 80%", toggleActions: "play none none none" } });
+      gsap.fromTo(q(".il-body"), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out",
+        scrollTrigger: { trigger: section, scroller, start: "top 75%", toggleActions: "play none none none" } });
 
-      gsap.from(q(".il-eyebrow"), { y: 20, duration: 0.5, ease: "power2.out",
-        scrollTrigger: { trigger: q(".il-eyebrow")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
-      gsap.from(q(".il-head"), { y: 30, duration: 0.6, ease: "power3.out",
-        scrollTrigger: { trigger: q(".il-head")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
-      gsap.from(q(".il-body"), { y: 20, duration: 0.5, ease: "power2.out",
-        scrollTrigger: { trigger: q(".il-body")[0], scroller, start: "top 92%", toggleActions: "play none none reverse" } });
+      // Backdrop: scrubbed drift across the section
+      gsap.fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 },
+        { yPercent: -8, scale: 1, duration: 1, ease: "none",
+          scrollTrigger: { trigger: section, scroller, start: "top 70%", end: "top 20%", scrub: true } });
 
-      // Backdrop: gentle drift as the section is in view
-      gsap.fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -8, scale: 1, duration: 1.5, ease: "none",
-        scrollTrigger: { trigger: q(".il-backdrop")[0], scroller, start: "top 80%", end: "bottom 30%", scrub: true } });
-
-      // Flow words: each appears in sequence as the user scrolls
-      q(".il-flow").forEach((w) => {
-        gsap.to(w, { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out",
-          scrollTrigger: { trigger: w, scroller, start: "top 90%", toggleActions: "play none none reverse" } });
+      const flowStarts = [60, 54, 48, 42, 36, 30, 24];
+      q(".il-flow").forEach((w, i) => {
+        const startPct = flowStarts[i] ?? 20;
+        gsap.fromTo(w, { autoAlpha: 0, yPercent: 50, scale: 0.7, filter: "blur(6px)" },
+          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out",
+            scrollTrigger: { trigger: section, scroller, start: `top ${startPct}%`, toggleActions: "play none none none" } });
       });
 
-      // Rail: grow from left, scrubbed to the section's scroll
-      gsap.to(q(".il-rail"), { scaleX: 1, duration: 1.2, ease: "none", transformOrigin: "left center",
-        scrollTrigger: { trigger: q(".il-rail")[0], scroller, start: "top 80%", end: "bottom 30%", scrub: true } });
+      // Rail: scrubbed grow from left
+      gsap.fromTo(q(".il-rail"), { scaleX: 0 },
+        { scaleX: 1, duration: 1, ease: "none", transformOrigin: "left center",
+          scrollTrigger: { trigger: section, scroller, start: "top 70%", end: "top 20%", scrub: true } });
     },
   );
 
