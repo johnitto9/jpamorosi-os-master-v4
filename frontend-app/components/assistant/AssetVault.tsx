@@ -185,12 +185,14 @@ export function AssetVault({
 
   return (
     <>
-      {/* collapsed tab */}
+      {/* collapsed tab — z-[115] matches GuidedTour: "chat-ecosystem" layer,
+          above page background but at the same hierarchy as the tour, so the
+          vault stops feeling buried under home when chat is open. */}
       {!open && (
         <button
           type="button"
           onClick={toggle}
-          className="fixed right-0 top-1/2 z-30 hidden -translate-y-1/2 rounded-l-xl border border-r-0 border-cyan-400/30 bg-black/70 px-2 py-4 text-[11px] font-mono uppercase tracking-widest text-cyan-300 backdrop-blur transition-colors hover:bg-cyan-400/10 lg:block"
+          className="fixed right-0 top-1/2 z-[115] hidden -translate-y-1/2 rounded-l-xl border border-r-0 border-cyan-400/30 bg-black/70 px-2 py-4 text-[11px] font-mono uppercase tracking-widest text-cyan-300 backdrop-blur transition-colors hover:bg-cyan-400/10 lg:block"
           style={{ writingMode: "vertical-rl" }}
           aria-label="Open project vault"
         >
@@ -198,9 +200,9 @@ export function AssetVault({
         </button>
       )}
 
-      {/* expanded panel */}
+      {/* expanded panel — same hierarchy as the collapsed tab */}
       {open && (
-        <aside className="fixed right-0 top-0 z-30 hidden h-full w-80 flex-col border-l border-white/10 bg-black/80 backdrop-blur-xl lg:flex">
+        <aside className="fixed right-0 top-0 z-[115] hidden h-full w-80 flex-col border-l border-white/10 bg-black/80 backdrop-blur-xl lg:flex">
           <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <div className="min-w-0">
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-cyan-300">Vault</p>
@@ -314,9 +316,10 @@ export function AssetVault({
         </aside>
       )}
 
-      {/* lightbox */}
+      {/* lightbox — z-[130] sits above the chat panel (z-[121]) so previews
+          always cover whatever room they're opened from. */}
       {lightbox?.url && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6" onClick={() => setLightbox(null)} role="dialog" aria-label="Asset preview">
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/85 p-6" onClick={() => setLightbox(null)} role="dialog" aria-label="Asset preview">
           <div className="max-h-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={lightbox.url} alt={lightbox.role} className="max-h-[80vh] w-auto rounded-lg" />

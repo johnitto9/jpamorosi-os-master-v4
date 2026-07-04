@@ -194,19 +194,193 @@ function useSceneChoreography(build: (tl: gsap.core.Timeline, q: (s: string) => 
   return root;
 }
 
-// --- Mobile / reduced-motion static block (always readable) ------------------
+// --- Mobile static block (reduced-motion / no-JS fallback — always readable) -
+// Hidden by default on motion-safe devices; MobileScene* takes over. Both render
+// so the page degrades cleanly if JS or motion is unavailable.
 function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: Accent; image: string; emoji: string }) {
   return (
-    <div data-scene-mobile className="mx-auto max-w-3xl px-6 py-16 lg:hidden">
-      <div className="m-rise"><EyebrowPill accent={accent}>{t.eyebrow}</EyebrowPill></div>
-      <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white">{t.heading}</h2>
-      <p className="m-rise mt-4 text-sm leading-relaxed text-white/60">{t.body}</p>
+    <div data-scene-mobile className="mx-auto max-w-3xl px-6 py-16 lg:hidden motion-safe:hidden">
+      <EyebrowPill accent={accent}>{t.eyebrow}</EyebrowPill>
+      <h2 className="mt-4 text-3xl font-bold leading-tight text-white">{t.heading}</h2>
+      <p className="mt-4 text-sm leading-relaxed text-white/60">{t.body}</p>
       <div className="mt-6 flex flex-wrap gap-2">
         {t.items.map((it) => (
-          <span key={it} className={cn("m-chip rounded-full border bg-white/[0.03] px-3 py-1 text-xs text-white/75", ACCENT[accent].border)}>{it}</span>
+          <span key={it} className={cn("rounded-full border bg-white/[0.03] px-3 py-1 text-xs text-white/75", ACCENT[accent].border)}>{it}</span>
         ))}
       </div>
-      <InterludeImage src={image} accent={accent} emoji={emoji} className="m-rise mt-6 aspect-[16/10] w-full" />
+      <InterludeImage src={image} accent={accent} emoji={emoji} className="mt-6 aspect-[16/10] w-full" />
+    </div>
+  );
+}
+
+// --- Rich mobile scenes (mirror the desktop narrative vertically — multiple
+// images, multiple texts, more scroll moments). Each .m-rise element rises +
+// fades as it enters the viewport via the existing GSAP reveal; .m-chip staggers.
+// Reduced-motion never matches -> the MobileStatic fallback above renders. */
+
+// SCENE 1 (mobile) — Before the Systems: shop + workshop prints stacked with
+// a milestone pull-quote between them and the chips clustered at the end.
+function MobileScene1({ t }: { t: InterludeCopy }) {
+  const a = ACCENT.amber;
+  return (
+    <div data-scene-mobile className="relative lg:hidden motion-reduce:hidden">
+      <SceneGlow tone="mixed" />
+      <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-12">
+        <div className="m-rise"><EyebrowPill accent="amber">{t.eyebrow}</EyebrowPill></div>
+        <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
+        <p className="m-rise mt-4 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+
+        {/* first print — full-bleed, anchors the scene */}
+        <div className="m-rise mt-10">
+          <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="aspect-[4/3] w-full" />
+        </div>
+
+        {/* pull-quote from the first milestone — frames the transition */}
+        {t.items[0] && (
+          <div className="m-rise mt-6 flex items-start gap-3 border-l-2 border-amber-400/40 pl-4">
+            <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.3em] text-amber-300/80">— 01</span>
+            <p className="text-base font-medium text-white/85">{t.items[0]}</p>
+          </div>
+        )}
+
+        {/* second print — offset right, smaller (echoes the desktop overlap) */}
+        <div className="m-rise mt-10 ml-auto w-3/4 pr-2">
+          <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="aspect-square w-full" />
+        </div>
+
+        {/* milestone chips — staggered reveal */}
+        <div className="m-rise mt-10">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">Milestones</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {t.items.map((it) => (
+              <span key={it} className={cn("m-chip rounded-full border bg-white/[0.03] px-3 py-1.5 text-xs text-white/85", a.border)}>{it}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* closing signature — the last milestone framed as a line */}
+        {t.items.length > 1 && (
+          <p className="m-rise mt-10 text-right font-mono text-[11px] uppercase tracking-[0.3em] text-amber-300/70">
+            · {t.items[t.items.length - 1]} ·
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// SCENE 2 (mobile) — Inside the Proof: the running screen + a vertical stack of
+// the layer cards (one per items entry), each its own reveal, framed by the
+// pull-quote at the bottom.
+function MobileScene2({ t }: { t: InterludeCopy }) {
+  const a = ACCENT.cyan;
+  return (
+    <div data-scene-mobile className="relative lg:hidden motion-reduce:hidden">
+      <SceneGlow tone="cyan" />
+      <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-12">
+        <div className="m-rise"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
+        <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
+        <p className="m-rise mt-4 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+
+        {/* the running system — large, anchored top-right with a slight tilt */}
+        <div className="m-rise mt-10">
+          <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="aspect-[16/10] w-full" />
+        </div>
+
+        {/* stack header */}
+        <div className="m-rise mt-10 flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-cyan-300">Stack</p>
+          <span className="font-mono text-[10px] text-white/40">0{t.items.length} layers</span>
+        </div>
+
+        {/* layer cards — one per item, each its own reveal with a soft glow */}
+        <ol className="mt-4 space-y-2.5">
+          {t.items.map((l, i) => (
+            <li
+              key={l}
+              className="m-rise flex items-center gap-3 rounded-xl border border-cyan-400/25 bg-white/[0.04] px-4 py-3 backdrop-blur-sm"
+              style={{ marginLeft: `${Math.min(i, 4) * 8}px`, boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}
+            >
+              <span className="font-mono text-[11px] text-cyan-300/70" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" aria-hidden />
+              <span className="text-sm text-white/85 sm:text-base">{l}</span>
+            </li>
+          ))}
+        </ol>
+
+        {/* closing line — last layer framed as the system's heartbeat */}
+        {t.items.length > 1 && (
+          <div className="m-rise mt-10 flex items-start gap-3 border-l-2 border-cyan-400/40 pl-4">
+            <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.3em] text-cyan-300/80">— running</span>
+            <p className="text-base font-medium text-white/85">{t.items[t.items.length - 1]}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// SCENE 3 (mobile) — The Living Layer: backdrop + numbered flow-word cards
+// stepping through the journey, plus a violet→cyan rail visualization at the end.
+function MobileScene3({ t }: { t: InterludeCopy }) {
+  const a = ACCENT.violet;
+  return (
+    <div data-scene-mobile className="relative lg:hidden motion-reduce:hidden">
+      <SceneGlow tone="violet" />
+      <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-12">
+        <div className="m-rise"><EyebrowPill accent="violet">{t.eyebrow}</EyebrowPill></div>
+        <h2 className="m-rise mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
+        <p className="m-rise mt-4 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+
+        {/* backdrop — dimmed, anchors the ambient feel */}
+        <div className="m-rise mt-10">
+          <InterludeImage src={IMG.living1} accent="violet" emoji="🌀" className="aspect-[16/10] w-full opacity-90" />
+        </div>
+
+        {/* journey header */}
+        <div className="m-rise mt-10 flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-violet-300">The journey</p>
+          <span className="font-mono text-[10px] text-white/40">0{t.items.length} steps</span>
+        </div>
+
+        {/* flow words as numbered cards — each its own reveal */}
+        <ol className="mt-4 space-y-3">
+          {t.items.map((w, i) => (
+            <li
+              key={w}
+              className="m-rise flex items-center gap-4 rounded-xl border border-violet-400/25 bg-white/[0.04] px-4 py-3 backdrop-blur-sm"
+              style={{ boxShadow: "0 0 24px -12px rgba(139,92,246,0.4)" }}
+            >
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-400/40 font-mono text-[11px] text-violet-200"
+                aria-hidden
+              >
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="text-base font-semibold text-white">{w}</span>
+            </li>
+          ))}
+        </ol>
+
+        {/* closing rail visualization */}
+        <div className="m-rise mt-10">
+          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">Signal</p>
+          <div className="relative h-1 w-full rounded-full bg-white/10">
+            <div
+              aria-hidden
+              className="absolute inset-y-0 left-0 w-full rounded-full"
+              style={{ background: "linear-gradient(90deg, rgba(139,92,246,0.9), rgba(0,242,255,0.7))" }}
+            />
+          </div>
+          <div className="mt-3 flex items-center justify-between font-mono text-[10px] text-white/40">
+            <span>arrival</span>
+            <span>·</span>
+            <span>memory</span>
+            <span>·</span>
+            <span>action</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -246,6 +420,7 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
   return (
     <section ref={root} id="before-the-systems" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="amber" image={IMG.before1} emoji="🏪" />
+      <MobileScene1 t={t} />
       <div data-scene className="relative hidden min-h-[320vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="mixed" />
@@ -303,6 +478,7 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
   return (
     <section ref={root} id="inside-the-proof" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="cyan" image={IMG.proof1} emoji="🖥️" />
+      <MobileScene2 t={t} />
       <div data-scene className="relative hidden min-h-[300vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="cyan" />
@@ -365,6 +541,7 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
   return (
     <section ref={root} id="living-layer" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="violet" image={IMG.living1} emoji="🌀" />
+      <MobileScene3 t={t} />
       <div data-scene className="relative hidden min-h-[340vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="violet" />
