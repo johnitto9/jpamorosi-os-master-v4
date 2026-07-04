@@ -6,6 +6,7 @@ import { HallOfFameGrid } from '@/components/hall/HallOfFameGrid';
 import { FeaturedSystemsGrid } from '@/components/hall/FeaturedSystemsGrid';
 import { LabArchiveGrid } from '@/components/hall/LabArchiveGrid';
 import { AssistantWidget } from '@/components/assistant/AssistantWidget';
+import { GuidedTour } from '@/components/assistant/GuidedTour';
 import { ContactSection } from '@/components/hall/ContactSection';
 import { BeforeTheSystems, PortfolioSystemInterlude, LivingLayerInterlude } from '@/components/hall/Interludes';
 import { ChapterNav } from '@/components/ui/chapter-nav';
@@ -211,6 +212,7 @@ export default async function HomePage() {
       </SectionTransition>
       </div>
       <AssistantWidget />
+      <GuidedTour />
     </ScrollStage>
   );
 }

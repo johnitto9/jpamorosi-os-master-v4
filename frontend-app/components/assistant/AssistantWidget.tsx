@@ -408,11 +408,21 @@ export function AssistantWidget() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // action buttons dispatch this so the panel never covers its destination
+  // action buttons dispatch this so the panel never covers its destination.
+  // The Guided Tour hands off here (`al-assistant-open`, optional seed message).
+  const seedHandlerRef = useRef<(seed?: string) => void>(() => {});
   useEffect(() => {
     const close = () => setOpen(false);
+    const openFromTour = (e: Event) => {
+      const seed = (e as CustomEvent<{ seed?: string }>).detail?.seed;
+      seedHandlerRef.current(seed);
+    };
     window.addEventListener("al-assistant-close", close);
-    return () => window.removeEventListener("al-assistant-close", close);
+    window.addEventListener("al-assistant-open", openFromTour);
+    return () => {
+      window.removeEventListener("al-assistant-close", close);
+      window.removeEventListener("al-assistant-open", openFromTour);
+    };
   }, []);
 
   const dismissAttention = useCallback(() => {
@@ -425,6 +435,13 @@ export function AssistantWidget() {
     dismissAttention();
     setOpen(true);
   }, [dismissAttention]);
+
+  // Guided Tour handoff target: open Orbe and optionally seed a first message.
+  // `send` is a hoisted function declaration below — safe to reference here.
+  seedHandlerRef.current = (seed?: string) => {
+    openPanel();
+    if (seed?.trim()) void send(seed);
+  };
 
   async function send(text: string) {
     const message = text.trim() || (pendingImage ? "Compartí una imagen 📎" : "");
