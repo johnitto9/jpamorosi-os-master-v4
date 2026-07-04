@@ -51,7 +51,7 @@ export async function HallHero() {
           <Reveal delay={0.05}>
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-            {profile.lab} · Hall of Fame
+            {profile.lab} · Proof Rooms
           </p>
 
           <h1 className="lab-shimmer-text text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">

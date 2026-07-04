@@ -56,8 +56,8 @@ export function LabArchiveGrid({
 
       <div className="relative mx-auto max-w-6xl px-6">
       <SectionHeader
-        eyebrow={header?.eyebrow ?? "Lab Archive"}
-        title={header?.title ?? "Experiments & artifacts"}
+        eyebrow={header?.eyebrow ?? "Lab Fragments"}
+        title={header?.title ?? "Experiments, prototypes and useful obsessions."}
         description={
           header?.description ??
           "Prototypes, tools and research fragments. Evidence, not headline acts."

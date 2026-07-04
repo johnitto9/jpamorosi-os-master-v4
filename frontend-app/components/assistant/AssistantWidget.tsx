@@ -465,7 +465,7 @@ export function AssistantWidget() {
         {
           role: "assistant",
           content:
-            "I couldn't reach the lab just now. Try the Hall of Fame or open the CV.",
+            "I couldn't reach the lab just now. Try the Proof Rooms or open the CV.",
         },
       ]);
     } finally {

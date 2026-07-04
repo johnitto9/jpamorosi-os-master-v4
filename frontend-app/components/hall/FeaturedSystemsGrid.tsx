@@ -58,7 +58,7 @@ export function FeaturedSystemsGrid({
 
       <div className="relative mx-auto max-w-6xl px-6">
         <SectionHeader
-          eyebrow={header?.eyebrow ?? "Featured Systems"}
+          eyebrow={header?.eyebrow ?? "Systems in Orbit"}
           title={header?.title ?? "Systems that support the thesis"}
           description={
             header?.description ??

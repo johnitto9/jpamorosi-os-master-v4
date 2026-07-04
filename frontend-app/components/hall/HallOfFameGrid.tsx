@@ -216,7 +216,7 @@ export function HallOfFameGrid({
 
       <div className="relative mx-auto max-w-6xl px-6">
         <SectionHeader
-          eyebrow={header?.eyebrow ?? "Hall of Fame"}
+          eyebrow={header?.eyebrow ?? "Proof Rooms"}
           title={header?.title ?? "Flagship proof systems"}
           description={
             header?.description ??
