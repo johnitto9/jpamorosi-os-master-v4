@@ -189,6 +189,19 @@ function useSceneChoreography(
       if (mobileBuild && mobileSection) {
         mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
           const q = gsap.utils.selector(mobileSection);
+          // Defensive: explicitly set initial states for the per-frame elements.
+          // fromTo's immediateRender normally handles this, but an explicit set
+          // here guarantees the layout is right even if the fromTo FROM state
+          // gets clobbered (CSS specificity, hmr race, etc.) — keeps the words
+          // invisible and the cards/screen in their starting positions until
+          // the timeline plays them in.
+          gsap.set(q(".il-word"), { autoAlpha: 0, yPercent: 90 });
+          gsap.set(q(".il-flow"), { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" });
+          gsap.set(q(".il-card-a"), { yPercent: 130, autoAlpha: 0, scale: 0.85 });
+          gsap.set(q(".il-card-b"), { yPercent: 140, autoAlpha: 0, scale: 0.85 });
+          gsap.set(q(".il-screen"), { yPercent: 130, autoAlpha: 0, scale: 0.85 });
+          gsap.set(q(".il-thread"), { scaleY: 0 });
+          gsap.set(q(".il-layer"), { autoAlpha: 0, y: 60 });
           const tl = gsap.timeline({
             defaults: { ease: "none" },
             scrollTrigger: {
@@ -242,37 +255,43 @@ function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: A
 // below, exit above), milestone words dance stacked, thread grows top-to-bottom.
 // Architecturally 1:1 with the desktop scene — same ONE shared scrubbed
 // timeline, same element contract (.il-*), just vertical transforms.
+//
+// LAYOUT (tuned): flex-col with three explicit slots (narrative / print /
+// words band). Smaller typography + line-clamp on body to prevent long
+// translations from crowding the print slot. Words start opacity-0 (defensive
+// — even if GSAP fails to apply the fromTo FROM state, they don't overlap).
 function MobileScene1({ t }: { t: InterludeCopy }) {
   const words = t.items;
   return (
     <div data-scene-mobile className="relative block min-h-[280vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="mixed" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6">
-        {/* narrative at top, centred, with vertical thread on its left */}
-        <div className="relative z-10 mt-20 w-full max-w-md text-center">
-          <span className="il-thread absolute left-1/2 top-12 h-[calc(100vh-13rem)] w-px -translate-x-1/2"
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
+        {/* narrative at top — compact, line-clamp keeps body from overflowing */}
+        <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
+          <span className="il-thread absolute left-1/2 top-12 h-16 w-px -translate-x-1/2"
             aria-hidden
             style={{ background: "linear-gradient(to bottom, rgba(240,165,0,0.8), rgba(0,242,255,0.7))" }} />
           <div className="il-eyebrow flex justify-center"><EyebrowPill accent="amber">{t.eyebrow}</EyebrowPill></div>
-          <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
-          <p className="il-body mt-3 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
+          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 sm:text-sm line-clamp-3">{t.body}</p>
         </div>
 
-        {/* prints — vertical travellers. Same `.il-card-a/b` contract as desktop */}
-        <div className="il-card-a absolute left-1/2 top-[58%] h-44 w-72 -translate-x-1/2 -translate-y-1/2">
-          <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="h-full w-full" />
-        </div>
-        <div className="il-card-b absolute left-1/2 top-[62%] h-40 w-64 -translate-x-1/2 -translate-y-1/2">
-          <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="h-full w-full" />
-        </div>
-
-        {/* milestone words band — same `.il-word` contract, vertical dance */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-24 flex h-14 justify-center">
-          <div className="relative w-full">
-            {words.map((m) => (
-              <span key={m} className="il-word absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap text-2xl font-bold text-amber-200 sm:text-3xl">{m}</span>
-            ))}
+        {/* print slot — flex-1 fills the middle, cards absolutely positioned
+            inside so GSAP can translate them freely (enters from below, exits up) */}
+        <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
+          <div className="il-card-a absolute h-40 w-64 sm:h-44 sm:w-72">
+            <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="h-full w-full" />
           </div>
+          <div className="il-card-b absolute h-36 w-56 sm:h-40 sm:w-64">
+            <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="h-full w-full" />
+          </div>
+        </div>
+
+        {/* milestone words band — fixed bottom slot, one word visible at a time */}
+        <div className="il-words-band pointer-events-none relative h-12 w-full max-w-md shrink-0">
+          {words.map((m) => (
+            <span key={m} className="il-word absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-bold text-amber-200 opacity-0 sm:text-2xl">{m}</span>
+          ))}
         </div>
       </div>
     </div>
@@ -282,33 +301,37 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
 // SCENE 2 (mobile) — Inside the Proof: vertical scrubbed choreography.
 // The system screen arrives from depth (below), holds; stack layer cards
 // assemble bottom-up over the screen. Same `.il-screen` / `.il-layer`
-// contract as desktop, vertical transforms.
+// contract as desktop, vertical transforms. LAYOUT: flex-col with three
+// slots (narrative / screen / layer stack). Tighter typography and
+// line-clamp keep the narrative from pushing the screen into the stack.
 function MobileScene2({ t }: { t: InterludeCopy }) {
   return (
     <div data-scene-mobile className="relative block min-h-[260vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="cyan" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6">
-        {/* narrative at top */}
-        <div className="relative z-10 mt-20 w-full max-w-md text-center">
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
+        <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
           <div className="il-eyebrow flex justify-center"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
-          <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
-          <p className="il-body mt-3 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
+          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 sm:text-sm line-clamp-3">{t.body}</p>
         </div>
 
-        {/* the running system — large, anchored in middle-lower, arrives from below */}
-        <div className="il-screen absolute left-1/2 top-[55%] h-44 w-72 -translate-x-1/2 -translate-y-1/2">
-          <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="h-full w-full" />
+        {/* screen slot — middle, screen floats up + holds; layer cards assemble
+            bottom-up beneath. The screen is absolutely positioned inside the
+            slot so GSAP can translate it (yPercent 130 → 0 → -14) without
+            affecting the layer stack below. */}
+        <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
+          <div className="il-screen absolute h-40 w-64 sm:h-44 sm:w-72">
+            <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="h-full w-full" />
+          </div>
         </div>
 
-        {/* stack layer cards assemble bottom-up; each its own reveal within
-            the shared scrubbed timeline, same .il-layer contract as desktop */}
-        <div className="absolute inset-x-4 bottom-14 space-y-2">
-          {t.items.map((l, i) => (
-            <div key={l} className="il-layer flex items-center gap-3 rounded-xl border border-cyan-400/25 bg-white/[0.04] px-4 py-2.5 backdrop-blur-sm"
+        {/* layer stack — bottom slot, each card reveals with a soft back-ease */}
+        <div className="il-layers w-full max-w-md shrink-0 space-y-1.5">
+          {t.items.map((l) => (
+            <div key={l} className="il-layer flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-white/[0.04] px-3 py-1.5 backdrop-blur-sm"
               style={{ boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}>
-              <span className="font-mono text-[11px] text-cyan-300/70" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" aria-hidden />
-              <span className="text-sm text-white/85">{l}</span>
+              <span className="h-1 w-1 rounded-full bg-cyan-400" aria-hidden />
+              <span className="text-xs text-white/85 sm:text-sm">{l}</span>
             </div>
           ))}
         </div>
@@ -320,41 +343,43 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
 // SCENE 3 (mobile) — The Living Layer: vertical scrubbed choreography.
 // Drifting backdrop, one flow word pulses at a time stacked in centre,
 // violet→cyan rail advances. Same `.il-flow` / `.il-rail` / `.il-dot` /
-// `.il-backdrop` contract as desktop, vertical transforms.
+// `.il-backdrop` contract as desktop, vertical transforms. LAYOUT: flex-col
+// with narrative / stage / rail slots. Flow words start opacity-0 (defensive).
 function MobileScene3({ t }: { t: InterludeCopy }) {
   const words = t.items;
   return (
     <div data-scene-mobile className="relative block min-h-[300vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="violet" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6">
-        {/* narrative at top */}
-        <div className="relative z-10 mt-20 w-full max-w-md text-center">
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
+        <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
           <div className="il-eyebrow flex justify-center"><EyebrowPill accent="violet">{t.eyebrow}</EyebrowPill></div>
-          <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">{t.heading}</h2>
-          <p className="il-body mt-3 text-sm leading-relaxed text-white/65 sm:text-base">{t.body}</p>
+          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
+          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 sm:text-sm line-clamp-3">{t.body}</p>
         </div>
 
-        {/* stage with drifting backdrop + stacked flow words */}
-        <div className="relative mt-6 h-44 w-full max-w-sm">
-          <div className="il-backdrop absolute inset-0 opacity-40">
-            <InterludeImage src={IMG.living1} accent="violet" emoji="🌀" className="h-full w-full" />
-          </div>
-          <div className="relative flex h-full items-center justify-center">
-            {words.map((w) => (
-              <span key={w} className="il-flow absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-2xl font-bold text-white sm:text-4xl"
-                style={{ textShadow: "0 0 30px rgba(139,92,246,0.5)" }}>{w}</span>
-            ))}
+        {/* stage slot — backdrop + stacked flow words pulse one at a time */}
+        <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
+          <div className="relative h-36 w-full max-w-sm sm:h-44">
+            <div className="il-backdrop absolute inset-0 opacity-40">
+              <InterludeImage src={IMG.living1} accent="violet" emoji="🌀" className="h-full w-full" />
+            </div>
+            <div className="relative flex h-full items-center justify-center">
+              {words.map((w) => (
+                <span key={w} className="il-flow absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-2xl font-bold text-white opacity-0 sm:text-3xl"
+                  style={{ textShadow: "0 0 30px rgba(139,92,246,0.5)" }}>{w}</span>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* advancing rail + step dots — same .il-rail / .il-dot contract */}
-        <div className="mt-8 flex w-full max-w-xs flex-col items-center gap-3">
+        {/* rail + dots — bottom slot, gradient advances, dots scale on each step */}
+        <div className="il-rail-block flex w-full max-w-xs shrink-0 flex-col items-center gap-2">
           <div className="relative h-px w-full bg-white/10">
             <div className="il-rail absolute inset-y-0 left-0 w-full" aria-hidden
               style={{ background: "linear-gradient(90deg, rgba(139,92,246,0.9), rgba(0,242,255,0.7))" }} />
           </div>
-          <div className="flex items-center gap-3">
-            {words.map((w) => (<span key={w} className="il-dot h-1.5 w-1.5 rounded-full bg-violet-300" aria-hidden />))}
+          <div className="flex items-center gap-2">
+            {words.map((w) => (<span key={w} className="il-dot h-1 w-1 rounded-full bg-violet-300 sm:h-1.5 sm:w-1.5" aria-hidden />))}
           </div>
         </div>
       </div>
