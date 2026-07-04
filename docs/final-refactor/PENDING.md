@@ -20,8 +20,8 @@ Legend: ✅ done · 🟡 partial/scaffolded · ⏳ QA-pending · 👤 your actio
 | **T01** Naming + i18n | ✅ ⏳ | Orbe naming (7 locales) + section labels (Proof Rooms / Systems in Orbit / Lab Fragments) + contact form localized. Fixed RU/ZH mixed-language bug. QA: visual pass per locale. |
 | **T02** Home narrative | ✅ ⏳ | 3 interludes, canonical order. **Confirmed live on :3001** (Proof Rooms / Systems in Orbit render). QA: mobile / reduced-motion / fast-scroll. |
 | **T03** Orbe Guided Tour | ✅ ⏳ | Deterministic 0-LLM engine + self-contained UI + exit→adaptive handoff. Test asserts zero-exit path. QA: click through the tour, scroll cues, handoff. |
-| **T04** Project/Branding unification | 🟡 | **Base done**: unified persistence (brand_dna/assets/stack_decisions/visual_plans + `project-workspace.ts`, palette-confirm gate, max-9). **Pending**: wizard UI (easy-guide → constraints → tech-optional → 3 inferred colors → confirm) + Orbe tools that WRITE to the workspace + project-specific reception copy. |
-| **T05** Workbench / Vault / Visual Planner | 🟡 | Persistence + roles exist (T04 base). **Pending**: collapsible right panel (Overview/Palette/Stack/Logo/Reference/Storyboard/Screens/Activity), auto-open, compact chat thumbnails, lightbox, Embla carousel reuse, VisualCoveragePlan UI, plan-before-generate gate wired to `runGenerateMockup`. |
+| **T04** Project/Branding unification | ✅ 🟡 | Unified persistence + **agent writes it live**: mockups→assets, techs→stack_decisions, `confirm_palette` + `set_brand_dna` tools. The model fills from conversation. **Pending (UI polish)**: a dedicated step-by-step wizard (idea→constraints→tech-optional→3 inferred colors→confirm) and project-specific reception copy — the tools exist, the guided client wizard is the nice-to-have. |
+| **T05** Workbench / Vault / Visual Planner | ✅ 🟡 | **Asset Vault built**: `/api/assistant/workspace` (session-scoped) + `AssetVault.tsx` collapsible right panel (Palette/Brand DNA/Stack/Assets), compact thumbnails + lightbox, auto-open, live-sync after each turn. **Pending**: mobile drawer, Embla carousel for big collections, explicit VisualCoveragePlan UI + plan-before-multi-generate gate (single mockups already persist as assets). |
 | **T06** Admin dossier | 🟡 ⏳ | Brand Foundation panel wired into `/admin/sessions/[id]` (reads `getProjectWorkspace` — same truth as vault). **Pending**: full tab restructure (Overview/Chats/Project/BrandDNA/Assets/Activity), multiple-conversation selector. QA once data exists. |
 | **T07** Security hardening | 🟡 👤 | Done: Postgres loopback, upload magic-byte sniff (no SVG), minimal `/api/health`, cron bearer auth, **rate limiting** (login 8/10min, contact 5/10min), **docker healthcheck IPv6 fix**. Pending 👤: Cloudflare Full(strict)+WAF+edge rate limits, admin Access, origin-bypass audit, VPS firewall/SSH/Fail2Ban/auto-updates, docker.sock/autoheal decision, backup+restore drill. |
 | **T08** Final QA / release | ⏳ | Not started — the full pass across UX/i18n/rooms/autonomy/persistence/perf/security + pass-fail matrix + release gate. |
@@ -30,14 +30,17 @@ Legend: ✅ done · 🟡 partial/scaffolded · ⏳ QA-pending · 👤 your actio
 
 ## Concrete next-session backlog (in order)
 
-1. **T04-UI** — Project Room wizard + Orbe `update_project`/brand tools writing to
-   `project-workspace` (BrandDNA, StackDecision, palette confirm). Replace the
-   generic Project Room welcome with a project-specific opening.
-2. **T05** — Asset Vault side panel + compact thumbnails + lightbox; move
-   `runGenerateMockup` output into `assets` (role-tagged) instead of loose files;
-   VisualCoveragePlan required before multi-image gen.
-3. **T06-full** — tabbed dossier + multi-conversation view.
-4. **T08** — acceptance matrix pass, then release.
+1. **T08** — the acceptance-matrix QA pass on a running app (:3001): home visual,
+   Orbe/tour, project/branding E2E (create → confirm palette → set brand DNA →
+   generate → see it in the vault + dossier), i18n, reduced motion, mobile,
+   security regression, heartbeat/cron. Then the release recommendation.
+2. **T04/T05 polish** — dedicated client wizard (nice-to-have; the agent tools
+   already persist everything), mobile vault drawer, Embla carousel, explicit
+   VisualCoveragePlan UI before multi-image generation.
+3. **T06-full** — tabbed dossier (Overview/Chats/Project/BrandDNA/Assets/Activity)
+   + multi-conversation selector (the read path already works).
+4. **T07-VPS** 👤 — Cloudflare Full(strict)/WAF/edge-rate-limits, admin Access,
+   VPS firewall/SSH/Fail2Ban, docker.sock decision, backup+restore drill.
 
 ## Known bugs / debt found (not yet fixed)
 
