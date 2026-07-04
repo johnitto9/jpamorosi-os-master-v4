@@ -11,6 +11,7 @@ import { isAuthenticated } from "@/lib/auth/admin";
 import { listMessages, getSession } from "@/lib/agent/memory";
 import { getLeadRow } from "@/lib/agent/leads";
 import { listSessionProjects } from "@/lib/agent/projects";
+import { getProjectWorkspace, type ProjectWorkspace } from "@/lib/agent/project-workspace";
 import { listSessionMockups } from "@/lib/agent/tools-server";
 import { listSessionEvents } from "@/lib/events";
 import type { LeadPatch } from "@/lib/agent/leads";
@@ -49,7 +50,74 @@ const EVENT_META: Record<string, { icon: string; label: string }> = {
   "ai.tool.failed": { icon: "⚠️", label: "Tool failed" },
   "email.sent": { icon: "📧", label: "Email sent" },
   "media.uploaded": { icon: "📎", label: "Image shared" },
+  "palette.confirmed": { icon: "🎨", label: "Palette confirmed" },
+  "branddna.updated": { icon: "🧬", label: "Brand DNA updated" },
+  "asset.created": { icon: "🖼", label: "Asset added" },
+  "stack.decided": { icon: "🧱", label: "Stack decision" },
+  "visualplan.created": { icon: "🗺", label: "Visual plan created" },
 };
+
+// T06 dossier: the shared Brand Foundation (T04 project-workspace) — the SAME
+// truth the user vault reads. Renders nothing until the workspace has content.
+function BrandFoundation({ ws }: { ws?: ProjectWorkspace }) {
+  if (!ws) return null;
+  const { brandDNA, assets, stackDecisions } = ws;
+  if (!brandDNA && assets.length === 0 && stackDecisions.length === 0) return null;
+  const byRole = assets.reduce<Record<string, number>>((m, a) => {
+    m[a.role] = (m[a.role] ?? 0) + 1;
+    return m;
+  }, {});
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-cyan-400/15 bg-cyan-400/[0.03] p-2">
+      {brandDNA && (
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-cyan-300">Brand DNA</p>
+          {(brandDNA.personality || brandDNA.tone) && (
+            <p className="mt-0.5 text-[11px] text-white/70">
+              {[brandDNA.personality, brandDNA.tone].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {brandDNA.keywords.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {brandDNA.keywords.slice(0, 8).map((k) => (
+                <span key={k} className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-white/60">{k}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {stackDecisions.length > 0 && (
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-violet-300">Stack decisions</p>
+          <ul className="mt-0.5 space-y-0.5">
+            {stackDecisions.slice(0, 6).map((d) => (
+              <li key={d.id} className="text-[11px] text-white/65">
+                <b className="text-white/45">{d.category}:</b> {d.option}
+                {d.confirmedAt ? " ✓" : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {assets.length > 0 && (
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-wider text-white/40">Assets ({assets.length})</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {Object.entries(byRole).map(([role, n]) => (
+              <span key={role} className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/60">{role} ×{n}</span>
+            ))}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {assets.filter((a) => a.url).slice(0, 6).map((a) => (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img key={a.id} src={a.url as string} alt={a.role} className="h-10 w-10 rounded object-cover ring-1 ring-white/10" />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Chip({ k, v }: { k: string; v?: string | null }) {
   if (!v) return null;
@@ -79,6 +147,13 @@ export default async function AdminSessionDetail({
     listSessionMockups(id),
     listSessionEvents(id),
   ]);
+
+  // T06: the unified Brand Foundation per orbit project (same source as the vault)
+  const workspaces = projects.length
+    ? await Promise.all(projects.map((p) => getProjectWorkspace(p.id)))
+    : [];
+  const wsById = new Map<number, ProjectWorkspace>();
+  projects.forEach((p, i) => wsById.set(p.id, workspaces[i]));
 
   const meta = (session?.meta ?? {}) as Record<string, unknown>;
   const metaStr = (k: string) => (typeof meta[k] === "string" ? (meta[k] as string) : undefined);
@@ -224,6 +299,7 @@ export default async function AdminSessionDetail({
                         ))}
                       </div>
                     )}
+                    <BrandFoundation ws={wsById.get(p.id)} />
                     <p className="mt-2 text-[10px] text-white/30">
                       created {p.createdAt?.slice(5, 16).replace("T", " ")} · updated {p.updatedAt?.slice(5, 16).replace("T", " ")}
                     </p>
