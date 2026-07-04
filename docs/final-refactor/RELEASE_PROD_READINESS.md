@@ -108,12 +108,13 @@ Still to decide before/at deploy:
 - 🟡 **VPS hardening**: default-deny firewall, SSH keys only, Fail2Ban, auto
   security updates, snapshot before deploy, daily encrypted Postgres dump off-host.
 
-## 6. Email deliverability (before any outbound)
+## 6. Email deliverability — LIVE ✅
 
-`RESEND_FROM_EMAIL` uses `labs@jpamorosi.dev`. Resend only delivers from a
-**verified domain**. Verify `jpamorosi.dev` at resend.com/domains (SPF + DKIM DNS
-records in Cloudflare) before the scout digest / follow-up / contact replies will
-actually land. Until then Resend test mode only delivers to the account owner.
+`jpamorosi.dev` is verified in Resend (SPF + DKIM) and the system has been sending
+real email for a while: sender `Amorosi Labs <labs@jpamorosi.dev>`, delivering to
+`jpamorosi14@gmail.com` (magic-link, lead alerts, scout digest, follow-ups).
+Nothing to do here for release. Keep `RESEND_API_KEY` in the VPS secret manager
+only; rotate if leaked.
 
 ## 7. Autonomy — the "arranque inicial" (scout → prospects → email)
 
