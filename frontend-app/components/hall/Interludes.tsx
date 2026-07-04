@@ -22,7 +22,7 @@
 // still reads. Only the *travelling* elements (cards, words) start hidden and
 // animate in. useGSAP runs in a layout effect (pre-paint), so there is no flash.
 
-import { useContext, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -240,6 +240,67 @@ function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: A
 // fades as it enters the viewport via the existing GSAP reveal; .m-chip staggers.
 // Reduced-motion never matches -> the MobileStatic fallback above renders. */
 
+// --- Mobile animation debug indicator (FINALPROD S8) -------------------------
+// A small fixed-position overlay that shows real-time state of the mobile
+// animation pipeline. The user has reported "sin animación" across 7
+// sessions; this indicator is the verification surface. The user takes
+// a screenshot, I see what state the system is actually in.
+//
+// - "DOM" : is the [data-scene-mobile] element in the DOM?
+// - "MM"  : is the GSAP matchMedia mobile branch firing? (set by GSAP
+//           itself once the mobile build runs)
+// - "Sec" : the section's top in viewport coordinates (px). When
+//           positive, the section is below the viewport top. When ~100vh
+//           or less, the trigger should be reachable.
+// - "card opacity" : getComputedStyle of .il-card-a. If the fromTo's
+//           immediateRender applied the FROM state, this is 0. If the
+//           trigger has fired and the animation played, this is 1.
+// - "words visible" : how many of the 5 .il-word elements have non-zero
+//           opacity at the current scroll position. Should grow as
+//           the user scrolls past the word start positions.
+//
+// Render this inside any mobile scene. Remove once the animation is
+// confirmed working.
+function MobileDebugIndicator({ sceneId }: { sceneId: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => {
+      const section = document.querySelector(`[data-scene-mobile="${sceneId}"]`) as HTMLElement | null
+        || document.querySelector(`#${sceneId} [data-scene-mobile]`) as HTMLElement | null
+        || document.querySelector("[data-scene-mobile]") as HTMLElement | null;
+      if (!section || !ref.current) return;
+      const cardA = section.querySelector(".il-card-a") as HTMLElement | null;
+      const words = section.querySelectorAll(".il-word");
+      let visibleWords = 0;
+      words.forEach((w) => {
+        const s = getComputedStyle(w);
+        if (parseFloat(s.opacity) > 0.1) visibleWords++;
+      });
+      const rect = section.getBoundingClientRect();
+      ref.current.innerHTML = `
+        <div style="font-weight:700;color:#22d3ee">S8 DEBUG · ${sceneId}</div>
+        <div>DOM: ${section ? "✓" : "✗"}</div>
+        <div>Sec top: ${Math.round(rect.top)}px / vh:${window.innerHeight}</div>
+        <div>Sec height: ${Math.round(rect.height)}px</div>
+        <div>card-a opacity: ${cardA ? getComputedStyle(cardA).opacity : "n/a"}</div>
+        <div>card-a transform: ${cardA ? (getComputedStyle(cardA).transform.match(/matrix\\(.*?\\)/)?.[0]?.slice(0, 60) || getComputedStyle(cardA).transform.slice(0, 60)) : "n/a"}</div>
+        <div>words visible: ${visibleWords}/${words.length}</div>
+        <div>Lenis: ${(window as unknown as { __lenis?: { scroll: number } }).__lenis ? "present" : "?"}</div>
+      `;
+    };
+    update();
+    const id = window.setInterval(update, 250);
+    return () => window.clearInterval(id);
+  }, [sceneId]);
+  return (
+    <div
+      ref={ref}
+      className="fixed bottom-2 left-2 z-[200] max-w-[calc(100vw-1rem)] rounded border border-cyan-400/60 bg-black/90 px-2 py-1 font-mono text-[10px] leading-tight text-cyan-100 shadow-lg backdrop-blur-md"
+    />
+  );
+}
+
 // SCENE 1 (mobile) — Before the Systems: vertical scrubbed choreography.
 // Sticky stage inside a tall section; cards travel vertically (enter from
 // below, exit above), milestone words dance stacked, thread grows top-to-bottom.
@@ -284,6 +345,8 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
           ))}
         </div>
       </div>
+      {/* S8 debug indicator — remove once animation is confirmed working */}
+      <MobileDebugIndicator sceneId="before-the-systems" />
     </div>
   );
 }
