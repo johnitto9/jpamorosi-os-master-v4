@@ -28,7 +28,7 @@ export async function GET(_request: Request, { params }: Ctx) {
 }
 
 export async function PUT(request: Request, { params }: Ctx) {
-  const blocked = await guardAdmin();
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
 
   const { slug } = await params;
@@ -63,8 +63,8 @@ export async function PUT(request: Request, { params }: Ctx) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Ctx) {
-  const blocked = await guardAdmin();
+export async function DELETE(request: Request, { params }: Ctx) {
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
 
   const { slug } = await params;

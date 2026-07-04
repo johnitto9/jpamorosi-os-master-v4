@@ -79,7 +79,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const blocked = await guardAdmin();
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})));

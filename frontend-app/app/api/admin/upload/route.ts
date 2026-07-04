@@ -54,7 +54,7 @@ function safeName(original: string): { base: string; ext: string } {
 }
 
 export async function POST(request: Request) {
-  const blocked = await guardAdmin();
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
 
   if (!getProjectRepository().writable) {

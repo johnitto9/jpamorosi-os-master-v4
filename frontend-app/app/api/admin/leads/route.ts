@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const blocked = await guardAdmin();
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
 
   const parsed = leadPatchSchema.safeParse(await request.json().catch(() => ({})));

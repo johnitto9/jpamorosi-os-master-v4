@@ -39,7 +39,7 @@ function runFfmpeg(args: string[]): Promise<void> {
 }
 
 export async function POST(request: Request) {
-  const blocked = await guardAdmin();
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
 
   if (!getProjectRepository().writable) {
@@ -105,8 +105,8 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
-  const blocked = await guardAdmin();
+export async function DELETE(request: Request) {
+  const blocked = await guardAdmin(request);
   if (blocked) return blocked;
   const settings = await getSiteSettings();
   await saveSiteSettings({ ...settings, heroVideo: undefined });
