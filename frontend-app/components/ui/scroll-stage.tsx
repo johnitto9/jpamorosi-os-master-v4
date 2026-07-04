@@ -9,23 +9,27 @@
 // animation read "top tier" instead of stepping with the wheel.
 // Disabled under prefers-reduced-motion (native scroll remains).
 //
-// GSAP + LENIS INTEGRATION (FINALPROD S8): Lenis animates `transform:
-// translate3d(0, -Y, 0)` on the `content` element (the inner div), NOT the
-// `<main>`'s scrollTop. ScrollTrigger, by default, watches the `scroller`
-// element's scrollTop — which Lenis does NOT update. This means
-// ScrollTrigger's progress calculation is wrong, scroll-driven animations
-// either never fire or fire at the wrong scroll position. The fix is
-// `scrollerProxy`: tell ScrollTrigger to source its scroll from Lenis
-// instead of the DOM. This is the canonical GSAP+Lenis pattern.
+// GSAP + LENIS INTEGRATION (FINALPROD S9 — corrected). S8 introduced a
+// scrollerProxy on the assumption that modern Lenis animates `transform:
+// translate3d(0, -Y, 0)` on the content. That's wrong for Lenis 1.x in
+// its `wrapper` + `content` mode with `smoothWheel: true`: Lenis animates
+// the wrapper's `scrollTop` and the content's `transform` together. The
+// canonical, supported integration is to share the GSAP ticker with Lenis
+// and forward its scroll events to ScrollTrigger:
 //
-// Without scrollerProxy, the desktop choreography works "by accident"
-// because desktop sections are tall enough that any timing drift is masked.
-// On mobile, sections are smaller and tighter, so the drift becomes visible
-// (the user reports animations don't play).
+//   gsap.ticker.add((time) => lenis.raf(time * 1000));
+//   gsap.ticker.lagSmoothing(0);
+//   lenis.on("scroll", ScrollTrigger.update);
+//
+// No scrollerProxy, no pinType: "transform". One shared clock. This is
+// the integration the Lenis README documents for 1.3.x.
 
 import { createContext, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import Lenis from "lenis";
+import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export const ScrollContainerContext =
   createContext<RefObject<HTMLElement | null> | null>(null);
@@ -55,55 +59,29 @@ export function ScrollStage({
       touchMultiplier: 1.4,
     });
 
-    // Lenis → ScrollTrigger sync. Every Lenis scroll event (rAF-driven)
-    // recalculates ScrollTrigger progress. Without this, ScrollTrigger's
-    // progress is stale and triggers never fire reliably.
+    // 1. Forward every Lenis scroll to ScrollTrigger so it can recompute
+    //    progress for any active trigger.
     lenis.on("scroll", ScrollTrigger.update);
 
-    // scrollerProxy: ScrollTrigger queries `scroller.scrollTop` and
-    // `scroller.getBoundingClientRect()` to compute progress. We override
-    // these to read from Lenis. This is the only way ScrollTrigger works
-    // correctly with Lenis' transform-based scroll.
-    const scrollerProxyHandler = (target: HTMLElement) => {
-      ScrollTrigger.scrollerProxy(target, {
-        scrollTop(value) {
-          if (arguments.length) {
-            lenis.scrollTo(value as number, { immediate: true });
-          }
-          return lenis.scroll;
-        },
-        getBoundingClientRect() {
-          return {
-            top: 0,
-            left: 0,
-            width: window.innerWidth,
-            height: window.innerHeight,
-          };
-        },
-        // Lenis translates the content, not the wrapper. PinSpacing must
-        // account for the inner content's transform, not the wrapper's
-        // scrollHeight. We return the wrapper's layout box (which equals
-        // the viewport in the standard ScrollStage layout) so pinners and
-        // start/end positions behave correctly.
-        pinType: "transform",
-      });
+    // 2. Share the GSAP ticker with Lenis — one rAF loop, one clock. This
+    //    is the only synchronization Lenis needs. lagSmoothing(0) is
+    //    required so GSAP doesn't try to "catch up" the timeline after a
+    //    frame stutter, which would cause animation jumps.
+    const tick = (time: number) => {
+      lenis.raf(time * 1000);
     };
-    scrollerProxyHandler(wrapper);
+    gsap.ticker.add(tick);
+    gsap.ticker.lagSmoothing(0);
 
-    // First refresh: recompute every ScrollTrigger now that the proxy is
-    // installed. Without this, triggers created BEFORE the proxy install
-    // (during the same tick) use the broken default scroller math.
-    ScrollTrigger.refresh();
+    // 3. First refresh AFTER the ticker is wired so ScrollTrigger picks up
+    //    the correct scrollHeight/scrollTop on first paint.
+    const raf = requestAnimationFrame(() => ScrollTrigger.refresh());
 
-    let raf = requestAnimationFrame(function loop(time) {
-      lenis.raf(time);
-      raf = requestAnimationFrame(loop);
-    });
     return () => {
       cancelAnimationFrame(raf);
+      gsap.ticker.remove(tick);
+      lenis.off("scroll", ScrollTrigger.update);
       lenis.destroy();
-      // Drop the scrollerProxy so a future mount can re-install it cleanly.
-      ScrollTrigger.scrollerProxy(wrapper, undefined as any);
     };
   }, []);
 

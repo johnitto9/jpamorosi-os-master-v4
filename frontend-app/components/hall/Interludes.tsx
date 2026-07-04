@@ -32,6 +32,30 @@ import { cn } from "@/lib/utils";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger, useGSAP);
 
+// --- __IL_DEBUG__ observability (FINALPROD S9) -----------------------------
+// A single source of truth for the actual state of every interlude
+// ScrollTrigger. Paste `__IL_DEBUG__.snapshot()` in DevTools to see all
+// triggers with id `il-*` and their progress, isActive, and enabled
+// state. This is the verification surface for "is the animation actually
+// playing" — much more reliable than parsing bundle strings.
+if (typeof window !== "undefined") {
+  (window as unknown as { __IL_DEBUG__?: { snapshot: () => unknown } }).__IL_DEBUG__ = {
+    snapshot: () =>
+      ScrollTrigger.getAll()
+        .filter((st) => String(st.vars.id ?? "").startsWith("il-"))
+        .map((st) => ({
+          id: st.vars.id,
+          progress: Number(st.progress.toFixed(3)),
+          isActive: st.isActive,
+          enabled: (st as unknown as { enable?: boolean }).enable ?? true,
+          start: st.start,
+          end: st.end,
+          trigger:
+            (st.trigger as HTMLElement | undefined)?.tagName?.toLowerCase() ?? null,
+        })),
+  };
+}
+
 // --- Shared copy contract (page.tsx depends on this) -------------------------
 export type InterludeCopy = {
   eyebrow: string;
@@ -266,9 +290,13 @@ function MobileDebugIndicator({ sceneId }: { sceneId: string }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const update = () => {
-      const section = document.querySelector(`[data-scene-mobile="${sceneId}"]`) as HTMLElement | null
-        || document.querySelector(`#${sceneId} [data-scene-mobile]`) as HTMLElement | null
-        || document.querySelector("[data-scene-mobile]") as HTMLElement | null;
+      // Look for the choreo MobileScene*, NOT the MobileStatic fallback. Both
+      // carry data-scene-mobile, but the MobileStatic has `mx-auto` and the
+      // MobileScene* has `relative block min-h-[...]`. The class selector
+      // isolates the right element.
+      const section = document.querySelector(
+        `#${sceneId} [data-scene-mobile].relative`
+      ) as HTMLElement | null;
       if (!section || !ref.current) return;
       const cardA = section.querySelector(".il-card-a") as HTMLElement | null;
       const words = section.querySelectorAll(".il-word");
@@ -472,72 +500,88 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
         if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
       });
     },
-    // MOBILE BUILD — per-element animation triggered by the SECTION's scroll
-    // position. The mobile section is a tall structure with a sticky inner
-    // stage — the element's viewport position is fixed (it never moves
-    // because the stage is pinned), so per-element ScrollTrigger with
-    // `trigger: element` would never fire. Instead, the trigger is the
-    // SECTION, and each element gets a different `start` position so they
-    // animate in sequence as the user scrolls through the section.
-    //
-    // Finalprod S8: durations are intentionally long (1.2–1.8s) with
-    // dramatic transforms (large yPercent, scale 0.5→1) and early starts
-    // (top 95% so the trigger fires the moment the section enters the
-    // viewport). The point is that the user MUST see the animation play —
-    // slow, visible, and unmissable. Toggle actions are "play none none
-    // reset" so the animation replays on every re-entry.
-    //
-    // Requires ScrollStage's scrollerProxy (Lenis ↔ ScrollTrigger sync)
-    // for ScrollTrigger to actually receive scroll events on mobile.
+    // MOBILE BUILD (FINALPROD S9) — single scrubbed timeline per scene. The
+    // previous S4–S8 attempts accumulated multiple per-element triggers
+    // fighting over the same targets (the "fossils" ChatGPT flagged). This
+    // is the partitura approach: ONE timeline bound to the section's
+    // scroll progress, all elements animated within it. Trigger is the
+    // SECTION (not the element — the sticky inner stage pins elements to
+    // fixed viewport positions, so per-element triggers never fire). The
+    // timeline scrubs from progress 0 to 1 as the user scrolls through the
+    // section. Initial states are all set at t=0; animations run to their
+    // final states at their own positions in the timeline. One timeline,
+    // one owner, one partitura per scene.
     (q, { scroller, section }) => {
       // eslint-disable-next-line no-console
-      console.log("[FINALPROD S8] Scene 1 mobile build running", { section: !!section, scroller: !!scroller });
+      console.log("[S9 sc1] mobile build running", { section: !!section, scroller: !!scroller });
 
-      // Narrative: rises from below, with a slight rotation on the heading
-      gsap.fromTo(q(".il-eyebrow"), { y: 24, autoAlpha: 0 },
-        { y: 0, autoAlpha: 1, duration: 1, ease: "power3.out",
-          scrollTrigger: { trigger: section, scroller, start: "top 95%", toggleActions: "play none none reset",
-            onToggle: (self) => console.log("[S8 sc1] eyebrow toggle", self.isActive) } });
-      gsap.fromTo(q(".il-head"), { y: 40, rotate: -3, autoAlpha: 0 },
-        { y: 0, rotate: 0, autoAlpha: 1, duration: 1.2, ease: "power3.out",
-          scrollTrigger: { trigger: section, scroller, start: "top 92%", toggleActions: "play none none reset",
-            onToggle: (self) => console.log("[S8 sc1] head toggle", self.isActive) } });
-      gsap.fromTo(q(".il-body"), { y: 24, autoAlpha: 0 },
-        { y: 0, autoAlpha: 1, duration: 1, ease: "power3.out",
-          scrollTrigger: { trigger: section, scroller, start: "top 88%", toggleActions: "play none none reset",
-            onToggle: (self) => console.log("[S8 sc1] body toggle", self.isActive) } });
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: {
+          id: "il-mobile-1",
+          trigger: section,
+          scroller,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.6,
+          invalidateOnRefresh: true,
+        },
+      });
 
-      // Card-a: large rise from far below with dramatic scale — the user
-      // MUST see this animate. start: top 85% = trigger fires when the
-      // section has just entered the lower 15% of the viewport.
-      gsap.fromTo(q(".il-card-a"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: -8 },
-        { yPercent: 0, autoAlpha: 1, scale: 1, rotate: 0, duration: 1.6, ease: "expo.out",
-          scrollTrigger: { trigger: section, scroller, start: "top 85%", toggleActions: "play none none reset",
-            onToggle: (self) => console.log("[S8 sc1] card-a toggle", self.isActive) } });
+      // ---- Initial states (all at t=0) ---------------------------------
+      tl.set(q(".il-eyebrow"), { y: 24, autoAlpha: 0 }, 0)
+        .set(q(".il-head"), { y: 40, rotate: -3, autoAlpha: 0 }, 0)
+        .set(q(".il-body"), { y: 24, autoAlpha: 0 }, 0)
+        .set(q(".il-card-a"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: -8 }, 0)
+        .set(q(".il-card-b"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: 8 }, 0)
+        .set(q(".il-thread"), { scaleY: 0, transformOrigin: "top center" }, 0)
+        .set(q(".il-word"), { autoAlpha: 0, yPercent: 90, scale: 0.75, rotate: 0 }, 0);
 
-      // Card-b: enters later
-      gsap.fromTo(q(".il-card-b"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: 8 },
-        { yPercent: 0, autoAlpha: 1, scale: 1, rotate: 0, duration: 1.6, ease: "expo.out",
-          scrollTrigger: { trigger: section, scroller, start: "top 65%", toggleActions: "play none none reset",
-            onToggle: (self) => console.log("[S8 sc1] card-b toggle", self.isActive) } });
+      // ---- Narrative: settle in early --------------------------------
+      tl.to(q(".il-eyebrow"), { y: 0, autoAlpha: 1, duration: 0.08 }, 0.02)
+        .to(q(".il-head"), { y: 0, rotate: 0, autoAlpha: 1, duration: 0.12, ease: "power3.out" }, 0.06)
+        .to(q(".il-body"), { y: 0, autoAlpha: 1, duration: 0.10 }, 0.12);
 
-      // Thread: scrubbed grow from top across the section
-      gsap.fromTo(q(".il-thread"), { scaleY: 0 },
-        { scaleY: 1, duration: 1, ease: "none", transformOrigin: "top center",
-          scrollTrigger: { trigger: section, scroller, start: "top 80%", end: "top 20%", scrub: true,
-            onToggle: (self) => console.log("[S8 sc1] thread toggle", self.isActive) } });
+      // ---- Card-a: enter from below, hold, then exit up --------------
+      tl.to(q(".il-card-a"),
+        { yPercent: 0, autoAlpha: 1, scale: 1, rotate: 0, duration: 0.18, ease: "power3.out" },
+        0.20)
+        .to(q(".il-card-a"),
+        { yPercent: -18, scale: 0.96, duration: 0.14 },
+        0.45)
+        .to(q(".il-card-a"),
+        { autoAlpha: 0, yPercent: -120, duration: 0.14 },
+        0.62);
 
-      // Words: each enters at a different scroll position (sequence).
-      // Each word has a back-ease for a satisfying pop, with a yPercent
-      // rise and a slight rotation. Different start positions for each word
-      // so they appear in sequence.
-      const wordStarts = [55, 48, 41, 34, 27];
-      q(".il-word").forEach((w, i) => {
-        const startPct = wordStarts[i] ?? 20;
-        gsap.fromTo(w, { autoAlpha: 0, yPercent: 150, rotate: i % 2 ? 8 : -8, scale: 0.7 },
-          { autoAlpha: 1, yPercent: 0, rotate: 0, scale: 1, duration: 0.7, ease: "back.out(1.7)",
-            scrollTrigger: { trigger: section, scroller, start: `top ${startPct}%`, toggleActions: "play none none reset",
-              onToggle: (self) => console.log(`[S8 sc1] word-${i} toggle`, self.isActive) } });
+      // ---- Card-b: enters after A is settled, exits up ---------------
+      tl.to(q(".il-card-b"),
+        { yPercent: 0, autoAlpha: 1, scale: 1, rotate: 0, duration: 0.18, ease: "power3.out" },
+        0.42)
+        .to(q(".il-card-b"),
+        { yPercent: -18, duration: 0.15 },
+        0.65);
+
+      // ---- Thread: scrubbed grow from top to bottom -----------------
+      tl.to(q(".il-thread"),
+        { scaleY: 1, duration: 0.5, ease: "power2.out" },
+        0.20);
+
+      // ---- Milestone words: each enters in sequence, last stays ------
+      const words = q(".il-word");
+      const wordCount = words.length;
+      words.forEach((w, i) => {
+        const inAt = 0.30 + i * 0.08;
+        const outAt = inAt + 0.12;
+        // Initial state per word (with alternating rotation)
+        tl.set(w, { rotate: i % 2 ? 6 : -6 }, 0);
+        tl.to(w,
+          { autoAlpha: 1, yPercent: 0, scale: 1, rotate: 0, duration: 0.07, ease: "back.out(1.7)" },
+          inAt);
+        if (i < wordCount - 1) {
+          tl.to(w,
+            { autoAlpha: 0, yPercent: -80, scale: 0.9, duration: 0.06 },
+            outAt);
+        }
       });
     },
   );
@@ -600,34 +644,49 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
         tl.fromTo(l, { autoAlpha: 0, y: 64, xPercent: -10 }, { autoAlpha: 1, y: 0, xPercent: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.4 + i * 0.72);
       });
     },
-    // MOBILE BUILD — see Scene 1 mobile note. Long, dramatic, early-start
-    // animations. ToggleActions "play none none reset" replays on re-entry.
-    // Requires ScrollStage's scrollerProxy for Lenis sync.
+    // MOBILE BUILD — see Scene 1 mobile note. One scrubbed timeline.
     (q, { scroller, section }) => {
       // eslint-disable-next-line no-console
-      console.log("[FINALPROD S8] Scene 2 mobile build running", { section: !!section, scroller: !!scroller });
-      gsap.fromTo(q(".il-eyebrow"), { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1, ease: "power3.out",
-        scrollTrigger: { trigger: section, scroller, start: "top 95%", toggleActions: "play none none reset",
-          onToggle: (self) => console.log("[S8 sc2] eyebrow toggle", self.isActive) } });
-      gsap.fromTo(q(".il-head"), { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1.2, ease: "power3.out",
-        scrollTrigger: { trigger: section, scroller, start: "top 92%", toggleActions: "play none none reset",
-          onToggle: (self) => console.log("[S8 sc2] head toggle", self.isActive) } });
-      gsap.fromTo(q(".il-body"), { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1, ease: "power3.out",
-        scrollTrigger: { trigger: section, scroller, start: "top 88%", toggleActions: "play none none reset",
-          onToggle: (self) => console.log("[S8 sc2] body toggle", self.isActive) } });
+      console.log("[S9 sc2] mobile build running", { section: !!section, scroller: !!scroller });
 
-      gsap.fromTo(q(".il-screen"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotateY: 15 },
-        { yPercent: 0, autoAlpha: 1, scale: 1, rotateY: 0, duration: 1.6, ease: "expo.out",
-          scrollTrigger: { trigger: section, scroller, start: "top 80%", toggleActions: "play none none reset",
-            onToggle: (self) => console.log("[S8 sc2] screen toggle", self.isActive) } });
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: {
+          id: "il-mobile-2",
+          trigger: section,
+          scroller,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.6,
+          invalidateOnRefresh: true,
+        },
+      });
 
-      const layerStarts = [60, 50, 40, 30];
+      tl.set(q(".il-eyebrow"), { x: -32, autoAlpha: 0 }, 0)
+        .set(q(".il-head"), { y: 40, autoAlpha: 0 }, 0)
+        .set(q(".il-body"), { y: 22, autoAlpha: 0 }, 0)
+        .set(q(".il-screen"), { xPercent: 46, autoAlpha: 0, scale: 0.8, rotateY: 14, transformPerspective: 1000 }, 0)
+        .set(q(".il-layer"), { autoAlpha: 0, y: 64, xPercent: -10 }, 0);
+
+      // Narrative
+      tl.to(q(".il-eyebrow"), { x: 0, autoAlpha: 1, duration: 0.08, ease: "power2.out" }, 0.02)
+        .to(q(".il-head"), { y: 0, autoAlpha: 1, duration: 0.12, ease: "power3.out" }, 0.06)
+        .to(q(".il-body"), { y: 0, autoAlpha: 1, duration: 0.10, ease: "power2.out" }, 0.14);
+
+      // System screen: arrives from depth, holds
+      tl.to(q(".il-screen"),
+        { xPercent: 0, autoAlpha: 1, scale: 1, rotateY: 0, duration: 0.18, ease: "power3.out" },
+        0.22)
+        .to(q(".il-screen"),
+        { yPercent: -6, duration: 0.5, ease: "sine.inOut" },
+        0.45);
+
+      // Layer cards: assemble bottom-up, stay
       q(".il-layer").forEach((l, i) => {
-        const startPct = layerStarts[i] ?? 20;
-        gsap.fromTo(l, { autoAlpha: 0, y: 60, x: -20 },
-          { autoAlpha: 1, y: 0, x: 0, duration: 0.8, ease: "back.out(1.4)",
-            scrollTrigger: { trigger: section, scroller, start: `top ${startPct}%`, toggleActions: "play none none reset",
-              onToggle: (self) => console.log(`[S8 sc2] layer-${i} toggle`, self.isActive) } });
+        const at = 0.40 + i * 0.10;
+        tl.to(l,
+          { autoAlpha: 1, y: 0, xPercent: 0, duration: 0.10, ease: "back.out(1.4)" },
+          at);
       });
     },
   );
@@ -695,41 +754,73 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
         }
       });
     },
-    // MOBILE BUILD — see Scene 1 mobile note. Long, dramatic, early-start
-    // animations. ToggleActions "play none none reset" replays on re-entry.
-    // Requires ScrollStage's scrollerProxy for Lenis sync.
+    // MOBILE BUILD — see Scene 1 mobile note. One scrubbed timeline.
     (q, { scroller, section }) => {
       // eslint-disable-next-line no-console
-      console.log("[FINALPROD S8] Scene 3 mobile build running", { section: !!section, scroller: !!scroller });
-      gsap.fromTo(q(".il-eyebrow"), { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1, ease: "power3.out",
-        scrollTrigger: { trigger: section, scroller, start: "top 95%", toggleActions: "play none none reset",
-          onToggle: (self) => console.log("[S8 sc3] eyebrow toggle", self.isActive) } });
-      gsap.fromTo(q(".il-head"), { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1.2, ease: "power3.out",
-        scrollTrigger: { trigger: section, scroller, start: "top 92%", toggleActions: "play none none reset",
-          onToggle: (self) => console.log("[S8 sc3] head toggle", self.isActive) } });
-      gsap.fromTo(q(".il-body"), { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1, ease: "power3.out",
-        scrollTrigger: { trigger: section, scroller, start: "top 88%", toggleActions: "play none none reset",
-          onToggle: (self) => console.log("[S8 sc3] body toggle", self.isActive) } });
+      console.log("[S9 sc3] mobile build running", { section: !!section, scroller: !!scroller });
 
-      // Backdrop: scrubbed drift
-      gsap.fromTo(q(".il-backdrop"), { yPercent: 15, scale: 1.1 },
-        { yPercent: -10, scale: 1, duration: 1, ease: "none",
-          scrollTrigger: { trigger: section, scroller, start: "top 80%", end: "top 20%", scrub: true,
-            onToggle: (self) => console.log("[S8 sc3] backdrop toggle", self.isActive) } });
-
-      const flowStarts = [65, 57, 49, 41, 33, 25, 17];
-      q(".il-flow").forEach((w, i) => {
-        const startPct = flowStarts[i] ?? 10;
-        gsap.fromTo(w, { autoAlpha: 0, yPercent: 100, scale: 0.5, filter: "blur(8px)" },
-          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.8, ease: "power3.out",
-            scrollTrigger: { trigger: section, scroller, start: `top ${startPct}%`, toggleActions: "play none none reset",
-              onToggle: (self) => console.log(`[S8 sc3] flow-${i} toggle`, self.isActive) } });
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: {
+          id: "il-mobile-3",
+          trigger: section,
+          scroller,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.6,
+          invalidateOnRefresh: true,
+        },
       });
 
-      gsap.fromTo(q(".il-rail"), { scaleX: 0 },
-        { scaleX: 1, duration: 1, ease: "none", transformOrigin: "left center",
-          scrollTrigger: { trigger: section, scroller, start: "top 80%", end: "top 20%", scrub: true,
-            onToggle: (self) => console.log("[S8 sc3] rail toggle", self.isActive) } });
+      tl.set(q(".il-eyebrow"), { y: 24, autoAlpha: 0 }, 0)
+        .set(q(".il-head"), { y: 40, autoAlpha: 0 }, 0)
+        .set(q(".il-body"), { y: 20, autoAlpha: 0 }, 0)
+        .set(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, 0)
+        .set(q(".il-flow"), { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" }, 0)
+        .set(q(".il-rail"), { scaleX: 0, transformOrigin: "left center" }, 0)
+        .set(q(".il-dot"), { autoAlpha: 0.3, scale: 1 }, 0);
+
+      // Narrative
+      tl.to(q(".il-eyebrow"), { y: 0, autoAlpha: 1, duration: 0.08, ease: "power2.out" }, 0.02)
+        .to(q(".il-head"), { y: 0, autoAlpha: 1, duration: 0.12, ease: "power3.out" }, 0.06)
+        .to(q(".il-body"), { y: 0, autoAlpha: 1, duration: 0.10, ease: "power2.out" }, 0.14);
+
+      // Backdrop: scrubbed drift
+      tl.to(q(".il-backdrop"),
+        { yPercent: -12, scale: 1, duration: 0.8, ease: "none" },
+        0.20);
+
+      // Rail: scrubbed grow
+      tl.to(q(".il-rail"),
+        { scaleX: 1, duration: 0.5, ease: "none" },
+        0.20);
+
+      // Flow words: crossfade in sequence, last stays
+      const flows = q(".il-flow");
+      const flowCount = flows.length;
+      const dots = q(".il-dot");
+      flows.forEach((w, i) => {
+        const inAt = 0.30 + i * 0.08;
+        const outAt = inAt + 0.10;
+        tl.to(w,
+          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.08, ease: "power3.out" },
+          inAt);
+        if (dots[i]) {
+          tl.to(dots[i],
+            { autoAlpha: 1, scale: 1.5, duration: 0.08 },
+            inAt);
+        }
+        if (i < flowCount - 1) {
+          tl.to(w,
+            { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.07 },
+            outAt);
+          if (dots[i]) {
+            tl.to(dots[i],
+              { autoAlpha: 0.5, scale: 1, duration: 0.07 },
+              outAt);
+          }
+        }
+      });
     },
   );
 
