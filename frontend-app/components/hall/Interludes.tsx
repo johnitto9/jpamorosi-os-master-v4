@@ -164,24 +164,34 @@ function useSceneChoreography(build: (tl: gsap.core.Timeline, q: (s: string) => 
 
       // Mobile / narrow: no sticky-pin stage (a phone viewport can't afford the
       // 300vh scrub). A lighter, always-readable reveal choreography on the
-      // static block — each element rises + fades as it enters the viewport,
-      // milestone chips pop in a stagger. Reduced-motion never matches -> static.
+      // visible mobile block — each element rises + fades as it enters the
+      // viewport, milestone chips pop in a stagger. Reduced-motion never
+      // matches -> static.
+      //
+      // NOTE on scope: each scene now has TWO `[data-scene-mobile]` blocks
+      // (MobileStatic = reduced-motion fallback + MobileScene* = rich). Only
+      // one is visible at a time via motion-safe/motion-reduce, so we have
+      // to iterate BOTH and let CSS hide the wrong one. Using querySelector
+      // (singular) here was a silent bug — it grabbed MobileStatic (hidden on
+      // motion-safe) and left MobileScene* without any reveals.
       mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
-        const mob = rootEl.querySelector<HTMLElement>("[data-scene-mobile]");
-        if (!mob) return;
-        gsap.utils.toArray<HTMLElement>(mob.querySelectorAll(".m-rise")).forEach((el) => {
-          gsap.from(el, {
-            autoAlpha: 0, y: 30, duration: 0.6, ease: "power3.out",
-            scrollTrigger: { trigger: el, scroller, start: "top 88%", toggleActions: "play none none reverse" },
+        const blocks = rootEl.querySelectorAll<HTMLElement>("[data-scene-mobile]");
+        if (!blocks.length) return;
+        blocks.forEach((mob) => {
+          gsap.utils.toArray<HTMLElement>(mob.querySelectorAll(".m-rise")).forEach((el) => {
+            gsap.from(el, {
+              autoAlpha: 0, y: 30, duration: 0.6, ease: "power3.out",
+              scrollTrigger: { trigger: el, scroller, start: "top 88%", toggleActions: "play none none reverse" },
+            });
           });
+          const chips = mob.querySelectorAll(".m-chip");
+          if (chips.length) {
+            gsap.from(chips, {
+              autoAlpha: 0, y: 16, scale: 0.9, duration: 0.4, ease: "back.out(1.6)", stagger: 0.08,
+              scrollTrigger: { trigger: chips[0] as Element, scroller, start: "top 90%", toggleActions: "play none none reverse" },
+            });
+          }
         });
-        const chips = mob.querySelectorAll(".m-chip");
-        if (chips.length) {
-          gsap.from(chips, {
-            autoAlpha: 0, y: 16, scale: 0.9, duration: 0.4, ease: "back.out(1.6)", stagger: 0.08,
-            scrollTrigger: { trigger: chips[0] as Element, scroller, start: "top 90%", toggleActions: "play none none reverse" },
-          });
-        }
       });
 
       // photos may 404 to the CSS fallback + fonts can shift layout
