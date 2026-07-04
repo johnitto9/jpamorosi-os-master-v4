@@ -47,6 +47,7 @@ import {
   projectPatchSchema,
   type SessionProject,
 } from "./projects";
+import { addAsset, addStackDecision } from "./project-workspace";
 import {
   serverToolNames,
   runWebSearch,
@@ -251,6 +252,17 @@ async function tryLlmResponse(
     const mock = await runGenerateMockup(sessionId, brief);
     if (mock && "url" in mock) {
       mockupCard = { type: "image", src: mock.url, alt: "Generated concept mockup" };
+      // persist as a first-class ASSET, not only a chat message (spec 13) — so
+      // it lands in the vault + admin dossier and can seed later generations.
+      const mockProjectId = activeProjects[0]?.id;
+      if (typeof mockProjectId === "number") {
+        await addAsset(mockProjectId, {
+          role: "reference",
+          source: "generated",
+          url: mock.url,
+          promptSummary: brief.slice(0, 300),
+        });
+      }
       // branding milestone: the visitor is investing in the identity
       await recordEvent("mockup.generated", { sessionId, project: activeProjects[0]?.name });
       void notifyAdmin("mockup_generated", {
@@ -378,12 +390,24 @@ export async function runAgent(input: {
     const found = KNOWN_TECH.filter((k) =>
       new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text),
     ).map((k) => (k === "Postgres" ? "PostgreSQL" : k));
-    const merged = [...new Set([...activeProjects[0].stack, ...found])];
-    if (merged.length > activeProjects[0].stack.length) {
+    const priorStack = activeProjects[0].stack;
+    const merged = [...new Set([...priorStack, ...found])];
+    if (merged.length > priorStack.length) {
       const updated = await updateSessionProject(sessionId, activeProjects[0].id, {
         stack: merged.slice(0, 20),
       });
-      if (updated) activeProjects[0] = updated;
+      if (updated) {
+        activeProjects[0] = updated;
+        // also capture each NEW tech as a structured StackDecision (spec 12) —
+        // the array on the project stays the quick view; decisions are the log
+        for (const tech of found.filter((f) => !priorStack.includes(f))) {
+          await addStackDecision(activeProjects[0].id, {
+            category: "stack",
+            option: tech,
+            source: "inferred",
+          });
+        }
+      }
     }
   }
 
