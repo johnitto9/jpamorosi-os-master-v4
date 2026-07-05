@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v3
+# HANDOFF — 2026-07-05 (leer esto primero) · v4
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..08`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..09`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..08.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..09.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -26,7 +26,7 @@ VACÍOS** → uploads locales (código R2-ready, sólo faltan envs).
 ## De dónde venimos
 12 sesiones FINALPROD (animaciones interludios mobile + fix Seedream 16:9), 2
 tandas de pulido (vault inline, botones generate separados, decisiones
-deseleccionables, scrollbar, project card), y esta REFAC final (exec01→07).
+deseleccionables, scrollbar, project card), y esta REFAC final (exec01→09).
 
 ## Qué se hizo en esta refac (TODO VIVO y verificado salvo aclaración)
 - **R5 prospecting REAL** (exec01): `lib/agent/prospects.ts` `harvestContact()`
@@ -72,12 +72,15 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→07).
   "Guardar esta sesion"; `POST /api/session/recover-request` ahora, si hay
   `al_sid`, ata el email al lead de la sesion y manda el resume link existente
   con tracking por `leadId`.
+- **R1 captura inicial** (exec09): `ProjectSetup` step 0 captura opcionalmente
+  nombre/persona, empresa y email; `/api/assistant/projects` valida `lead` con
+  `leadPatchSchema` y hace `upsertLead(sessionId, lead)` al crear el proyecto.
+  Verificado con `tsc`; falta rebuild para verlo vivo en `:3001`.
 
 ## Qué queda (por prioridad, specs listas)
-1. **R1** captura implícita de nombre/empresa en step 0 de ProjectSetup.
-2. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
-3. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
-4. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
+1. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
+2. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
+3. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
    diario por restart.
 
 ## Archivos clave
@@ -98,8 +101,9 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→07).
 
 ## Riesgos operativos (importante)
 - Refac previa ya fue commiteada en bloques locales y `main` apunta al mismo
-  historial que `v4final` al cierre de exec06. Exec07 debe commitearse tambien
-  antes de seguir con R2/R1/R4.
+  historial que `v4final` al cierre de exec06. Exec07/08 ya estan commiteados;
+  exec09 debe commitearse antes de seguir si este handoff aparece con worktree
+  sucio.
 - **R2 sin envs**: uploads locales. Setear `R2_*` + `NEXT_PUBLIC_MEDIA_CDN_BASE`
   para servir de bucket (sin cambios de código).
 - Cada cambio de front = rebuild ~3 min + verificación manual (no hay

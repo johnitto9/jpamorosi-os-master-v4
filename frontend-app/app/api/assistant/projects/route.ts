@@ -11,7 +11,7 @@ import {
   setProjectPhase,
   isProjectPhase,
 } from "@/lib/agent/projects";
-import { getLead } from "@/lib/agent/leads";
+import { getLead, leadPatchSchema, upsertLead } from "@/lib/agent/leads";
 import { touchSession } from "@/lib/agent/memory";
 import { recordEvent } from "@/lib/events";
 import { notifyAdmin } from "@/lib/email/service";
@@ -39,13 +39,19 @@ export async function POST(request: Request) {
   const sessionId = existing ?? randomUUID();
 
   const parsed = projectPatchSchema
-    .extend({ name: z.string().min(1).max(80) })
+    .extend({
+      name: z.string().min(1).max(80),
+      lead: leadPatchSchema.pick({ name: true, company: true, email: true }).optional(),
+    })
     .safeParse(await request.json().catch(() => ({})));
   if (!parsed.success || !parsed.data.name) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
   await touchSession(sessionId, { hasProject: true });
+  if (parsed.data.lead) {
+    await upsertLead(sessionId, parsed.data.lead);
+  }
   const project = await createSessionProject(sessionId, {
     ...parsed.data,
     name: parsed.data.name,

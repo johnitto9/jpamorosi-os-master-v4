@@ -184,6 +184,9 @@ export function ProjectSetup({
   const t = WIZARD[lang];
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
+  const [leadName, setLeadName] = useState("");
+  const [leadCompany, setLeadCompany] = useState("");
+  const [leadEmail, setLeadEmail] = useState("");
   const [description, setDescription] = useState("");   // one-line pitch (optional)
   const [kind, setKind] = useState("app");
   const [brandingNotes, setBrandingNotes] = useState(""); // tone/colors/refs (optional)
@@ -262,6 +265,14 @@ export function ProjectSetup({
         concept: buildConcept() || undefined,
         stack: parseStackList(devStack),
         palette: palette.length > 0 ? palette : undefined,
+        lead:
+          leadName.trim() || leadCompany.trim() || leadEmail.trim()
+            ? {
+                name: leadName.trim() || undefined,
+                company: leadCompany.trim() || undefined,
+                email: leadEmail.trim() || undefined,
+              }
+            : undefined,
       }),
     })
       .then(async (res) => {
@@ -376,14 +387,42 @@ export function ProjectSetup({
               transition={{ duration: 0.18 }}
             >
               {step === 0 && (
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t.phName}
-                  maxLength={80}
-                  autoFocus
-                  className="mt-3 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/60"
-                />
+                <div className="mt-3 space-y-2">
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t.phName}
+                    maxLength={80}
+                    autoFocus
+                    className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/60"
+                  />
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <input
+                      value={leadName}
+                      onChange={(e) => setLeadName(e.target.value)}
+                      placeholder={lang === "es" ? "Tu nombre" : "Your name"}
+                      maxLength={120}
+                      className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-400/50"
+                    />
+                    <input
+                      value={leadCompany}
+                      onChange={(e) => setLeadCompany(e.target.value)}
+                      placeholder={lang === "es" ? "Empresa" : "Company"}
+                      maxLength={160}
+                      className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-400/50"
+                    />
+                    <input
+                      value={leadEmail}
+                      onChange={(e) => setLeadEmail(e.target.value)}
+                      placeholder="Email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      maxLength={200}
+                      className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-400/50"
+                    />
+                  </div>
+                </div>
               )}
 
               {step === 1 && (
