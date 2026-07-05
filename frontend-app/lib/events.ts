@@ -40,6 +40,7 @@ export type EventType =
   | "visualplan.created"
   | "palette.confirmed"
   | "agent.heartbeat"
+  | "agent.daily_scout"
   | "lead.followup.sent"
   | "lead.click_followup.sent"
   | "admin.login.requested"

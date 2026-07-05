@@ -18,6 +18,8 @@ import { ingestSearchHits, processPipelineBatch } from "@/lib/agent/prospects";
 import { chatCompletion, isLlmConfigured } from "@/lib/agent/llm";
 import { notifyAdmin } from "@/lib/email/service";
 import { recordEvent } from "@/lib/events";
+import { isDbConfigured, tryQuery } from "@/lib/db/pool";
+import { ensureSchema } from "@/lib/db/bootstrap";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,9 +37,31 @@ const ANGLES = [
   "founding engineer AI startup openings remote",
 ];
 
+async function alreadyRanToday(date: string): Promise<boolean> {
+  if (!isDbConfigured()) return false;
+  try {
+    await ensureSchema();
+    const res = await tryQuery<{ n: number }>(
+      `SELECT count(*)::int AS n FROM events
+       WHERE type = 'agent.daily_scout'
+         AND payload->>'date' = $1
+       LIMIT 1`,
+      [date],
+    );
+    return (res?.rows[0]?.n ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   const blocked = guardInternal(request);
   if (blocked) return blocked;
+  const date = new Date().toISOString().slice(0, 10);
+
+  if (await alreadyRanToday(date)) {
+    return NextResponse.json({ ok: true, skipped: "already_ran_today", date });
+  }
 
   if (!webSearchEnabled()) {
     console.warn("[scout] WEB_SEARCH_API_KEY missing — daily scout skipped");
@@ -80,12 +104,19 @@ export async function POST(request: Request) {
   }
 
   await notifyAdmin("admin_alert", {
-    title: `Scout diario — oportunidades ${new Date().toISOString().slice(0, 10)}`,
+    title: `Scout diario — oportunidades ${date}`,
     detail: digest.slice(0, 4000),
   });
   await recordEvent("ai.response.generated", { via: "daily-scout", queries });
+  await recordEvent("agent.daily_scout", {
+    date,
+    queries,
+    prospectsIngested: caught,
+    prospectsAdvanced: pipeline.processed,
+  });
   return NextResponse.json({
     ok: true,
+    date,
     queries,
     prospects: { ingested: caught, advanced: pipeline.processed },
   });
