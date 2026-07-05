@@ -88,6 +88,92 @@ function nudgeQueue(pathname: string, lang: Lang): PresetNudge[] {
   if (pathname.startsWith("/cv")) return by(["cvpage", "hiring", "match"]);
   return by(["hall", "match", "hiring"]); // home & everything else
 }
+
+function SessionRecoveryCard({ lang }: { lang: Lang }) {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const copy =
+    lang === "es"
+      ? {
+          title: "Guardar esta sesión",
+          hint: "Recibís un link privado para volver a esta conversación.",
+          placeholder: "tu@email.com",
+          action: "Enviar link",
+          sending: "Enviando…",
+          sent: "Link enviado si el email es válido.",
+          error: "No pude enviarlo ahora.",
+        }
+      : {
+          title: "Save this session",
+          hint: "Get a private link back to this conversation.",
+          placeholder: "you@email.com",
+          action: "Send link",
+          sending: "Sending…",
+          sent: "Link sent if the email is valid.",
+          error: "Could not send it now.",
+        };
+
+  async function submit() {
+    const clean = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean) || state === "sending") return;
+    setState("sending");
+    try {
+      const res = await fetch("/api/session/recover-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: clean }),
+      });
+      setState(res.ok ? "sent" : "error");
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <div className="border-t border-white/10 bg-black/20 px-5 py-3">
+      <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-white">{copy.title}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-white/40">{copy.hint}</p>
+        </div>
+        <div className="flex min-w-0 items-center gap-2 sm:w-[260px]">
+          <input
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (state !== "idle") setState("idle");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder={copy.placeholder}
+            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/35 px-2.5 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-400/60"
+          />
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={state === "sending" || email.trim().length < 5}
+            className="shrink-0 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-black hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {state === "sending" ? copy.sending : copy.action}
+          </button>
+        </div>
+      </div>
+      {(state === "sent" || state === "error") && (
+        <p className={`mt-1.5 text-right text-[10px] ${state === "sent" ? "text-emerald-300" : "text-amber-200"}`}>
+          {state === "sent" ? copy.sent : copy.error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 type Attention = { kind: "greeting" } | { kind: "preset"; nudge: PresetNudge };
 
 const NUDGE_KEY = "al_assistant_nudge_done";
@@ -1065,6 +1151,8 @@ export function AssistantWidget() {
                   );
                 })()}
               </div>
+
+              <SessionRecoveryCard lang={lang} />
 
               {/* canon rail — palette + generated assets INSIDE the panel, so
                   branding-done never looks empty and the project room fills as

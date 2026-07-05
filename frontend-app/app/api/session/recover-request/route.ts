@@ -8,6 +8,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { isDbConfigured, tryQuery } from "@/lib/db/pool";
 import { ensureSchema } from "@/lib/db/bootstrap";
+import { upsertLead } from "@/lib/agent/leads";
 import { sendEmail } from "@/lib/email/service";
 import { recordEvent } from "@/lib/events";
 
@@ -15,6 +16,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DAYS = 30;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function readSessionId(request: Request): string | null {
+  const raw = (request.headers.get("cookie") ?? "").match(/(?:^|;\s*)al_sid=([^;]+)/)?.[1];
+  return raw && UUID_RE.test(raw) ? raw : null;
+}
 
 function sign(payload: string): string {
   return crypto
@@ -46,11 +53,28 @@ export async function POST(request: Request) {
   } catch {
     return generic;
   }
+
+  const currentSessionId = readSessionId(request);
+  if (currentSessionId) {
+    await upsertLead(currentSessionId, {
+      email: parsed.data.email.toLowerCase(),
+      notes: "Visitor requested a loginless resume link.",
+    });
+    await recordEvent("lead.updated", {
+      sessionId: currentSessionId,
+      via: "session-recovery-card",
+    });
+  }
+
   const res = await tryQuery<{ id: number; session_id: string }>(
-    `SELECT id::int, session_id FROM leads
-     WHERE lower(email) = lower($1) AND session_id IS NOT NULL
-     ORDER BY updated_at DESC LIMIT 1`,
-    [parsed.data.email],
+    currentSessionId
+      ? `SELECT id::int, session_id FROM leads
+         WHERE session_id = $2 AND lower(email) = lower($1)
+         LIMIT 1`
+      : `SELECT id::int, session_id FROM leads
+         WHERE lower(email) = lower($1) AND session_id IS NOT NULL
+         ORDER BY updated_at DESC LIMIT 1`,
+    currentSessionId ? [parsed.data.email, currentSessionId] : [parsed.data.email],
   );
   const sessionId = res?.rows[0]?.session_id;
   const leadId = res?.rows[0]?.id;

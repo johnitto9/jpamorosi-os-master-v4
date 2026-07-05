@@ -4,9 +4,9 @@
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..07`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..08`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..07.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..08.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -68,13 +68,16 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→07).
   `clicked-but-no-return`: si un lead clickea un tracked link y no vuelve a la
   sesion, dispara segundo toque con campaña `clicked_no_return`, limitado e
   idempotente por evento `lead.click_followup.sent`.
+- **R2 permanencia loginless** (exec08): `AssistantWidget` tiene card compacta
+  "Guardar esta sesion"; `POST /api/session/recover-request` ahora, si hay
+  `al_sid`, ata el email al lead de la sesion y manda el resume link existente
+  con tracking por `leadId`.
 
 ## Qué queda (por prioridad, specs listas)
-1. **R2** card de sesión + email (permanencia loginless / resume link).
-2. **R1** captura implícita de nombre/empresa en step 0 de ProjectSetup.
-3. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
-4. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
-5. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
+1. **R1** captura implícita de nombre/empresa en step 0 de ProjectSetup.
+2. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
+3. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
+4. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
    diario por restart.
 
 ## Archivos clave
