@@ -179,6 +179,23 @@ CREATE INDEX IF NOT EXISTS prospects_stage_idx ON prospects (stage, updated_at D
 -- the dragnet re-catches the same pages every sweep; URL is the dedupe key
 CREATE UNIQUE INDEX IF NOT EXISTS prospects_url_uidx ON prospects (url) WHERE url IS NOT NULL;
 
+-- trackable outbound links (email marketing / follow-up). Each row is one
+-- opaque token that redirects to target_url and records the click, tying an
+-- outbound touch to a lead/prospect (and, via the click, to a loginless
+-- session). Lets the admin know a company we emailed actually engaged.
+CREATE TABLE IF NOT EXISTS tracked_links (
+  token       text PRIMARY KEY,
+  lead_id     bigint,
+  prospect_id bigint,
+  campaign    text NOT NULL DEFAULT 'outreach',
+  target_url  text NOT NULL,
+  clicks      integer NOT NULL DEFAULT 0,
+  clicked_at  timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS tracked_links_lead_idx ON tracked_links (lead_id);
+CREATE INDEX IF NOT EXISTS tracked_links_prospect_idx ON tracked_links (prospect_id);
+
 -- agent long-term memory items. Plain text + ILIKE keyword search for the MVP;
 -- when pgvector + an embedding provider land, add an "embedding vector" column
 -- (docs/pgvector-memory.md) — the API surface (write/search) stays the same.

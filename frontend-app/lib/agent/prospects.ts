@@ -106,42 +106,107 @@ const EMAIL_JUNK =
   /(example\.|sentry|wixpress|godaddy|cloudflare|no-?reply|noreply|donotreply|postmaster|webmaster@|@2x|\.(png|jpe?g|gif|webp|svg))/i;
 const EMAIL_DISCOVERY_TIMEOUT_MS = 7_000;
 
+// Plausible TLDs — a regex glued from page JS/text can fabricate "x@app.route";
+// requiring a real-ish ending (+ a >=2 char local part) rejects that noise.
+const PLAUSIBLE_TLD =
+  /^(com|org|net|io|ai|co|dev|app|info|biz|me|xyz|tech|store|online|site|edu|gov|us|uk|es|ar|mx|br|cl|pe|uy|de|fr|it|nl|pt|ca|au|in|eu|ch|se|no|fi|pl|ru|jp|kr|cn)$/;
+
 function cleanEmail(candidate: string | undefined | null): string | null {
   if (!candidate) return null;
   const e = candidate.toLowerCase().trim();
-  return EMAIL_JUNK.test(e) ? null : e;
+  if (EMAIL_JUNK.test(e)) return null;
+  const m = e.match(/^([^@\s]+)@[^@\s]+\.([a-z]{2,})$/);
+  if (!m || m[1].length < 2 || !PLAUSIBLE_TLD.test(m[2])) return null;
+  return e;
 }
 
 /** Best-effort email discovery for the mailing DB. Reuses text we already have,
  *  then fetches the SINGLE page the scout already found (not a crawler). Bounded
  *  by a timeout and a response cap; never throws, never blocks the pipeline. */
-async function discoverEmail(
-  url: string | null,
-  extraText: string | null,
-): Promise<string | null> {
-  // 1) free: scan the enrichment/snippets we already fetched
-  const fromText = cleanEmail(extraText?.match(EMAIL_RE)?.[0]);
-  if (fromText) return fromText;
-  // 2) fetch the one page we have (the job post / company URL), prefer mailto:
-  if (!url) return null;
+// Likely contact pages on the same host — job boards hide emails on the
+// listing, but the company's /contact or /about usually exposes one. Ported
+// from BBN's light fetcher approach (fetch + parse, no browser).
+function contactPages(url: string): string[] {
+  try {
+    const u = new URL(url);
+    const base = `${u.protocol}//${u.host}`;
+    return [url, `${base}/contact`, `${base}/contacto`, `${base}/about`, `${base}/nosotros`];
+  } catch {
+    return [url];
+  }
+}
+
+// Company name from og:site_name / <title> / the domain (best-effort).
+function companyFromDomain(url: string): string | null {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    const name = host.split(".")[0];
+    return name ? name.charAt(0).toUpperCase() + name.slice(1) : null;
+  } catch {
+    return null;
+  }
+}
+
+function companyFromHtml(html: string, url: string): string | null {
+  // og:site_name is the real brand — trust it first.
+  const site = html.match(/property=["']og:site_name["']\s+content=["']([^"']{2,80})["']/i)?.[1];
+  if (site) return site.trim().split(/[|\-–—·]/)[0].trim().slice(0, 80) || null;
+  // <title> is often an article headline, not the company — only use it when it
+  // reads like a short brand (<=4 words, no sentence punctuation); else domain.
+  const title = html.match(/<title[^>]*>([^<]{2,80})<\/title>/i)?.[1];
+  if (title) {
+    const t = title.trim().split(/[|\-–—·]/)[0].trim();
+    if (t && t.split(/\s+/).length <= 4 && !/[?.!]$/.test(t)) return t.slice(0, 80);
+  }
+  return companyFromDomain(url);
+}
+
+async function fetchTextSafe(url: string, ms: number): Promise<string | null> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), EMAIL_DISCOVERY_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), ms);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { "user-agent": "Mozilla/5.0 (compatible; AmorosiScout/1.0)" },
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; AmorosiScout/1.0; +https://jpamorosi.dev)",
+      },
     });
     if (!res.ok) return null;
-    const html = (await res.text()).slice(0, 300_000);
-    const mailto = cleanEmail(
-      html.match(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i)?.[1],
-    );
-    return mailto ?? cleanEmail(html.match(EMAIL_RE)?.[0]);
+    return (await res.text()).slice(0, 300_000);
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Harvest a contact email + company for a prospect: scan the signals we
+ *  already have, then fetch the listing URL and a couple of likely contact
+ *  pages (where emails actually live). Bounded: <=3 network fetches, short
+ *  timeout each. This is the step that was missing — serper SERPs carry no
+ *  emails, so without fetching the pages the funnel produced hollow cards. */
+async function harvestContact(
+  url: string | null,
+  extraText: string | null,
+): Promise<{ email: string | null; company: string | null }> {
+  const fromText = cleanEmail(extraText?.match(EMAIL_RE)?.[0]) ?? null;
+  if (!url) return { email: fromText, company: null };
+
+  let email = fromText;
+  let company: string | null = null;
+  for (const page of contactPages(url).slice(0, 3)) {
+    const html = await fetchTextSafe(page, EMAIL_DISCOVERY_TIMEOUT_MS);
+    if (!html) continue;
+    company = company ?? companyFromHtml(html, url);
+    if (!email) {
+      const mailto = cleanEmail(
+        html.match(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i)?.[1],
+      );
+      email = mailto ?? cleanEmail(html.match(EMAIL_RE)?.[0]) ?? null;
+    }
+    if (email && company) break;
+  }
+  return { email, company };
 }
 
 /** Admin-dropped email/text about a lead. LLM parses when available; the
@@ -365,14 +430,19 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
           enrichment = "no additional public signal found";
         }
       }
-      // best-effort: fill the mailing DB from the signals we already have
-      const email = p.email ?? (await discoverEmail(p.url, enrichment));
+      // harvest a real contact + company by fetching the page(s), not just the
+      // serper snippet (that's why cards used to land email-less)
+      const found =
+        p.email && p.company
+          ? { email: p.email, company: p.company }
+          : await harvestContact(p.url, enrichment);
       await advance(p.id, "enrich", {
         enrichment: enrichment.slice(0, 2000),
-        email: email ?? undefined,
+        email: found.email ?? undefined,
+        company: found.company ?? undefined,
       });
-      if (email && !p.email) {
-        await recordEvent("prospect.email_found", { id: p.id, email });
+      if (found.email && !p.email) {
+        await recordEvent("prospect.email_found", { id: p.id, email: found.email });
       }
       moves.push({ id: p.id, from, to: "enrich" });
     } else if (p.stage === "enrich") {

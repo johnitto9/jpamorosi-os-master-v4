@@ -49,6 +49,8 @@ const EVENT_META: Record<string, { icon: string; label: string }> = {
   "ai.tool.called": { icon: "🛠", label: "Tool used" },
   "ai.tool.failed": { icon: "⚠️", label: "Tool failed" },
   "email.sent": { icon: "📧", label: "Email sent" },
+  "lead.link.created": { icon: "🔗", label: "Tracked link created" },
+  "lead.link.clicked": { icon: "👁", label: "Tracked link clicked" },
   "media.uploaded": { icon: "📎", label: "Image shared" },
   "palette.confirmed": { icon: "🎨", label: "Palette confirmed" },
   "branddna.updated": { icon: "🧬", label: "Brand DNA updated" },

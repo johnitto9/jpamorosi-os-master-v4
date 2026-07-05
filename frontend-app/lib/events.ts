@@ -31,6 +31,8 @@ export type EventType =
   | "prospect.advanced"
   | "prospect.updated"
   | "prospect.email_found"
+  | "lead.link.created"
+  | "lead.link.clicked"
   | "branddna.updated"
   | "asset.created"
   | "stack.decided"

@@ -140,6 +140,7 @@ async function runFollowups(): Promise<number> {
         projectName: composed.project,
         siteUrl: env.NEXT_PUBLIC_SITE_URL,
       },
+      tracking: { leadId: lead.id, campaign: "lead_followup" },
     });
     if (result.ok) {
       sent += 1;

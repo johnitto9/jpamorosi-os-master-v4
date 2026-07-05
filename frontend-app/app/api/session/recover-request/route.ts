@@ -46,13 +46,14 @@ export async function POST(request: Request) {
   } catch {
     return generic;
   }
-  const res = await tryQuery<{ session_id: string }>(
-    `SELECT session_id FROM leads
+  const res = await tryQuery<{ id: number; session_id: string }>(
+    `SELECT id::int, session_id FROM leads
      WHERE lower(email) = lower($1) AND session_id IS NOT NULL
      ORDER BY updated_at DESC LIMIT 1`,
     [parsed.data.email],
   );
   const sessionId = res?.rows[0]?.session_id;
+  const leadId = res?.rows[0]?.id;
   if (!sessionId) return generic;
 
   const link = `${env.NEXT_PUBLIC_SITE_URL}/api/session/recover?code=${encodeURIComponent(makeRecoveryCode(sessionId))}`;
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
     template: "session_recovery",
     to: parsed.data.email,
     data: { link, days: DAYS },
+    tracking: leadId ? { leadId, campaign: "session_recovery" } : undefined,
   });
   await recordEvent("session.started", { sessionId, via: "recovery-request" });
   return generic;

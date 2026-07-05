@@ -17,8 +17,12 @@ import { isDbConfigured, tryQuery } from "@/lib/db/pool";
 import { ensureSchema } from "@/lib/db/bootstrap";
 import { recordEvent } from "@/lib/events";
 import { templates, type TemplateName, type RenderedEmail } from "./templates";
+import { createTrackedLink, type TrackedLinkInput } from "./tracking";
 
 export type SendResult = { ok: boolean; id?: string; skipped?: boolean; error?: string };
+export type EmailTrackingContext = Omit<TrackedLinkInput, "target"> & {
+  enabled?: boolean;
+};
 
 async function logEmail(
   template: string,
@@ -45,11 +49,16 @@ export async function sendEmail<T extends TemplateName>(input: {
   template: T;
   to: string;
   data: Parameters<(typeof templates)[T]>[0];
+  tracking?: EmailTrackingContext;
 }): Promise<SendResult> {
   const { template, to } = input;
-  const rendered: RenderedEmail = (
+  const renderedBase: RenderedEmail = (
     templates[template] as (d: unknown) => RenderedEmail
   )(input.data);
+  const rendered = await withTrackedLinks(renderedBase, {
+    ...input.tracking,
+    campaign: input.tracking?.campaign ?? template,
+  });
 
   if (!isEmailConfigured()) {
     console.warn(
@@ -88,6 +97,63 @@ export async function notifyAdmin<T extends TemplateName>(
   data: Parameters<(typeof templates)[T]>[0],
 ): Promise<SendResult> {
   return sendEmail({ template, to: env.RESEND_ADMIN_TO_EMAIL, data });
+}
+
+function decodeHref(href: string): string {
+  return href.replace(/&amp;/g, "&").replace(/&quot;/g, '"');
+}
+
+function escapeHref(href: string): string {
+  return href.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
+function isTrackableHref(href: string): boolean {
+  try {
+    const url = new URL(href);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      !url.pathname.startsWith("/api/track/") &&
+      !url.pathname.includes("/api/track/")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function withTrackedLinks(
+  rendered: RenderedEmail,
+  tracking?: EmailTrackingContext,
+): Promise<RenderedEmail> {
+  if (!tracking?.enabled && !tracking?.leadId && !tracking?.prospectId) return rendered;
+
+  const hrefs = [...rendered.html.matchAll(/href="([^"]+)"/g)]
+    .map((m) => decodeHref(m[1]))
+    .filter(isTrackableHref);
+  const targets = Array.from(new Set(hrefs));
+  if (targets.length === 0) return rendered;
+
+  const replacements = new Map<string, string>();
+  for (const target of targets) {
+    const tracked = await createTrackedLink({
+      target,
+      campaign: tracking.campaign,
+      leadId: tracking.leadId,
+      prospectId: tracking.prospectId,
+    });
+    replacements.set(target, tracked?.url ?? target);
+  }
+
+  let html = rendered.html;
+  for (const [target, tracked] of replacements) {
+    html = html.replaceAll(`href="${escapeHref(target)}"`, `href="${escapeHref(tracked)}"`);
+  }
+
+  let text = rendered.text;
+  for (const [target, tracked] of replacements) {
+    text = text.replaceAll(target, tracked);
+  }
+
+  return { ...rendered, html, text };
 }
 
 export type EmailLogRow = {

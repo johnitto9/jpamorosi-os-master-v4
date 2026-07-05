@@ -136,6 +136,7 @@ function systemPrompt(
   page?: string,
   lang?: string,
   activeProjects: SessionProject[] = [],
+  universe: SessionProject[] = [],
 ): string {
   const ctx = buildContext();
   const projects = ctx.projects.map((p) => ({
@@ -181,6 +182,9 @@ function systemPrompt(
             ? `\n- DECISIONS PHASE: the project is resolving its open decisions. When the visitor raises a doubt (or you spot one worth settling), call {"name":"propose_decisions","arg":"{\\"items\\":[{\\"id\\":\\"stack\\",\\"question\\":\\"...\\",\\"options\\":[{\\"label\\":\\"...\\",\\"detail\\":\\"...\\"}]}]}"} (arg is a JSON STRING) — max 4 decisions, 2-4 options each, plain language for non-devs, NO tech jargon in labels. The visitor picks on a card; picks persist automatically. Keep the message short: the card does the talking.`
             : ``
         }`
+      : ``,
+    universe.length > 0
+      ? `SESSION UNIVERSE — everything this visitor is building this session (across ALL tabs): ${JSON.stringify(universe.map((pr) => ({ name: pr.name, kind: pr.kind, phase: pr.phase })))}. You are the thread that connects it all (the "hilbanador"): reference these projects by NAME when relevant, notice their progress ("I saw you started X — want to push it forward?"), connect ideas across them, and always steer toward Juan building them. You KNOW this whole universe even when the visitor switches tabs.`
       : ``,
     `PROJECT CO-CREATION: when the visitor describes their own project, act as a pre-project architect — progressively estimate the MINIMAL viable stack and keep it captured in lead.notes (e.g. "stack: Next.js + Postgres + WhatsApp API"). Once the idea is clear, offer a short marketing-style pitch of the pre-project${mockupsEnabled() ? " and a generate_mockup visual to make it tangible" : ""} — then move to contact.`,
     `- If the message contains [visitor shared an image: ...] you cannot see the pixels: acknowledge it warmly, ask what it shows / what matters in it, and treat it as project context.`,
@@ -241,9 +245,10 @@ async function tryLlmResponse(
   page?: string,
   lang?: string,
   activeProjects: SessionProject[] = [],
+  universe: SessionProject[] = [],
 ): Promise<{ response: AssistantResponse; lead?: z.infer<typeof leadPatchSchema> } | null> {
   const messages: LlmMessage[] = [
-    { role: "system", content: systemPrompt(leadState, history.length, page, lang, activeProjects) },
+    { role: "system", content: systemPrompt(leadState, history.length, page, lang, activeProjects, universe) },
     ...history.map((h) => ({ role: h.role, content: h.content }) as LlmMessage),
     { role: "user", content: text },
   ];
@@ -503,7 +508,7 @@ export async function runAgent(input: {
   let response: AssistantResponse | null = null;
   let leadPatch = signals;
   if (isLlmConfigured()) {
-    const llm = await tryLlmResponse(sessionId, text, history, priorLead, page, lang, activeProjects);
+    const llm = await tryLlmResponse(sessionId, text, history, priorLead, page, lang, activeProjects, allProjects);
     if (llm) {
       response = llm.response;
       leadPatch = { ...signals, ...(llm.lead ?? {}) };

@@ -46,11 +46,11 @@ async function probe() {
 async function maybeScout() {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  if (now.getHours() !== SCOUT_HOUR || lastScoutDate === today) return;
-  // wide-net searches every 3 days (sweet spot: fresh trends, minimal spend);
-  // scheduled follow-up actions can still run daily elsewhere
-  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-  if (dayOfYear % 3 !== 0) return;
+  // Run once per day, at OR AFTER SCOUT_HOUR — the old gate required the exact
+  // hour AND dayOfYear%3, and lastScoutDate lives in RAM (resets on restart),
+  // so in practice the scout almost never fired. ">= hour" makes a restart
+  // after the hour still catch up the day's run.
+  if (now.getHours() < SCOUT_HOUR || lastScoutDate === today) return;
   lastScoutDate = today;
   if (!TOKEN) {
     console.warn("[worker] scout skipped: INTERNAL_API_TOKEN not set");
