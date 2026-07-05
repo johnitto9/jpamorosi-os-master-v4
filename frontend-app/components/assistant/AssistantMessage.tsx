@@ -119,6 +119,35 @@ function DecisionCards({
   );
 }
 
+function InfoCard({
+  card,
+}: {
+  card: Extract<NonNullable<AssistantResponse["cards"]>[number], { type: "info" }>;
+}) {
+  const tone =
+    card.tone === "emerald"
+      ? "border-emerald-400/30 bg-emerald-400/[0.05]"
+      : card.tone === "violet"
+        ? "border-violet-400/30 bg-violet-400/[0.05]"
+        : "border-cyan-400/30 bg-cyan-400/[0.05]";
+  return (
+    <div className={`rounded-2xl border p-3 ${tone}`}>
+      <p className="text-xs font-semibold text-white">{card.title}</p>
+      {card.body && <p className="mt-1.5 text-xs leading-relaxed text-white/65">{card.body}</p>}
+      {card.items && card.items.length > 0 && (
+        <div className="mt-2 grid gap-1.5">
+          {card.items.map((item, i) => (
+            <div key={`${item.label}-${i}`} className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">{item.label}</p>
+              {item.value && <p className="mt-0.5 text-xs text-white/75">{item.value}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AssistantMessage({
   turn,
   onDecision,
@@ -155,6 +184,8 @@ export function AssistantMessage({
           {res.cards.map((c, i) =>
             c.type === "project" ? (
               <AssistantProjectCard key={c.slug} slug={c.slug} />
+            ) : c.type === "info" ? (
+              <InfoCard key={`info-${i}`} card={c} />
             ) : c.type === "decisions" ? (
               <DecisionCards key={`dec-${i}`} items={c.items} onDecision={onDecision} />
             ) : (

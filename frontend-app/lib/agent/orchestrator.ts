@@ -107,6 +107,23 @@ const proposeDecisionsArgSchema = z
   })
   .strict();
 
+const showCardArgSchema = z
+  .object({
+    title: z.string().min(1).max(80),
+    body: z.string().max(360).optional(),
+    items: z
+      .array(
+        z.object({
+          label: z.string().min(1).max(40),
+          value: z.string().max(160).optional(),
+        }),
+      )
+      .max(4)
+      .optional(),
+    tone: z.enum(["cyan", "violet", "emerald"]).optional(),
+  })
+  .strict();
+
 // brand-foundation tool arg (validated, never trusted) — feeds upsertBrandDNA
 const brandDnaArgSchema = z
   .object({
@@ -165,7 +182,7 @@ function systemPrompt(
     `HARD RULES:`,
     `- Answer ONLY from the site facts below. Never invent projects, metrics or links.`,
     `- Keep replies short (2-4 sentences), warm, concrete, in the visitor's language.`,
-    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna", "propose_decisions"].join(", ")}.`,
+    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna", "propose_decisions", "show_card"].join(", ")}.`,
     webSearchEnabled()
       ? `- web_search(arg: query): research the visitor's company/product when they name it — use sparingly, once per conversation.`
       : ``,
@@ -189,6 +206,7 @@ function systemPrompt(
     `PROJECT CO-CREATION: when the visitor describes their own project, act as a pre-project architect — progressively estimate the MINIMAL viable stack and keep it captured in lead.notes (e.g. "stack: Next.js + Postgres + WhatsApp API"). Once the idea is clear, offer a short marketing-style pitch of the pre-project${mockupsEnabled() ? " and a generate_mockup visual to make it tangible" : ""} — then move to contact.`,
     `- If the message contains [visitor shared an image: ...] you cannot see the pixels: acknowledge it warmly, ask what it shows / what matters in it, and treat it as project context.`,
     `- Useful extra tool: open_github (Juan's code). Prefer buttons/actions over pasting raw links.`,
+    `- Useful extra tool: show_card. Use it for compact structured summaries instead of long paragraphs. Arg is JSON string: {"title":"...","body":"...","items":[{"label":"...","value":"..."}],"tone":"cyan|violet|emerald"}.`,
     `- Lead qualification is a conversation, not a form: at most ONE gentle question per reply. Never re-ask what is already known. Known so far: ${known.length ? known.join(", ") : "nothing"}.`,
     `- If the visitor shares contact info, company, budget or a project need, capture it in "lead".`,
     `- If asked for a CV, use tool open_or_generate_cv. To contact, open_contact.`,
@@ -367,6 +385,27 @@ async function tryLlmResponse(
     }
   }
 
+  let infoCard: AssistantCard | null = null;
+  const askedCard = (parsed.tools ?? []).find((t) => t.name === "show_card");
+  if (askedCard) {
+    try {
+      const arg = showCardArgSchema.parse(JSON.parse(argToString(askedCard.arg)));
+      infoCard = {
+        type: "info",
+        title: arg.title,
+        body: arg.body,
+        items: arg.items as Array<{ label: string; value?: string }> | undefined,
+        tone: arg.tone,
+      };
+      await recordEvent("ai.tool.called", { tool: "show_card", title: arg.title });
+    } catch (err) {
+      await recordEvent("ai.tool.failed", {
+        tool: "show_card",
+        error: (err as Error).message.slice(0, 120),
+      });
+    }
+  }
+
   // Map remaining tool calls through the whitelisted CLIENT registry
   // (server tools and unknown names are no-ops there).
   let actions: AssistantAction[] = [];
@@ -378,6 +417,7 @@ async function tryLlmResponse(
   }
   if (mockupCard) cards = [mockupCard, ...cards];
   if (decisionsCard) cards = [decisionsCard, ...cards];
+  if (infoCard) cards = [infoCard, ...cards];
 
   const response = enforceResponse({
     message: parsed.message,

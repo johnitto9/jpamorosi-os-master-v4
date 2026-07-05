@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v4
+# HANDOFF — 2026-07-05 (leer esto primero) · v5
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..09`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..10`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..09.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..10.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -26,7 +26,7 @@ VACÍOS** → uploads locales (código R2-ready, sólo faltan envs).
 ## De dónde venimos
 12 sesiones FINALPROD (animaciones interludios mobile + fix Seedream 16:9), 2
 tandas de pulido (vault inline, botones generate separados, decisiones
-deseleccionables, scrollbar, project card), y esta REFAC final (exec01→09).
+deseleccionables, scrollbar, project card), y esta REFAC final (exec01→10).
 
 ## Qué se hizo en esta refac (TODO VIVO y verificado salvo aclaración)
 - **R5 prospecting REAL** (exec01): `lib/agent/prospects.ts` `harvestContact()`
@@ -76,11 +76,14 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→09).
   nombre/persona, empresa y email; `/api/assistant/projects` valida `lead` con
   `leadPatchSchema` y hace `upsertLead(sessionId, lead)` al crear el proyecto.
   Verificado con `tsc`; falta rebuild para verlo vivo en `:3001`.
+- **R4 cards interactivas minimo** (exec10): nuevo `AssistantCard` tipo `info`,
+  render `InfoCard`, guardrails permiten la card, y `orchestrator` expone tool
+  server-side `show_card` con arg JSON validado para respuestas compactas en
+  bloques. Verificado con `tsc`; falta rebuild para verlo vivo en `:3001`.
 
 ## Qué queda (por prioridad, specs listas)
-1. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
-2. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
-3. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
+1. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
+2. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
    diario por restart.
 
 ## Archivos clave

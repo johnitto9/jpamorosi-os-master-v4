@@ -127,8 +127,9 @@ export function enforceResponse(res: AssistantResponse): AssistantResponse {
       .filter(
         (c) =>
           c.type === "project" ||
+          c.type === "info" ||
           c.type === "decisions" ||
-          c.src.startsWith("/api/media/"),
+          (c.type === "image" && c.src.startsWith("/api/media/")),
       )
       .slice(0, ASSISTANT_LIMITS.maxCards),
   };

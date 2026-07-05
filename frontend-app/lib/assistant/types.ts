@@ -23,6 +23,13 @@ export type AssistantAction =
 
 export type AssistantCard =
   | { type: "project"; slug: string }
+  | {
+      type: "info";
+      title: string;
+      body?: string;
+      items?: Array<{ label: string; value?: string }>;
+      tone?: "cyan" | "violet" | "emerald";
+    }
   // generated mockup (Seedream) — src is always an internal /api/media path
   | { type: "image"; src: string; alt: string }
   // decision cards (decisions phase, Fase 2d) — options render as buttons; the
