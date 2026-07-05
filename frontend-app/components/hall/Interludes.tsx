@@ -296,7 +296,7 @@ function useSceneChoreography(
         mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
           const q = gsap.utils.selector(section);
           const tl = gsap.timeline({
-            defaults: { ease: "none" },
+            defaults: { ease: "none", force3D: true },
             scrollTrigger: {
               trigger: section,
               scroller,
@@ -549,14 +549,14 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
       gsap.set(q(".il-word"), { autoAlpha: 0, yPercent: 90, scale: 0.75 });
 
       const tl = gsap.timeline({
-        defaults: { ease: "none" },
+        defaults: { ease: "none", force3D: true },
         scrollTrigger: {
           id: "il-mobile-1",
           trigger: section,
           scroller,
           start: "top top",
           end: "bottom bottom",
-          scrub: true,
+          scrub: 0.5,
           invalidateOnRefresh: true,
         },
       });
@@ -686,14 +686,14 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
       gsap.set(q(".il-layer"), { autoAlpha: 0, y: 64, xPercent: -10 });
 
       const tl = gsap.timeline({
-        defaults: { ease: "none" },
+        defaults: { ease: "none", force3D: true },
         scrollTrigger: {
           id: "il-mobile-2",
           trigger: section,
           scroller,
           start: "top top",
           end: "bottom bottom",
-          scrub: true,
+          scrub: 0.5,
           invalidateOnRefresh: true,
         },
       });
@@ -801,14 +801,14 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
       gsap.set(q(".il-dot"), { autoAlpha: 0.3, scale: 1 });
 
       const tl = gsap.timeline({
-        defaults: { ease: "none" },
+        defaults: { ease: "none", force3D: true },
         scrollTrigger: {
           id: "il-mobile-3",
           trigger: section,
           scroller,
           start: "top top",
           end: "bottom bottom",
-          scrub: true,
+          scrub: 0.5,
           invalidateOnRefresh: true,
         },
       });
