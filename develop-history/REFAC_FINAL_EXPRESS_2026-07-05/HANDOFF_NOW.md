@@ -87,11 +87,11 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→12).
 - **P3 Living Layer** (exec12): `ScrollStage` emite `al-scroll-stage`
   (`progress` + `velocity`) y `AuroraScene` reacciona con transform GPU-only
   (`x/y/scale`) en la capa aurora interna. Respeta reduced-motion. Verificado
-  con `tsc`; falta rebuild para verlo vivo.
+  con `tsc`, rebuild final y health OK en `:3001`.
 
 ## Qué queda (por prioridad, specs listas)
-1. Rebuild final para materializar exec12 en `:3001`.
-2. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
+1. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
+2. Setear `R2_*` + CDN si se quiere dejar de servir uploads desde volumen local.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,
