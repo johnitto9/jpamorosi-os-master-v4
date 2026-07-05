@@ -5,6 +5,8 @@ Reducir temblor percibido en mobile/emulacion mobile durante los interludios
 GSAP `YOU'RE INSIDE THE PROOF` y `THE LIVING LAYER`.
 
 ## Cambios
+- `AuroraLayer`: no monta `AuroraScene` en `/cv`. El CV vuelve a ser una hoja
+  blanca/print-friendly sin fondo estrellado global.
 - `AuroraScene`: la reaccion scroll-reactive agregada en exec12 queda desactivada
   en `(max-width:1023px)` y en dispositivos `pointer: coarse`. Evita sumar una
   capa fija moviendose debajo de escenas sticky/scrubbeadas en mobile.

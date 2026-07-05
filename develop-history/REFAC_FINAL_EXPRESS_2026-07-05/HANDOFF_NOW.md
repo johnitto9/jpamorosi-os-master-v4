@@ -91,7 +91,8 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→13).
 - **Mobile jitter pass** (exec13): para evitar temblor en interludios GSAP
   mobile, la aurora scroll-reactive queda desactivada en mobile/touch y las
   timelines mobile usan `scrub:true` (sin smoothing extra encima de Lenis).
-  Verificado con `tsc`, rebuild y health OK.
+  Además `/cv` ya no monta la aurora global. Verificado con `tsc`, rebuild y
+  health OK.
 
 ## Qué queda (por prioridad, specs listas)
 1. Verificacion visual/manual del temblor mobile en `YOU'RE INSIDE THE PROOF`

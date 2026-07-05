@@ -6,8 +6,11 @@
 // The actual background lives here so it persists across route changes.
 
 import { AuroraScene } from "@/components/visual/AuroraScene";
+import { usePathname } from "next/navigation";
 
 export function AuroraLayer() {
+  const pathname = usePathname();
+  if (pathname === "/cv") return null;
   return <AuroraScene />;
 }
 
