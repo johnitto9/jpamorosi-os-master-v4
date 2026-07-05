@@ -43,30 +43,11 @@ export function AuroraScene() {
     return () => controls.stop();
   }, [color, reduce]);
 
-  useEffect(() => {
-    if (reduce) return;
-    const coarseOrMobile = window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
-    if (coarseOrMobile) return;
-    let settle = 0;
-    const onScroll = (event: Event) => {
-      const detail = (event as CustomEvent<{ progress?: number; velocity?: number }>).detail ?? {};
-      const progress = Math.max(0, Math.min(1, detail.progress ?? 0));
-      const velocity = Math.max(-1800, Math.min(1800, detail.velocity ?? 0));
-      x.set(velocity * 0.012);
-      y.set(progress * -22 + velocity * 0.003);
-      scale.set(1 + Math.min(0.026, Math.abs(velocity) / 70_000));
-      window.clearTimeout(settle);
-      settle = window.setTimeout(() => {
-        x.set(0);
-        scale.set(1);
-      }, 160);
-    };
-    window.addEventListener("al-scroll-stage", onScroll);
-    return () => {
-      window.clearTimeout(settle);
-      window.removeEventListener("al-scroll-stage", onScroll);
-    };
-  }, [reduce, scale, x, y]);
+  // NOTE (exec14): the scroll-reactive drift added in exec12 made the fixed
+  // starfield visibly shift/"spill" along the page (the settle only reset x/scale,
+  // never y, so y = progress*-22 accumulated with scroll and never returned).
+  // A moving full-screen background reads as broken; reverted to a STATIC bg —
+  // the color-cycle stays (that part was good). x/y/scale rest at 0/0/1.
 
   const backgroundImage = useMotionTemplate`radial-gradient(130% 130% at 50% 0%, #05060f 42%, ${color})`;
 
