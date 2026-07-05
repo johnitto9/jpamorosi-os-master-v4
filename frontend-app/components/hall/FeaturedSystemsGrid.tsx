@@ -40,15 +40,15 @@ export function FeaturedSystemsGrid({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.5]"
+        className="pointer-events-none absolute inset-0 opacity-[0.15]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(0,112,243,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,112,243,0.06) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
+            "linear-gradient(rgba(0,112,243,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,112,243,0.05) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
           maskImage:
-            "radial-gradient(ellipse 80% 70% at 50% 50%, black 0%, transparent 75%)",
+            "radial-gradient(ellipse 70% 60% at 50% 50%, black 0%, transparent 70%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse 80% 70% at 50% 50%, black 0%, transparent 75%)",
+            "radial-gradient(ellipse 70% 60% at 50% 50%, black 0%, transparent 70%)",
         }}
       />
       {/* NOTE: the dark edge-fade strips were removed — over the live aurora

@@ -8,7 +8,8 @@ import { LabArchiveGrid } from '@/components/hall/LabArchiveGrid';
 import { AssistantWidget } from '@/components/assistant/AssistantWidget';
 import { GuidedTour } from '@/components/assistant/GuidedTour';
 import { ContactSection } from '@/components/hall/ContactSection';
-import { BeforeTheSystems, PortfolioSystemInterlude, LivingLayerInterlude } from '@/components/hall/Interludes';
+import { BeforeTheSystems, PortfolioSystemInterlude, LivingLayerInterlude, InterludeImagesProvider } from '@/components/hall/Interludes';
+import { getSiteSettings } from '@/lib/media/store';
 import { ChapterNav } from '@/components/ui/chapter-nav';
 import { ScrollStage } from '@/components/ui/scroll-stage';
 import { SectionTransition } from '@/components/ui/section-transition';
@@ -51,6 +52,7 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const grouped = await getPublicGroupedAuto();
   const { lang, t, r } = await getDict(); // al_lang cookie -> translated shell (SSR)
+  const ilImages = (await getSiteSettings()).interludes; // admin-managed interlude images
   // CONTENT follows the visitor too: project copy through the LLM translation
   // cache (EN passthrough; first render per language warms the cache once)
   const [hall, featured, archive] = await Promise.all([
@@ -76,7 +78,7 @@ export default async function HomePage() {
       {/* Interludes drive their OWN scroll choreography (GSAP ScrollTrigger).
           They must NOT sit inside SectionTransition's transform, which creates a
           containing block that breaks the interlude's position:sticky stage. */}
-      <BeforeTheSystems t={t.il1} />
+      <InterludeImagesProvider images={ilImages}><BeforeTheSystems t={t.il1} /></InterludeImagesProvider>
       <SectionTransition blur={4}>
         <HallOfFameGrid
           projects={hall}
@@ -92,7 +94,7 @@ export default async function HomePage() {
           {t.browseAll}
         </Link>
       </div>
-      <PortfolioSystemInterlude t={t.il2} />
+      <InterludeImagesProvider images={ilImages}><PortfolioSystemInterlude t={t.il2} /></InterludeImagesProvider>
       <SectionTransition>
         <FeaturedSystemsGrid
           projects={featured}
@@ -100,7 +102,7 @@ export default async function HomePage() {
           enterLabel={r.enter}
         />
       </SectionTransition>
-      <LivingLayerInterlude t={t.il3} />
+      <InterludeImagesProvider images={ilImages}><LivingLayerInterlude t={t.il3} /></InterludeImagesProvider>
       <SectionTransition>
         <LabArchiveGrid
           projects={archive}

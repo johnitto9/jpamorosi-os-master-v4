@@ -51,13 +51,11 @@ export function HallOfFameGrid({
   enterLabel?: string;
 }) {
   const items = projects ?? getHallOfFame();
-  // Embla only loops when the slides overfill the viewport with room to spare;
-  // with few flagships (48% basis) the wrap feels starved — duplicate the set
-  // so the ring is always dense and true side cards exist for the 3D tilt.
-  const slides = useMemo(
-    () => (items.length > 0 && items.length < 5 ? [...items, ...items] : items),
-    [items],
-  );
+  // Let Embla be the single loop authority. Duplicating the three flagships on
+  // top of Embla's own loop creates two recycling systems; after a few next()
+  // calls, loop-translated clones drift closer to the center and the coverflow
+  // amplifies that into the visible "cards bunching up" bug.
+  const slides = items;
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "center" });
   const [selected, setSelected] = useState(0);
   // coverflow tilt only from sm up — on phones the rotated neighbours drag
@@ -75,9 +73,11 @@ export function HallOfFameGrid({
     if (!emblaApi) return;
     const onSel = () => setSelected(emblaApi.selectedScrollSnap());
     emblaApi.on("select", onSel);
+    emblaApi.on("reInit", onSel);
     onSel();
     return () => {
       emblaApi.off("select", onSel);
+      emblaApi.off("reInit", onSel);
     };
   }, [emblaApi]);
 
@@ -103,28 +103,23 @@ export function HallOfFameGrid({
     return null;
   }, [active]);
 
-  // Dots address projects, not slides: jump to whichever duplicate of the
-  // project is closest to the current position (shortest wrap distance).
   const scrollTo = useCallback(
     (projectIdx: number) => {
       if (!emblaApi) return;
-      const total = slides.length;
-      let best = projectIdx;
-      let bestDist = Infinity;
-      for (let s = projectIdx; s < total; s += items.length) {
-        const raw = Math.abs(s - selected);
-        const dist = Math.min(raw, total - raw);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = s;
-        }
-      }
-      emblaApi.scrollTo(best);
+      emblaApi.scrollTo(projectIdx);
     },
-    [emblaApi, slides.length, items.length, selected],
+    [emblaApi],
   );
   const prev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const next = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const visualSlots = useMemo(() => {
+    if (!items.length) return [];
+    const offsets = coverflow ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
+    return offsets.map((offset) => {
+      const index = (activeIdx + offset + items.length) % items.length;
+      return { offset, index, project: items[index] };
+    });
+  }, [activeIdx, coverflow, items]);
 
   if (items.length === 0) {
     return (
@@ -221,52 +216,82 @@ export function HallOfFameGrid({
           accent={accent}
         />
 
-        {/* Embla carousel — coverflow: side cards tilt in 3D toward the
-            selected one (perspective on the track, rotateY per wrap offset).
-            NOTE: overflow-hidden clips at the padding box — the vertical py
-            gives the tilted/holographic corners room so edges never look cut. */}
-        <div className="ui-interactive mt-4 overflow-hidden py-10" ref={emblaRef}>
-          <div className="flex touch-pan-y [perspective:1400px]">
+        {/* Embla stays mounted as the loop/drag engine, but the visible
+            coverflow is rendered by a separate circular layer with fixed slots.
+            This avoids Embla's loop-translated slide nodes becoming the visual
+            source of truth, which caused the progressive bunching bug. */}
+        <div
+          className="ui-interactive relative mt-4 overflow-hidden py-10"
+          ref={emblaRef}
+          // side cards dissolve into the edges instead of being hard-clipped
+          // by the padding box — a softer, more natural exit than the cut
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(90deg, transparent 0%, #000 14%, #000 86%, transparent 100%)",
+            maskImage:
+              "linear-gradient(90deg, transparent 0%, #000 14%, #000 86%, transparent 100%)",
+          }}
+        >
+          <div aria-hidden className="flex touch-pan-y opacity-0">
             {slides.map((p, i) => {
-              const total = slides.length;
-              // shortest signed distance to the selected slide on the ring:
-              // negative = left of center, positive = right of center
-              const offset =
-                ((i - selected + total + Math.floor(total / 2)) % total) -
-                Math.floor(total / 2);
-              const isActive = offset === 0;
-              const side = Math.sign(offset);
               return (
                 <div
                   key={`${p.id}-${i}`}
-                  className="relative min-w-0 flex-[0_0_86%] px-2 [transform-style:preserve-3d] sm:flex-[0_0_62%] lg:flex-[0_0_48%]"
-                  // stacking: DOM order is NOT depth — the ACTIVE card must
-                  // always paint above its tilted neighbours, wherever the
-                  // ring is (this kept the layout from turn 1 forever)
-                  style={{ zIndex: 10 - Math.min(Math.abs(offset), 9) }}
+                  className="min-w-0 flex-[0_0_86%] px-3 sm:flex-[0_0_62%] sm:px-4 lg:flex-[0_0_54%] lg:px-5"
                 >
-                  <div
-                    className={cn(
-                      "relative transition-all duration-500 ease-out",
-                      isActive ? "opacity-100" : "opacity-45",
-                    )}
-                    style={{
-                      transform: isActive
-                        ? "none"
-                        : coverflow
-                          ? `rotateY(${side * -26}deg) scale(0.88) translateZ(-90px)`
-                          : "scale(0.9)",
-                    }}
-                  >
-                    {isActive && (
-                      <Confetti
-                        colors={[p.theme.accent, p.theme.secondary, "#ffffff"]}
-                        className="z-20 opacity-70"
-                      />
-                    )}
-                    <HallOfFameCard project={p} large enterLabel={enterLabel} />
-                  </div>
+                  <HallOfFameCard project={p} large enterLabel={enterLabel} />
                 </div>
+              );
+            })}
+          </div>
+          <div
+            aria-hidden={false}
+            className="pointer-events-none absolute inset-0 [perspective:1400px]"
+          >
+            {visualSlots.map(({ offset, index, project }) => {
+              const abs = Math.abs(offset);
+              const isActive = offset === 0;
+              const x = coverflow ? offset * 35 : offset * 82;
+              const rotate = coverflow ? offset * -18 : 0;
+              const scale = coverflow ? 1 - Math.min(abs, 2) * 0.12 : 1 - abs * 0.08;
+              const z = coverflow ? -Math.min(abs, 2) * 110 : 0;
+              const opacity = isActive ? 1 : coverflow ? (abs === 1 ? 0.58 : 0.22) : 0.45;
+              const widthClass = coverflow ? "w-[54%]" : "w-[86%] sm:w-[62%]";
+              return (
+                <motion.div
+                  key={project.id}
+                  className={cn(
+                    "absolute top-10 px-3 will-change-transform [backface-visibility:hidden] [transform-style:preserve-3d] sm:px-4 lg:px-5",
+                    widthClass,
+                    isActive ? "pointer-events-auto" : "pointer-events-none",
+                  )}
+                  initial={false}
+                  animate={{
+                    left: `${50 + x}%`,
+                    opacity,
+                    zIndex: 100 - abs * 20,
+                    rotateY: rotate,
+                    scale,
+                    z,
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 210,
+                    damping: 28,
+                    mass: 0.85,
+                  }}
+                  style={{
+                    x: "-50%",
+                  }}
+                >
+                  {isActive && (
+                    <Confetti
+                      colors={[project.theme.accent, project.theme.secondary, "#ffffff"]}
+                      className="z-20 opacity-70"
+                    />
+                  )}
+                  <HallOfFameCard project={project} large enterLabel={enterLabel} />
+                </motion.div>
               );
             })}
           </div>

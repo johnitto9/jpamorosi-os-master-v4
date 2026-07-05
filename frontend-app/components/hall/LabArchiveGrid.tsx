@@ -40,15 +40,15 @@ export function LabArchiveGrid({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-60"
+        className="pointer-events-none absolute inset-0 opacity-[0.15]"
         style={{
           backgroundImage:
-            "linear-gradient(90deg, rgba(139,92,246,0.07) 1px, transparent 1px)",
-          backgroundSize: "72px 100%",
+            "linear-gradient(90deg, rgba(139,92,246,0.06) 1px, transparent 1px)",
+          backgroundSize: "96px 100%",
           maskImage:
-            "radial-gradient(ellipse 85% 75% at 50% 50%, black 0%, transparent 78%)",
+            "radial-gradient(ellipse 75% 65% at 50% 50%, black 0%, transparent 72%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse 85% 75% at 50% 50%, black 0%, transparent 78%)",
+            "radial-gradient(ellipse 75% 65% at 50% 50%, black 0%, transparent 72%)",
         }}
       />
       {/* dark edge-fade strips removed — they drew seam lines over the aurora

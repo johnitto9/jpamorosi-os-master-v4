@@ -199,6 +199,40 @@
     scrollbar-width: none;  /* Firefox */
   }
 
+  /* Slim, on-brand scrollbar for scrollable chrome (chat transcript, vault). */
+  .chat-scroll {
+    scrollbar-width: thin;                          /* Firefox */
+    scrollbar-color: rgba(34, 211, 238, 0.35) transparent;
+  }
+  .chat-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .chat-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .chat-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.4), rgba(139, 92, 246, 0.4));
+  }
+  .chat-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.7), rgba(139, 92, 246, 0.7));
+  }
+
+  /* Carousel edge fade — ONLY on sm+ (where several cards share the row). On
+     mobile a single card fills the viewport, so any fade would eat its edges;
+     there we keep it crisp. Narrow (4%) so it kisses the outgoing card's edge
+     instead of swallowing it. */
+  .carousel-edge-fade {
+    /* mobile: no mask */
+  }
+  @media (min-width: 640px) {
+    .carousel-edge-fade {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
+    }
+  }
+
   /* Interactive/draggable UI (BuenPick criterion, applied SURGICALLY — never
      global): carousels, cards, nav knobs. Kills the blue drag-selection and
      the mobile tap flash. Body text/email/CV stay copyable. */

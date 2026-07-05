@@ -69,7 +69,9 @@ export function CardCarousel({
     <div aria-label={ariaLabel} role="region">
       {/* py: clipping happens at the padding box — gives the holographic
           rest-tilt corners breathing room so card edges never look cut */}
-      <div className="ui-interactive -my-6 overflow-hidden py-8" ref={emblaRef}>
+      {/* edge fade only on sm+ (see .carousel-edge-fade) — mobile shows one
+          card, so no fade there or it would eat the single card's edges */}
+      <div className="ui-interactive carousel-edge-fade -my-6 overflow-hidden py-8" ref={emblaRef}>
         <div className="flex touch-pan-y">
           {slideIdxs.map((itemIdx, i) => (
             <div

@@ -26,8 +26,20 @@ export type HeroVideo = {
   updatedAt?: string;
 };
 
+// Interlude card images (home scroll scenes). Each is a /api/media or R2 URL
+// set from /admin/media; the home reads them via resolveMediaUrl with a static
+// fallback. Keys: before1/before2 (BEFORE THE SYSTEMS), proof1 (INSIDE THE
+// PROOF), living1 (THE LIVING LAYER).
+export type InterludeImages = {
+  before1?: string;
+  before2?: string;
+  proof1?: string;
+  living1?: string;
+};
+
 export type SiteSettings = {
   heroVideo?: HeroVideo;
+  interludes?: InterludeImages;
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

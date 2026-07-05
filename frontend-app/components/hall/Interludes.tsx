@@ -22,8 +22,9 @@
 // still reads. Only the *travelling* elements (cards, words) start hidden and
 // animate in. useGSAP runs in a layout effect (pre-paint), so there is no flash.
 
-import { useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
+import { resolveMediaUrl } from "@/lib/media/resolve";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -32,14 +33,32 @@ import { cn } from "@/lib/utils";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-// --- __IL_DEBUG__ observability (FINALPROD S9) -----------------------------
-// A single source of truth for the actual state of every interlude
-// ScrollTrigger. Paste `__IL_DEBUG__.snapshot()` in DevTools to see all
-// triggers with id `il-*` and their progress, isActive, and enabled
-// state. This is the verification surface for "is the animation actually
-// playing" — much more reliable than parsing bundle strings.
+// --- __IL_DEBUG__ observability (FINALPROD S9+) ----------------------------
+// Single source of truth for the actual state of the interlude ScrollTriggers
+// and the Lenis/ScrollStage scroll pipeline. Paste these in DevTools to
+// see the truth instead of guessing:
+//
+//   __IL_DEBUG__.snapshot()    — every il-* trigger, its progress, isActive
+//   __IL_DEBUG__.play(0.5)    — manually advance all il-mobile-* timelines
+//                                to the given progress (0–1) regardless of
+//                                scroll. Use to verify the animation runs
+//                                without depending on Lenis/ScrollTrigger.
+//   __IL_DEBUG__.scrollTop()   — current scrollTop of the <main> wrapper.
+//                                If this stays at 0 when you swipe, Lenis
+//                                isn't actually scrolling.
+//   __IL_DEBUG__.wrapperInfo() — full state of the <main> wrapper
+//                                (scrollTop, scrollHeight, overflow).
+//   __IL_DEBUG__.reducedMotion()— whether prefers-reduced-motion is on.
+//                                If true, the mobile matchMedia won't fire.
+type IlDebug = {
+  snapshot: () => unknown;
+  play: (progress?: number) => void;
+  scrollTop: () => number;
+  wrapperInfo: () => { scrollTop: number; scrollHeight: number; clientHeight: number; hasOverflow: string; hasLenis: boolean; viewportHeight: number };
+  reducedMotion: () => boolean;
+};
 if (typeof window !== "undefined") {
-  (window as unknown as { __IL_DEBUG__?: { snapshot: () => unknown } }).__IL_DEBUG__ = {
+  (window as unknown as { __IL_DEBUG__?: IlDebug }).__IL_DEBUG__ = {
     snapshot: () =>
       ScrollTrigger.getAll()
         .filter((st) => String(st.vars.id ?? "").startsWith("il-"))
@@ -53,7 +72,49 @@ if (typeof window !== "undefined") {
           trigger:
             (st.trigger as HTMLElement | undefined)?.tagName?.toLowerCase() ?? null,
         })),
+    play: (progress = 0.5) => {
+      ScrollTrigger.getAll()
+        .filter((st) => String(st.vars.id ?? "").startsWith("il-mobile-"))
+        .forEach((st) => {
+          // Jump the scroll position to the requested progress
+          const targetScroll = st.start + progress * (st.end - st.start);
+          st.scroll(targetScroll);
+          // And force the animation to that progress
+          const tween = (st.animation as gsap.core.Timeline | gsap.core.Tween | undefined);
+          if (tween && "progress" in tween) {
+            (tween as gsap.core.Timeline).progress(progress);
+          }
+        });
+    },
+    scrollTop: () => {
+      const wrapper = document.querySelector("main");
+      return (wrapper?.scrollTop ?? -1) as number;
+    },
+    wrapperInfo: () => {
+      const wrapper = document.querySelector("main");
+      const lenis = (window as unknown as { __lenis?: { scroll: number } }).__lenis;
+      return {
+        scrollTop: (wrapper?.scrollTop ?? -1) as number,
+        scrollHeight: (wrapper?.scrollHeight ?? -1) as number,
+        clientHeight: (wrapper?.clientHeight ?? -1) as number,
+        hasOverflow: wrapper ? getComputedStyle(wrapper).overflowY : "?",
+        hasLenis: !!lenis,
+        viewportHeight: window.innerHeight,
+      };
+    },
+    reducedMotion: () =>
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   };
+}
+
+// Records that a mobile matchMedia build actually executed, so the on-screen
+// debug indicator can prove it without the console. Increments a per-scene
+// counter each time the mobile branch fires (should be 1 per scene once).
+function markMobileBuildRan(scene: string, section: HTMLElement, scroller: HTMLElement | null) {
+  if (typeof window === "undefined") return;
+  const w = window as unknown as { __IL_MOBILE_RAN__?: Record<string, number> };
+  w.__IL_MOBILE_RAN__ = w.__IL_MOBILE_RAN__ ?? {};
+  w.__IL_MOBILE_RAN__[scene] = (w.__IL_MOBILE_RAN__[scene] ?? 0) + 1;
 }
 
 // --- Shared copy contract (page.tsx depends on this) -------------------------
@@ -71,6 +132,22 @@ const IMG = {
   proof1: "/images/interludes/inside-the-proof-1.jpg",
   living1: "/images/interludes/living-layer-1.jpg",
 };
+type ImgKey = keyof typeof IMG;
+
+// Admin-managed interlude images (from /admin/media → site settings). Provided
+// by page.tsx around the interludes; InterludeImage reverse-maps its default
+// `src` to the key and swaps in the override (through resolveMediaUrl, so R2/CDN
+// works). No caller changes needed — the defaults still flow if unset.
+const InterludeImagesCtx = createContext<Partial<Record<ImgKey, string>> | undefined>(undefined);
+export function InterludeImagesProvider({
+  images,
+  children,
+}: {
+  images?: Partial<Record<ImgKey, string>>;
+  children: ReactNode;
+}) {
+  return <InterludeImagesCtx.Provider value={images}>{children}</InterludeImagesCtx.Provider>;
+}
 
 // --- Accents + ambient glow (no card, "tirado" on the cosmos) ----------------
 type Tone = "mixed" | "cyan" | "violet";
@@ -133,6 +210,11 @@ function EyebrowPill({ accent, children }: { accent: Accent; children: ReactNode
 function InterludeImage({ src, accent, emoji, className }: { src: string; accent: Accent; emoji: string; className?: string }) {
   const a = ACCENT[accent];
   const [failed, setFailed] = useState(false);
+  const overrides = useContext(InterludeImagesCtx);
+  // reverse-map the default src to its key so an admin override wins, then run
+  // it through the media resolver (serves from R2/CDN when configured)
+  const key = (Object.keys(IMG) as ImgKey[]).find((k) => IMG[k] === src);
+  const finalSrc = resolveMediaUrl((key && overrides?.[key]) || src) ?? src;
   return (
     <div aria-hidden className={cn("relative overflow-hidden rounded-2xl border bg-white/[0.03]", a.border, className)} style={{ boxShadow: a.glow }}>
       {failed ? (
@@ -141,7 +223,7 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
         </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setFailed(true)} />
+        <img src={finalSrc} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setFailed(true)} />
       )}
       <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.45), transparent 55%)" }} />
     </div>
@@ -186,6 +268,15 @@ function useSceneChoreography(
         (typeof document !== "undefined" ? document.querySelector<HTMLElement>("main") : null) ??
         null;
       const section = rootEl?.querySelector<HTMLElement>("[data-scene]") ?? null;
+      // CRITICAL (root cause of "sin animación", S1–S9): the section contains
+      // TWO mobile blocks — MobileStatic (reduced-motion fallback, marked
+      // [data-scene-mobile-static], display:none when motion is allowed) and
+      // the ANIMATED MobileScene* (marked [data-scene-mobile]). querySelector
+      // returns the FIRST match in document order, and MobileStatic was ALSO
+      // tagged [data-scene-mobile] — so the mobile timeline was being bound to
+      // the display:none static block (start===end → never scrubs) whose
+      // children have none of the .il-* classes (→ "GSAP target not found").
+      // The animated scene is the only [data-scene-mobile] now.
       const mobileSection = rootEl?.querySelector<HTMLElement>("[data-scene-mobile]") ?? null;
       if (!rootEl || !scroller) return; // leave the readable base layout
 
@@ -245,7 +336,7 @@ function useSceneChoreography(
 // so the page degrades cleanly if JS or motion is unavailable.
 function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: Accent; image: string; emoji: string }) {
   return (
-    <div data-scene-mobile className="mx-auto max-w-3xl px-6 py-16 lg:hidden motion-safe:hidden">
+    <div data-scene-mobile-static className="mx-auto max-w-3xl px-6 py-16 lg:hidden motion-safe:hidden">
       <EyebrowPill accent={accent}>{t.eyebrow}</EyebrowPill>
       <h2 className="mt-4 text-3xl font-bold leading-tight text-white">{t.heading}</h2>
       <p className="mt-4 text-sm leading-relaxed text-white/60">{t.body}</p>
@@ -263,71 +354,6 @@ function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: A
 // images, multiple texts, more scroll moments). Each .m-rise element rises +
 // fades as it enters the viewport via the existing GSAP reveal; .m-chip staggers.
 // Reduced-motion never matches -> the MobileStatic fallback above renders. */
-
-// --- Mobile animation debug indicator (FINALPROD S8) -------------------------
-// A small fixed-position overlay that shows real-time state of the mobile
-// animation pipeline. The user has reported "sin animación" across 7
-// sessions; this indicator is the verification surface. The user takes
-// a screenshot, I see what state the system is actually in.
-//
-// - "DOM" : is the [data-scene-mobile] element in the DOM?
-// - "MM"  : is the GSAP matchMedia mobile branch firing? (set by GSAP
-//           itself once the mobile build runs)
-// - "Sec" : the section's top in viewport coordinates (px). When
-//           positive, the section is below the viewport top. When ~100vh
-//           or less, the trigger should be reachable.
-// - "card opacity" : getComputedStyle of .il-card-a. If the fromTo's
-//           immediateRender applied the FROM state, this is 0. If the
-//           trigger has fired and the animation played, this is 1.
-// - "words visible" : how many of the 5 .il-word elements have non-zero
-//           opacity at the current scroll position. Should grow as
-//           the user scrolls past the word start positions.
-//
-// Render this inside any mobile scene. Remove once the animation is
-// confirmed working.
-function MobileDebugIndicator({ sceneId }: { sceneId: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const update = () => {
-      // Look for the choreo MobileScene*, NOT the MobileStatic fallback. Both
-      // carry data-scene-mobile, but the MobileStatic has `mx-auto` and the
-      // MobileScene* has `relative block min-h-[...]`. The class selector
-      // isolates the right element.
-      const section = document.querySelector(
-        `#${sceneId} [data-scene-mobile].relative`
-      ) as HTMLElement | null;
-      if (!section || !ref.current) return;
-      const cardA = section.querySelector(".il-card-a") as HTMLElement | null;
-      const words = section.querySelectorAll(".il-word");
-      let visibleWords = 0;
-      words.forEach((w) => {
-        const s = getComputedStyle(w);
-        if (parseFloat(s.opacity) > 0.1) visibleWords++;
-      });
-      const rect = section.getBoundingClientRect();
-      ref.current.innerHTML = `
-        <div style="font-weight:700;color:#22d3ee">S8 DEBUG · ${sceneId}</div>
-        <div>DOM: ${section ? "✓" : "✗"}</div>
-        <div>Sec top: ${Math.round(rect.top)}px / vh:${window.innerHeight}</div>
-        <div>Sec height: ${Math.round(rect.height)}px</div>
-        <div>card-a opacity: ${cardA ? getComputedStyle(cardA).opacity : "n/a"}</div>
-        <div>card-a transform: ${cardA ? (getComputedStyle(cardA).transform.match(/matrix\\(.*?\\)/)?.[0]?.slice(0, 60) || getComputedStyle(cardA).transform.slice(0, 60)) : "n/a"}</div>
-        <div>words visible: ${visibleWords}/${words.length}</div>
-        <div>Lenis: ${(window as unknown as { __lenis?: { scroll: number } }).__lenis ? "present" : "?"}</div>
-      `;
-    };
-    update();
-    const id = window.setInterval(update, 250);
-    return () => window.clearInterval(id);
-  }, [sceneId]);
-  return (
-    <div
-      ref={ref}
-      className="fixed bottom-2 left-2 z-[200] max-w-[calc(100vw-1rem)] rounded border border-cyan-400/60 bg-black/90 px-2 py-1 font-mono text-[10px] leading-tight text-cyan-100 shadow-lg backdrop-blur-md"
-    />
-  );
-}
 
 // SCENE 1 (mobile) — Before the Systems: vertical scrubbed choreography.
 // Sticky stage inside a tall section; cards travel vertically (enter from
@@ -373,8 +399,6 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
           ))}
         </div>
       </div>
-      {/* S8 debug indicator — remove once animation is confirmed working */}
-      <MobileDebugIndicator sceneId="before-the-systems" />
     </div>
   );
 }
@@ -512,8 +536,17 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
     // final states at their own positions in the timeline. One timeline,
     // one owner, one partitura per scene.
     (q, { scroller, section }) => {
-      // eslint-disable-next-line no-console
-      console.log("[S9 sc1] mobile build running", { section: !!section, scroller: !!scroller });
+      markMobileBuildRan("sc1", section, scroller);
+
+      // Blindaje del estado de reposo (S10): los elementos VIAJEROS arrancan
+      // ocultos INMEDIATAMENTE (no dependen de que el ScrollTrigger renderice).
+      // Sin esto, antes de que el scroll llegue al `start` del trigger, la carta
+      // se ve a opacity 1 (su valor CSS natural). El narrativo NO se toca acá
+      // (fail-safe: legible siempre); la timeline lo revela temprano.
+      gsap.set(q(".il-card-a"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: -8 });
+      gsap.set(q(".il-card-b"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: 8 });
+      gsap.set(q(".il-thread"), { scaleY: 0, transformOrigin: "top center" });
+      gsap.set(q(".il-word"), { autoAlpha: 0, yPercent: 90, scale: 0.75 });
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },
@@ -646,8 +679,11 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
     },
     // MOBILE BUILD — see Scene 1 mobile note. One scrubbed timeline.
     (q, { scroller, section }) => {
-      // eslint-disable-next-line no-console
-      console.log("[S9 sc2] mobile build running", { section: !!section, scroller: !!scroller });
+      markMobileBuildRan("sc2", section, scroller);
+
+      // Blindaje del estado de reposo (S10) — ver nota en scene 1.
+      gsap.set(q(".il-screen"), { xPercent: 46, autoAlpha: 0, scale: 0.8, rotateY: 14, transformPerspective: 1000 });
+      gsap.set(q(".il-layer"), { autoAlpha: 0, y: 64, xPercent: -10 });
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },
@@ -756,8 +792,13 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
     },
     // MOBILE BUILD — see Scene 1 mobile note. One scrubbed timeline.
     (q, { scroller, section }) => {
-      // eslint-disable-next-line no-console
-      console.log("[S9 sc3] mobile build running", { section: !!section, scroller: !!scroller });
+      markMobileBuildRan("sc3", section, scroller);
+
+      // Blindaje del estado de reposo (S10) — ver nota en scene 1.
+      gsap.set(q(".il-backdrop"), { yPercent: 12, scale: 1.08 });
+      gsap.set(q(".il-flow"), { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" });
+      gsap.set(q(".il-rail"), { scaleX: 0, transformOrigin: "left center" });
+      gsap.set(q(".il-dot"), { autoAlpha: 0.3, scale: 1 });
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },

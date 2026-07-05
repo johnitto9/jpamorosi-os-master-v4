@@ -131,7 +131,7 @@ export default async function AdminHome() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/admin/projects/new" className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-white/80">+ New project</Link>
-          <Link href="/admin/media" className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:border-white/30">Hero video ↗</Link>
+          <Link href="/admin/media" className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:border-white/30">Home media ↗</Link>
           <Link href="/admin/leads" className="rounded-lg border border-cyan-400/40 px-3 py-2 text-sm text-cyan-300 hover:bg-cyan-400/10">Leads ↗</Link>
           <Link href="/admin/pipeline" className="rounded-lg border border-violet-400/40 px-3 py-2 text-sm text-violet-300 hover:bg-violet-400/10">Pipeline ↗</Link>
           <Link href="/admin/prospects" className="rounded-lg border border-emerald-400/40 px-3 py-2 text-sm text-emerald-300 hover:bg-emerald-400/10">Prospects ↗</Link>
