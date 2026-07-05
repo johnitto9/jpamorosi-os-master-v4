@@ -122,7 +122,8 @@ export async function listSessionMockups(sessionId: string): Promise<string[]> {
 // per context (logo 1:1, web home/screens 16:9, mobile 9:16, storyboard 16:9…).
 export type MockupAspect =
   | "1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "auto";
-// NB: Seedream 4.5 rejects "1K" (min ~3.69M px) — 2K is the floor.
+// NB: Seed enforces a min derived size of 3,686,400 px. "2K" only clears it for
+// 1:1; non-square aspects need "4K" (handled by sizedRequest below).
 export type MockupOpts = { aspectRatio?: MockupAspect; resolution?: "2K" | "4K" };
 
 // Per-PROJECT generation ceilings by asset role (Fase 3). The guided flow
@@ -186,6 +187,24 @@ export function describePalette(hexes: string[]): string {
     .join(", ");
 }
 
+/** Build the { aspect_ratio, resolution } part of a Seedream request so the
+ *  DERIVED image size always clears the provider's minimum (3,686,400 px =
+ *  2560×1440). Seed's "2K" preset only clears it for a SQUARE (1:1 = 2048² =
+ *  4.19M); ANY non-square at "2K" comes out below the floor and the API 400s
+ *  ("The parameter `size`… must be at least 3686400 pixels"). So for non-square
+ *  aspects we request "4K" — which both clears the floor and gives the hero
+ *  quality the representative/storyboard/home images want. Verified live:
+ *  16:9 & 9:16 @ 2K → 400, @ 4K → 200; 1:1 @ 2K → 200. */
+function sizedRequest(
+  aspectRatio: MockupAspect | undefined,
+  resolution: "2K" | "4K" | undefined,
+): { aspect_ratio: MockupAspect; resolution: "2K" | "4K" } {
+  const aspect = aspectRatio ?? "auto";
+  const requested = resolution ?? "2K";
+  // Only a true square is safe at 2K; everything else (incl. "auto") needs 4K.
+  return { aspect_ratio: aspect, resolution: aspect === "1:1" ? requested : "4K" };
+}
+
 /** Core Seedream 4.5 call — raw prompt in, PNG persisted under the session's
  *  media dir, public /api/media URL out. No caps here: each caller enforces
  *  its own (session cap for chat mockups, per-project role caps for the flow).
@@ -215,8 +234,7 @@ export async function generateImageToSession(
       body: JSON.stringify({
         model: env.OPENROUTER_IMAGE_MODEL,
         prompt: prompt.slice(0, 900),
-        aspect_ratio: opts?.aspectRatio ?? "auto",
-        resolution: opts?.resolution ?? "2K",
+        ...sizedRequest(opts?.aspectRatio, opts?.resolution),
         n: 1,
       }),
     });

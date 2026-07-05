@@ -45,7 +45,7 @@ function templateFor(kind: ThreadKind, lang: Lang) {
 }
 import { AssistantAvatar } from "./AssistantAvatar";
 import { AssistantMessage, type ChatTurn } from "./AssistantMessage";
-import { AssetVault } from "./AssetVault";
+import { InlineCanon } from "./InlineCanon";
 import {
   ProjectStrip,
   ProjectSetup,
@@ -742,13 +742,9 @@ export function AssistantWidget() {
         )}
       </AnimatePresence>
 
-      {/* project vault — lives INSIDE the chat (project/branding rooms), not on
-          the home. Shows only when the chat is open on a project-bearing thread. */}
-      <AssetVault
-        active={open && kind !== "omni"}
-        scope={kind === "branding" ? "branding" : "project"}
-        projectId={activeProject?.id}
-      />
+      {/* The canon now renders INSIDE the chat panel (see <InlineCanon/> above
+          the composer). The old floating <AssetVault/> sat at z-[115], behind
+          the z-[121] panel, so it read as "buried behind the home" — removed. */}
 
       {/* launcher — the mascot itself, with an attention ping until touched */}
       <button
@@ -910,7 +906,7 @@ export function AssistantWidget() {
               <div
                 ref={scrollRef}
                 data-lenis-prevent
-                className="flex-1 space-y-3 overflow-y-auto px-5 py-4"
+                className="chat-scroll flex-1 space-y-3 overflow-y-auto px-5 py-4"
               >
                 {/* The transcript is driven by the guided-flow state machine.
                     Priority: explicit setup wizard → branding workspace →
@@ -1069,6 +1065,16 @@ export function AssistantWidget() {
                   );
                 })()}
               </div>
+
+              {/* canon rail — palette + generated assets INSIDE the panel, so
+                  branding-done never looks empty and the project room fills as
+                  visuals land (refreshes on al-workspace-refresh) */}
+              {kind !== "omni" && (
+                <InlineCanon
+                  projectId={activeProject?.id}
+                  scope={kind === "branding" ? "branding" : "project"}
+                />
+              )}
 
               {/* composer */}
               <form

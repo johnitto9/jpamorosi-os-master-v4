@@ -211,7 +211,7 @@ export function AssetVault({
             <button type="button" onClick={toggle} aria-label="Collapse vault" className="rounded p-1 text-white/50 hover:text-white">✕</button>
           </header>
 
-          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-sm">
+          <div className="chat-scroll flex-1 space-y-4 overflow-y-auto px-4 py-4 text-sm">
             {/* palette */}
             {project.palette.length > 0 && (
               <section>

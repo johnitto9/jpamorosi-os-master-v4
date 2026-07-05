@@ -371,9 +371,13 @@ export function DecisionsBoard({
   onConsolidate: () => void;
 }) {
   const t = FLOW[lang];
-  // categories already decided (either here or by the agent) don't re-ask
-  const [decided, setDecided] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState<string | null>(null);
+  // categories already persisted (server-side, incl. agent-proposed) — locked.
+  const [server, setServer] = useState<Record<string, string>>({});
+  // local picks stay editable (toggle to deselect, click another to change)
+  // until the visitor confirms — nothing is written until then, so the answers
+  // can be changed freely before sending.
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch(`/api/assistant/workspace?projectId=${project.id}`)
@@ -382,60 +386,74 @@ export function DecisionsBoard({
         const list: Array<{ category: string; option: string }> = d?.workspace?.stackDecisions ?? [];
         const map: Record<string, string> = {};
         for (const dec of list) if (!map[dec.category]) map[dec.category] = dec.option;
-        setDecided(map);
+        setServer(map);
       })
       .catch(() => undefined);
   }, [project.id]);
 
-  async function pick(category: string, option: string) {
-    if (saving) return;
-    setSaving(category);
-    try {
-      const res = await fetch("/api/assistant/decisions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: project.id, category, option }),
-      });
-      if (res.ok) {
-        setDecided((prev) => ({ ...prev, [category]: option }));
-        refreshVault();
-      }
-    } finally {
-      setSaving(null);
-    }
+  // toggle a local selection; server-committed categories are locked
+  function select(category: string, option: string) {
+    if (server[category] || saving) return;
+    setChosen((prev) => {
+      const next = { ...prev };
+      if (next[category] === option) delete next[category];
+      else next[category] = option;
+      return next;
+    });
   }
 
-  const open = DECISION_PRESETS.filter((d) => !decided[d.id]);
-  const allDone = open.length === 0;
+  const valueFor = (id: string): string | undefined => server[id] ?? chosen[id];
+  const allChosen = DECISION_PRESETS.every((d) => valueFor(d.id));
+
+  // persist ONLY the locally-picked ones (server rows already exist — never
+  // re-POST, addStackDecision appends), then advance the phase.
+  async function consolidate() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      for (const d of DECISION_PRESETS) {
+        const opt = chosen[d.id];
+        if (!opt || server[d.id]) continue;
+        await fetch("/api/assistant/decisions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: project.id, category: d.id, option: opt }),
+        }).catch(() => undefined);
+      }
+      refreshVault();
+      onConsolidate();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
       <AssistantMessage turn={{ role: "assistant", content: t.dIntro }} />
       {DECISION_PRESETS.map((d) => {
-        const picked = decided[d.id];
+        const val = valueFor(d.id);
+        const locked = !!server[d.id];
         return (
           <div
             key={d.id}
-            className={`rounded-2xl border p-3.5 ${picked ? "border-emerald-400/25 bg-emerald-400/[0.04]" : "border-white/15 bg-white/[0.03]"}`}
+            className={`rounded-2xl border p-3.5 ${val ? "border-emerald-400/25 bg-emerald-400/[0.04]" : "border-white/15 bg-white/[0.03]"}`}
           >
             <p className="text-xs font-semibold text-white">
-              {picked ? "✓ " : ""}
+              {val ? "✓ " : ""}
               {d.question[lang]}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {d.options.map((o) => {
-                const on = picked === o.label[lang];
+                const on = val === o.label[lang];
                 return (
                   <button
                     key={o.id}
-                    onClick={() => void pick(d.id, o.label[lang])}
-                    disabled={!!picked || saving === d.id}
+                    onClick={() => select(d.id, o.label[lang])}
+                    disabled={locked || saving}
                     className={`rounded-full border px-3 py-1.5 text-[11px] transition-colors ${
                       on
                         ? "border-emerald-400/70 bg-emerald-400/15 text-emerald-200"
-                        : picked
-                          ? "border-white/10 text-white/30"
-                          : "border-white/15 text-white/70 hover:border-cyan-400/50 hover:text-cyan-200"
+                        : "border-white/15 text-white/70 hover:border-cyan-400/50 hover:text-cyan-200 disabled:opacity-40"
                     }`}
                   >
                     {o.label[lang]}
@@ -446,12 +464,13 @@ export function DecisionsBoard({
           </div>
         );
       })}
-      {allDone && (
+      {allChosen && (
         <motion.button
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          onClick={onConsolidate}
-          className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-black hover:opacity-90"
+          onClick={() => void consolidate()}
+          disabled={saving}
+          className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
         >
           {t.dConsolidate}
         </motion.button>
@@ -542,51 +561,60 @@ export function GenerationBoard({
   }
 
   const ready = project.phase === "ready";
+  // three separate, guided steps (one action per card) instead of one crowded
+  // strip — each is a distinct deliverable the visitor can trigger on its own.
   return (
     <div className="space-y-3">
       <AssistantMessage
         turn={{ role: "assistant", content: ready ? t.gReadyMsg : t.gIntro }}
       />
+
+      {/* STEP · map */}
       <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.03] p-3.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => void runMap()}
-            disabled={busy !== null}
-            className="rounded-full border border-cyan-400/50 px-4 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/10 disabled:opacity-40"
-          >
-            {busy === "map" ? t.gWorking : t.gMap}
-          </button>
-          <button
-            onClick={() => void runHome()}
-            disabled={busy !== null}
-            className="rounded-full border border-violet-400/50 px-4 py-2 text-xs font-semibold text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
-          >
-            {busy === "home"
-              ? `${t.gWorking}${homeProgress ? ` ${homeProgress.done}/${homeProgress.planned}` : ""}`
-              : t.gHome}
-          </button>
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            value={screenBrief}
-            onChange={(e) => setScreenBrief(e.target.value)}
-            placeholder={t.gScreenPh}
-            maxLength={200}
-            className="min-w-0 flex-1 rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400/60"
-          />
-          <button
-            onClick={() => void runScreen()}
-            disabled={busy !== null}
-            className="shrink-0 rounded-full border border-white/25 px-3.5 py-1.5 text-xs font-semibold text-white/85 hover:border-cyan-400/50 hover:text-cyan-200 disabled:opacity-40"
-          >
-            {busy === "screen" ? t.gWorking : t.gScreens}
-          </button>
-        </div>
-        {busy !== null && (
-          <p className="mt-2 animate-pulse text-[11px] text-white/45">{FLOW[lang].bGenerating}</p>
-        )}
-        {notice && <p className="mt-2 text-[11px] text-amber-200">{notice}</p>}
+        <button
+          onClick={() => void runMap()}
+          disabled={busy !== null}
+          className="w-full rounded-xl border border-cyan-400/50 px-4 py-2.5 text-sm font-semibold text-cyan-200 transition-colors hover:bg-cyan-400/10 disabled:opacity-40"
+        >
+          {busy === "map" ? t.gWorking : t.gMap}
+        </button>
       </div>
+
+      {/* STEP · home */}
+      <div className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.03] p-3.5">
+        <button
+          onClick={() => void runHome()}
+          disabled={busy !== null}
+          className="w-full rounded-xl border border-violet-400/50 px-4 py-2.5 text-sm font-semibold text-violet-200 transition-colors hover:bg-violet-400/10 disabled:opacity-40"
+        >
+          {busy === "home"
+            ? `${t.gWorking}${homeProgress ? ` ${homeProgress.done}/${homeProgress.planned}` : ""}`
+            : t.gHome}
+        </button>
+      </div>
+
+      {/* STEP · screens (brief + generate) */}
+      <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-3.5">
+        <input
+          value={screenBrief}
+          onChange={(e) => setScreenBrief(e.target.value)}
+          placeholder={t.gScreenPh}
+          maxLength={200}
+          className="mb-2 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/60"
+        />
+        <button
+          onClick={() => void runScreen()}
+          disabled={busy !== null}
+          className="w-full rounded-xl border border-white/25 px-4 py-2.5 text-sm font-semibold text-white/85 transition-colors hover:border-cyan-400/50 hover:text-cyan-200 disabled:opacity-40"
+        >
+          {busy === "screen" ? t.gWorking : t.gScreens}
+        </button>
+      </div>
+
+      {busy !== null && (
+        <p className="animate-pulse text-[11px] text-white/45">{FLOW[lang].bGenerating}</p>
+      )}
+      {notice && <p className="text-[11px] text-amber-200">{notice}</p>}
     </div>
   );
 }

@@ -124,7 +124,12 @@ export function ProjectStrip({
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <span aria-hidden>{KIND_META[p.kind]?.icon ?? "🧩"}</span>
+              {p.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.logoUrl} alt="" className="h-4 w-4 shrink-0 rounded object-cover" />
+              ) : (
+                <span aria-hidden>{KIND_META[p.kind]?.icon ?? "🧩"}</span>
+              )}
               <span className="truncate text-xs font-semibold text-white">{p.name}</span>
             </div>
             <div className="mt-1.5 flex items-center gap-1">
@@ -135,11 +140,13 @@ export function ProjectStrip({
                 {p.stack.length > 0 ? `${p.stack.length} stack` : "—"}
               </span>
             </div>
-            {on && (
-              <span className="mt-1 font-mono text-[8px] uppercase tracking-[0.2em] text-cyan-300">
-                {t.stripActive}
-              </span>
-            )}
+            {/* always rendered (invisible when idle) so the active state never
+                changes the card height — no vertical jump on select */}
+            <span
+              className={`mt-1 font-mono text-[8px] uppercase tracking-[0.2em] text-cyan-300 ${on ? "" : "invisible"}`}
+            >
+              {t.stripActive}
+            </span>
           </button>
         );
       })}
