@@ -59,9 +59,32 @@ export function ScrollStage({
       touchMultiplier: 1.4,
     });
 
-    // 1. Forward every Lenis scroll to ScrollTrigger so it can recompute
-    //    progress for any active trigger.
-    lenis.on("scroll", ScrollTrigger.update);
+    let lastTop = wrapper.scrollTop;
+    let lastTs = performance.now();
+    const onLenisScroll = () => {
+      // 1. Forward every Lenis scroll to ScrollTrigger so it can recompute
+      //    progress for any active trigger.
+      ScrollTrigger.update();
+
+      // 1b. Broadcast a tiny, read-only scroll signal for fixed ambient layers.
+      //     Consumers must animate transforms only; no layout reads downstream.
+      const now = performance.now();
+      const top = wrapper.scrollTop;
+      const max = Math.max(1, wrapper.scrollHeight - wrapper.clientHeight);
+      const dt = Math.max(16, now - lastTs);
+      const velocity = ((top - lastTop) / dt) * 1000;
+      lastTop = top;
+      lastTs = now;
+      window.dispatchEvent(
+        new CustomEvent("al-scroll-stage", {
+          detail: {
+            progress: Math.max(0, Math.min(1, top / max)),
+            velocity: Math.max(-1800, Math.min(1800, velocity)),
+          },
+        }),
+      );
+    };
+    lenis.on("scroll", onLenisScroll);
 
     // 2. Share the GSAP ticker with Lenis — one rAF loop, one clock. This
     //    is the only synchronization Lenis needs. lagSmoothing(0) is
@@ -80,7 +103,7 @@ export function ScrollStage({
     return () => {
       cancelAnimationFrame(raf);
       gsap.ticker.remove(tick);
-      lenis.off("scroll", ScrollTrigger.update);
+      lenis.off("scroll", onLenisScroll);
       lenis.destroy();
     };
   }, []);

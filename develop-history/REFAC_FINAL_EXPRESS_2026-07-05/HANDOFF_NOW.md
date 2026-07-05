@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v6
+# HANDOFF — 2026-07-05 (leer esto primero) · v7
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..11`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..12`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..11.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..12.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -26,7 +26,7 @@ VACÍOS** → uploads locales (código R2-ready, sólo faltan envs).
 ## De dónde venimos
 12 sesiones FINALPROD (animaciones interludios mobile + fix Seedream 16:9), 2
 tandas de pulido (vault inline, botones generate separados, decisiones
-deseleccionables, scrollbar, project card), y esta REFAC final (exec01→11).
+deseleccionables, scrollbar, project card), y esta REFAC final (exec01→12).
 
 ## Qué se hizo en esta refac (TODO VIVO y verificado salvo aclaración)
 - **R5 prospecting REAL** (exec01): `lib/agent/prospects.ts` `harvestContact()`
@@ -84,10 +84,14 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→11).
   evento `agent.daily_scout` por fecha antes de gastar Serper/LLM; si ya corrio
   devuelve `skipped:"already_ran_today"`. El worker puede reiniciar sin duplicar
   el scout del dia. Verificado con `tsc` y rebuild final.
+- **P3 Living Layer** (exec12): `ScrollStage` emite `al-scroll-stage`
+  (`progress` + `velocity`) y `AuroraScene` reacciona con transform GPU-only
+  (`x/y/scale`) en la capa aurora interna. Respeta reduced-motion. Verificado
+  con `tsc`; falta rebuild para verlo vivo.
 
 ## Qué queda (por prioridad, specs listas)
-1. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
-2. Verificacion visual/manual de R1/R4 si se quiere afinar copy/UX.
+1. Rebuild final para materializar exec12 en `:3001`.
+2. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,
