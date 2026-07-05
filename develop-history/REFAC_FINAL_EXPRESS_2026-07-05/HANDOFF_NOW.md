@@ -75,19 +75,19 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→11).
 - **R1 captura inicial** (exec09): `ProjectSetup` step 0 captura opcionalmente
   nombre/persona, empresa y email; `/api/assistant/projects` valida `lead` con
   `leadPatchSchema` y hace `upsertLead(sessionId, lead)` al crear el proyecto.
-  Verificado con `tsc`; falta rebuild para verlo vivo en `:3001`.
+  Verificado con `tsc` y rebuild final.
 - **R4 cards interactivas minimo** (exec10): nuevo `AssistantCard` tipo `info`,
   render `InfoCard`, guardrails permiten la card, y `orchestrator` expone tool
   server-side `show_card` con arg JSON validado para respuestas compactas en
-  bloques. Verificado con `tsc`; falta rebuild para verlo vivo en `:3001`.
+  bloques. Verificado con `tsc` y rebuild final.
 - **Worker scout idempotente** (exec11): `/api/cron/daily-scout` ahora revisa
   evento `agent.daily_scout` por fecha antes de gastar Serper/LLM; si ya corrio
   devuelve `skipped:"already_ran_today"`. El worker puede reiniciar sin duplicar
-  el scout del dia. Verificado con `tsc`; falta rebuild para verlo vivo.
+  el scout del dia. Verificado con `tsc` y rebuild final.
 
 ## Qué queda (por prioridad, specs listas)
 1. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
-2. **Rebuild final** para materializar exec09/10/11 en `:3001`.
+2. Verificacion visual/manual de R1/R4 si se quiere afinar copy/UX.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,
