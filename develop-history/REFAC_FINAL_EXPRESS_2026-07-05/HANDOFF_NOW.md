@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v8
+# HANDOFF — 2026-07-05 (leer esto primero) · v9
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..13`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..15`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..13.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..15.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -20,8 +20,9 @@ curl -s http://127.0.0.1:3001/api/health   # {"ok":true}
 npx tsc --noEmit` (0 errores). Sin curl dentro del contenedor → `node -e` + fetch.
 DB: `node -e` + `pg` + `process.env.DATABASE_URL`.
 
-Env viva: OPENROUTER/SERPER/RESEND/INTERNAL_TOKEN = SET. **R2 y MEDIA_CDN
-VACÍOS** → uploads locales (código R2-ready, sólo faltan envs).
+Env viva: OPENROUTER/SERPER/RESEND/INTERNAL_TOKEN = SET. **R2 activo en Docker
+local** vía `frontend-app/.env.docker.local` (git-ignored): uploads admin salen a
+Cloudflare R2 y devuelven URLs `https://media.jpamorosi.dev/...`.
 
 ## De dónde venimos
 12 sesiones FINALPROD (animaciones interludios mobile + fix Seedream 16:9), 2
@@ -93,12 +94,16 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→13).
   timelines mobile usan `scrub:true` (sin smoothing extra encima de Lenis).
   Además `/cv` ya no monta la aurora global. Verificado con `tsc`, rebuild y
   health OK.
+- **R2 media prod active** (exec15): variables `R2_*` cargadas en Docker runtime;
+  upload admin probado con imagen+video de `mediatest/`; ambos quedaron
+  `storage:"r2"`, servidos por Cloudflare 200, y BuenPick consume `heroImage` +
+  `heroVideo` desde R2 en API pública, home y room.
 
 ## Qué queda (por prioridad, specs listas)
 1. Verificacion visual/manual del temblor mobile en `YOU'RE INSIDE THE PROOF`
    y `THE LIVING LAYER`.
 2. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
-3. Setear `R2_*` + CDN si se quiere dejar de servir uploads desde volumen local.
+3. En deploy real/Dokploy, replicar las mismas `R2_*` envs del Docker local.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,
