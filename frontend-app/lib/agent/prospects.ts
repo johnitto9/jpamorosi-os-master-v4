@@ -275,6 +275,15 @@ export async function listProspects(limit = 300): Promise<Prospect[]> {
   return res?.rows ?? [];
 }
 
+export async function getProspect(id: number): Promise<Prospect | null> {
+  if (!(await dbReady())) return null;
+  const res = await tryQuery<Prospect>(
+    `SELECT ${SELECT} FROM prospects WHERE id = $1 LIMIT 1`,
+    [id],
+  );
+  return res?.rows[0] ?? null;
+}
+
 /** Mailing DB: prospects that reached qualify+ AND have a discovered email —
  *  the export surface for warm/opt-in outreach. Highest fit first. */
 export async function listMailingCandidates(): Promise<Prospect[]> {
@@ -300,6 +309,26 @@ export async function setProspectStage(
   );
   if (res) await recordEvent("prospect.updated", { id, stage, by: "admin" });
   return res !== null;
+}
+
+export async function markProspectOutreachSent(
+  id: number,
+  providerId?: string,
+): Promise<boolean> {
+  if (!(await dbReady())) return false;
+  const res = await tryQuery(
+    `UPDATE prospects SET stage = 'contacted', updated_at = now()
+     WHERE id = $1 AND stage = 'contact'`,
+    [id],
+  );
+  if ((res?.rowCount ?? 0) > 0) {
+    await recordEvent("prospect.outreach.sent", {
+      id,
+      providerId,
+      stage: "contacted",
+    });
+  }
+  return (res?.rowCount ?? 0) > 0;
 }
 
 // ---- the pipeline brain ----------------------------------------------------------

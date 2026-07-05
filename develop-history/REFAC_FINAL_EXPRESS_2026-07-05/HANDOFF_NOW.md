@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v2
+# HANDOFF — 2026-07-05 (leer esto primero) · v3
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..06`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..07`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..06.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..07.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -26,7 +26,7 @@ VACÍOS** → uploads locales (código R2-ready, sólo faltan envs).
 ## De dónde venimos
 12 sesiones FINALPROD (animaciones interludios mobile + fix Seedream 16:9), 2
 tandas de pulido (vault inline, botones generate separados, decisiones
-deseleccionables, scrollbar, project card), y esta REFAC final (exec01→04).
+deseleccionables, scrollbar, project card), y esta REFAC final (exec01→07).
 
 ## Qué se hizo en esta refac (TODO VIVO y verificado salvo aclaración)
 - **R5 prospecting REAL** (exec01): `lib/agent/prospects.ts` `harvestContact()`
@@ -61,14 +61,21 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→04).
   trackeados; `/api/track` bindea cookie `al_sid` cuando el token pertenece a un
   lead con sesión; timeline admin muestra `lead.link.created/clicked`. Smoke E2E
   probado: 302 + Set-Cookie + clicks=1 + evento con sessionId.
+- **R6 outbound avanzado** (exec07): `/admin/prospects` tiene accion explicita
+  `outreach` desde el drawer para prospects en `contact` con email; manda
+  `prospect_outreach` via Resend con tracking `prospectId` y solo marca
+  `contacted` si el envio real fue OK. Heartbeat suma secuencia
+  `clicked-but-no-return`: si un lead clickea un tracked link y no vuelve a la
+  sesion, dispara segundo toque con campaña `clicked_no_return`, limitado e
+  idempotente por evento `lead.click_followup.sent`.
 
 ## Qué queda (por prioridad, specs listas)
-1. **R6 avanzado**: secuencia "clicked but no return" en heartbeat + outreach
-   outbound real desde `prospects` con tracking por `prospectId`.
-2. **R2** card de sesión + email (permanencia loginless / resume link).
-3. **R1** captura implícita de nombre/empresa en step 0 de ProjectSetup.
-4. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
-5. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
+1. **R2** card de sesión + email (permanencia loginless / resume link).
+2. **R1** captura implícita de nombre/empresa en step 0 de ProjectSetup.
+3. **R4** cards interactivas (tool `show_card`, respuestas en bloques).
+4. **P3** "Living Layer" vibra al scrollear (GPU-promote / sólo transform).
+5. **Worker scout**: persistir `lastScoutDate` en DB si se quiere evitar reset
+   diario por restart.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,
@@ -87,8 +94,9 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→04).
   `lib/media/{storage,resolve,store.ts}` (SiteSettings.interludes), `lib/env.ts`.
 
 ## Riesgos operativos (importante)
-- **NADA commiteado** en toda la refac (rama v4final). Commitear los bloques que
-  andan ANTES de seguir — un `docker prune`/mal día y se pierde.
+- Refac previa ya fue commiteada en bloques locales y `main` apunta al mismo
+  historial que `v4final` al cierre de exec06. Exec07 debe commitearse tambien
+  antes de seguir con R2/R1/R4.
 - **R2 sin envs**: uploads locales. Setear `R2_*` + `NEXT_PUBLIC_MEDIA_CDN_BASE`
   para servir de bucket (sin cambios de código).
 - Cada cambio de front = rebuild ~3 min + verificación manual (no hay

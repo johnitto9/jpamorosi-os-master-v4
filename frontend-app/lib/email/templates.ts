@@ -256,6 +256,28 @@ export const templates = {
     };
   },
 
+  prospect_outreach(d: {
+    company?: string;
+    contactName?: string;
+    body: string;
+    siteUrl: string;
+    sourceUrl?: string;
+  }): RenderedEmail {
+    return {
+      subject: d.company
+        ? `Idea concreta para ${d.company}`
+        : "Idea concreta para tu producto",
+      html: shell(
+        `Hi${d.contactName ? `, ${d.contactName}` : ""}`,
+        `<p style="white-space:pre-line">${esc(d.body)}</p>
+         ${button(d.siteUrl, "See the systems →")}
+         ${d.sourceUrl ? `<p style="margin-top:14px;color:#565672;font-size:11px">Context I reviewed: <a href="${esc(d.sourceUrl)}" style="color:#00b8cc;text-decoration:none">${esc(d.sourceUrl)}</a></p>` : ""}
+         <p style="color:#9aa3b2;font-size:12px">Reply here and it lands directly with Juan.</p>`,
+      ),
+      text: `Hi${d.contactName ? ` ${d.contactName}` : ""},\n\n${d.body}\n\n${d.siteUrl}${d.sourceUrl ? `\n\nContext reviewed: ${d.sourceUrl}` : ""}\n\nReply here and it lands directly with Juan.`,
+    };
+  },
+
   // the system's daily self-report: what it did ON ITS OWN in the last cycle
   daily_pulse(d: {
     date: string;

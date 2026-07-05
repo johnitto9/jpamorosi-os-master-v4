@@ -38,6 +38,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 180;
 
 const FOLLOWUPS_PER_CYCLE = 3;
+const CLICK_FOLLOWUPS_PER_CYCLE = 2;
 
 function followupsEnabled(): boolean {
   return process.env.AGENT_FOLLOWUP_ENABLED === "true";
@@ -63,6 +64,11 @@ type ColdLead = {
   need: string | null;
   stage: string;
   lang: string | null;
+};
+
+type ClickedNoReturnLead = ColdLead & {
+  clickedAt: string;
+  targetUrl: string;
 };
 
 async function findColdWarmLeads(): Promise<ColdLead[]> {
@@ -151,6 +157,121 @@ async function runFollowups(): Promise<number> {
   return sent;
 }
 
+async function findClickedNoReturnLeads(): Promise<ClickedNoReturnLead[]> {
+  const res = await tryQuery<ClickedNoReturnLead>(
+    `SELECT DISTINCT ON (l.id)
+            l.id::int AS id, l.session_id AS "sessionId", l.name, l.email,
+            l.need, l.stage, s.meta->>'lang' AS lang,
+            t.clicked_at::text AS "clickedAt", t.target_url AS "targetUrl"
+     FROM tracked_links t
+     JOIN leads l ON l.id = t.lead_id
+     LEFT JOIN visitor_sessions s ON s.id = l.session_id
+     WHERE l.email IS NOT NULL
+       AND t.clicked_at IS NOT NULL
+       AND t.clicked_at < now() - interval '2 hours'
+       AND t.clicked_at > now() - interval '14 days'
+       AND (s.last_seen IS NULL OR s.last_seen < t.clicked_at + interval '10 minutes')
+       AND NOT EXISTS (
+         SELECT 1 FROM events e
+          WHERE e.type = 'lead.click_followup.sent'
+            AND e.payload->>'leadId' = l.id::text
+       )
+     ORDER BY l.id, t.clicked_at DESC
+     LIMIT $1`,
+    [CLICK_FOLLOWUPS_PER_CYCLE],
+  );
+  return res?.rows ?? [];
+}
+
+async function composeClickFollowup(
+  lead: ClickedNoReturnLead,
+): Promise<{ body: string; project?: string }> {
+  const [messages, projects] = await Promise.all([
+    listMessages(lead.sessionId, 20),
+    listSessionProjects(lead.sessionId),
+  ]);
+  const project = projects[0];
+  const fallback = [
+    lead.name ? `${lead.name}, vi que abriste el link pero no llegaste a retomar la conversación.` : "Vi que abriste el link pero no llegaste a retomar la conversación.",
+    project?.name
+      ? `Si querés, dejamos armado el próximo paso de "${project.name}" sin arrancar de cero.`
+      : "Si querés, podemos retomar desde el mismo punto y convertirlo en un próximo paso concreto.",
+    "Te dejo de nuevo la puerta abierta; también podés responder este mail y lo leo directo.",
+  ].join("\n\n");
+
+  if (!isLlmConfigured()) {
+    return { body: fallback, project: project?.name };
+  }
+
+  const transcript = messages
+    .slice(-10)
+    .map((m) => `${m.role}: ${m.content.slice(0, 220)}`)
+    .join("\n");
+  const raw = await chatCompletion([
+    {
+      role: "system",
+      content:
+        `Write a short second-touch email body on behalf of ${profile.name}'s lab assistant. ` +
+        `Context: the lead clicked a tracked link but did not return to the app. ` +
+        `Rules: acknowledge lightly, no creepy wording, no pressure, reference one real project/need if available, 2-4 sentences. ` +
+        `Write in ${lead.lang === "es" ? "Spanish (Argentine, informal 'vos')" : lead.lang ? `the language with ISO code "${lead.lang}"` : "the conversation language"}. ` +
+        `Reply STRICT JSON: {"body": string}.`,
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        name: lead.name,
+        need: lead.need,
+        clickedAt: lead.clickedAt,
+        targetUrl: lead.targetUrl,
+        project: project ? { name: project.name, concept: project.concept, stack: project.stack } : null,
+        transcript,
+      }),
+    },
+  ]);
+  try {
+    const parsed = JSON.parse(
+      (raw ?? "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""),
+    ) as { body?: string };
+    const body = parsed.body?.trim();
+    return {
+      body: body && body.length >= 40 ? body.slice(0, 1200) : fallback,
+      project: project?.name,
+    };
+  } catch {
+    return { body: fallback, project: project?.name };
+  }
+}
+
+async function runClickedNoReturnFollowups(): Promise<number> {
+  if (!followupsEnabled()) return 0;
+  let sent = 0;
+  for (const lead of await findClickedNoReturnLeads()) {
+    const composed = await composeClickFollowup(lead);
+    const result = await sendEmail({
+      template: "lead_followup",
+      to: lead.email,
+      data: {
+        name: lead.name ?? undefined,
+        body: composed.body,
+        projectName: composed.project,
+        siteUrl: env.NEXT_PUBLIC_SITE_URL,
+      },
+      tracking: { leadId: lead.id, campaign: "clicked_no_return" },
+    });
+    if (result.ok) {
+      sent += 1;
+      await recordEvent("lead.click_followup.sent", {
+        sessionId: lead.sessionId,
+        leadId: lead.id,
+        clickedAt: lead.clickedAt,
+        targetUrl: lead.targetUrl,
+      });
+    }
+  }
+  return sent;
+}
+
 // ---- step 3: the system reflects on its own day ---------------------------------
 
 type DayStats = {
@@ -232,16 +353,18 @@ export async function POST(request: Request) {
   const pipeline = await processPipelineBatch(8);
   // 2. warm leads that went quiet hear from us — once, personally
   const followupsSent = await runFollowups();
+  const clickedFollowupsSent = await runClickedNoReturnFollowups();
   // 3. the system looks at its own day and remembers what it learned
   const stats = await collectDayStats();
-  const reflection = await reflect(stats, followupsSent, pipeline.processed);
+  const totalFollowupsSent = followupsSent + clickedFollowupsSent;
+  const reflection = await reflect(stats, totalFollowupsSent, pipeline.processed);
   // 4. the admin gets the pulse
   const date = new Date().toISOString().slice(0, 10);
   await notifyAdmin("daily_pulse", {
     date,
     sessions: stats.sessions,
     leads: stats.leads,
-    followupsSent,
+    followupsSent: totalFollowupsSent,
     prospectsMoved: pipeline.processed,
     prospectsReady: stats.prospectsReady,
     aiCalls: stats.aiCalls,
@@ -253,14 +376,16 @@ export async function POST(request: Request) {
   await recordEvent("agent.heartbeat", {
     date,
     prospectsMoved: pipeline.processed,
-    followupsSent,
+    followupsSent: totalFollowupsSent,
+    clickedFollowupsSent,
     reflected: !!reflection,
   });
   return NextResponse.json({
     ok: true,
     date,
     prospectsMoved: pipeline.processed,
-    followupsSent,
+    followupsSent: totalFollowupsSent,
+    clickedFollowupsSent,
     followupsEnabled: followupsEnabled(),
     reflection: reflection ?? null,
   });

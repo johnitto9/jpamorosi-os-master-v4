@@ -191,15 +191,19 @@ function ProspectDrawer({
   p,
   onClose,
   onStage,
+  onOutreach,
   onPromoted,
 }: {
   p: Prospect | null;
   onClose: () => void;
   onStage: (id: number, stage: string) => void;
+  onOutreach: (id: number) => Promise<{ ok: boolean; error?: string; skipped?: boolean }>;
   onPromoted: (prospectId: number, leadId: number) => void;
 }) {
   const [promoting, setPromoting] = useState(false);
   const [promoteErr, setPromoteErr] = useState<string | null>(null);
+  const [outreaching, setOutreaching] = useState(false);
+  const [outreachErr, setOutreachErr] = useState<string | null>(null);
 
   // Escape closes the drawer (the keyboard shortcut the admin actually uses).
   useEffect(() => {
@@ -215,6 +219,8 @@ function ProspectDrawer({
   useEffect(() => {
     setPromoting(false);
     setPromoteErr(null);
+    setOutreaching(false);
+    setOutreachErr(null);
   }, [p?.id]);
 
   if (!p) return null;
@@ -257,6 +263,24 @@ function ProspectDrawer({
       onClose();
     } finally {
       setPromoting(false);
+    }
+  }
+
+  async function sendOutreach() {
+    if (!p || outreaching) return;
+    setOutreaching(true);
+    setOutreachErr(null);
+    try {
+      const res = await onOutreach(p.id);
+      if (!res.ok) {
+        setOutreachErr(
+          res.skipped
+            ? "Email no enviado: Resend no está configurado en este entorno."
+            : `Email no enviado: ${res.error ?? "falló el transporte"}`,
+        );
+      }
+    } finally {
+      setOutreaching(false);
     }
   }
 
@@ -373,6 +397,11 @@ function ProspectDrawer({
                   {promoteErr}
                 </p>
               )}
+              {outreachErr && (
+                <p className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                  {outreachErr}
+                </p>
+              )}
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {!contacted && (
                   <button
@@ -383,12 +412,23 @@ function ProspectDrawer({
                   </button>
                 )}
                 {p.stage === "contact" && !contacted && (
-                  <button
-                    onClick={() => onStage(p.id, "contacted")}
-                    className="rounded-full border border-emerald-400/50 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-400/10"
-                  >
-                    Marcar contactado
-                  </button>
+                  <>
+                    {p.email && (
+                      <button
+                        onClick={sendOutreach}
+                        disabled={outreaching}
+                        className="rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {outreaching ? "Enviando…" : "Enviar outreach"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onStage(p.id, "contacted")}
+                      className="rounded-full border border-emerald-400/50 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-400/10"
+                    >
+                      Marcar contactado
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={promote}
@@ -496,6 +536,37 @@ export function ProspectBoard() {
     // if the drawer was open on this prospect, mirror the change
     setSelected((cur) => (cur && cur.id === id ? { ...cur, stage } : cur));
     void act({ action: "stage", id, stage }, "stage");
+  };
+
+  const onOutreach = async (id: number): Promise<{ ok: boolean; error?: string; skipped?: boolean }> => {
+    if (busy) return { ok: false, error: "busy" };
+    setBusy("outreach");
+    try {
+      const res = await fetch("/api/admin/prospects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "outreach", id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        return {
+          ok: false,
+          error: typeof data?.error === "string" ? data.error : `HTTP ${res.status}`,
+          skipped: data?.skipped === true,
+        };
+      }
+      setProspects((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, stage: "contacted", updatedAt: new Date().toISOString() } : p,
+        ),
+      );
+      setSelected((cur) => (cur && cur.id === id ? { ...cur, stage: "contacted" } : cur));
+      setLastReport("Outreach enviado con tracking · prospecto pasó a contactado");
+      await refresh();
+      return { ok: true };
+    } finally {
+      setBusy(null);
+    }
   };
 
   const onPromoted = (prospectId: number, leadId: number) => {
@@ -621,6 +692,7 @@ export function ProspectBoard() {
         p={selected}
         onClose={() => setSelected(null)}
         onStage={onStage}
+        onOutreach={onOutreach}
         onPromoted={onPromoted}
       />
     </div>

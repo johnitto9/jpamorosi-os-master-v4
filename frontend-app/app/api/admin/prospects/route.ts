@@ -4,15 +4,20 @@
 //   POST {action}     -> "ingest"  { text }          drop an email/raw text
 //                        "process" { limit? }        advance a pipeline batch
 //                        "stage"   { id, stage }     manual move (contacted/discard)
+//                        "outreach"{ id }            send tracked outbound email
 // Session-cookie admin auth (same guard as the rest of the backoffice).
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardAdmin } from "@/lib/auth/guard";
 import { isDbConfigured } from "@/lib/db/pool";
+import { env } from "@/lib/env";
+import { sendEmail } from "@/lib/email/service";
 import {
+  getProspect,
   listProspects,
   listMailingCandidates,
   ingestDroppedText,
+  markProspectOutreachSent,
   processPipelineBatch,
   setProspectStage,
   type Prospect,
@@ -29,6 +34,11 @@ const bodySchema = z.discriminatedUnion("action", [
     action: z.literal("stage"),
     id: z.number().int().positive(),
     stage: z.enum(["contact", "contacted", "discarded"]),
+  }),
+  z.object({
+    action: z.literal("outreach"),
+    id: z.number().int().positive(),
+    body: z.string().min(40).max(2400).optional(),
   }),
 ]);
 
@@ -51,6 +61,23 @@ function toCsv(rows: Prospect[]): string {
   const header = CSV_COLS.map(([name]) => esc(name)).join(",");
   const body = rows.map((p) => CSV_COLS.map(([, get]) => esc(get(p))).join(","));
   return [header, ...body].join("\r\n");
+}
+
+function defaultOutreachBody(p: Prospect): string {
+  const company = p.company ?? "tu equipo";
+  const signal = p.fitReason ?? p.snippet ?? p.enrichment ?? p.title ?? "";
+  const angle = signal
+    ? `Vi esta señal y me pareció buen punto de entrada: ${signal.slice(0, 240)}`
+    : `Estoy mirando equipos donde un sistema de IA bien integrado pueda sacar trabajo operativo del medio.`;
+  return [
+    angle,
+    "",
+    `Soy Juan Pablo Amorosi. Construyo sistemas de IA productivos sobre Next.js, TypeScript, Postgres y agentes reales: automatizaciones, asistentes comerciales, backoffices y flujos de captura que quedan operando, no solo prototipados.`,
+    "",
+    `Si tiene sentido para ${company}, puedo mirar un caso concreto y proponerte una arquitectura chica, medible y rápida de validar.`,
+    "",
+    "Juan",
+  ].join("\n");
 }
 
 export async function GET(request: Request) {
@@ -99,6 +126,47 @@ export async function POST(request: Request) {
   if (body.action === "process") {
     const report = await processPipelineBatch(body.limit ?? 6);
     return NextResponse.json({ ok: true, ...report });
+  }
+
+  if (body.action === "outreach") {
+    const prospect = await getProspect(body.id);
+    if (!prospect) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    if (prospect.stage !== "contact") {
+      return NextResponse.json({ error: "not_contact_stage" }, { status: 409 });
+    }
+    if (!prospect.email) {
+      return NextResponse.json({ error: "missing_email" }, { status: 409 });
+    }
+
+    const sent = await sendEmail({
+      template: "prospect_outreach",
+      to: prospect.email,
+      data: {
+        company: prospect.company ?? undefined,
+        contactName: prospect.contactName ?? undefined,
+        body: body.body?.trim() || defaultOutreachBody(prospect),
+        siteUrl: env.NEXT_PUBLIC_SITE_URL,
+        sourceUrl: prospect.url ?? undefined,
+      },
+      tracking: {
+        prospectId: prospect.id,
+        campaign: "prospect_outreach",
+      },
+    });
+
+    if (!sent.ok || sent.skipped) {
+      return NextResponse.json(
+        { error: sent.error ?? "email_not_sent", skipped: sent.skipped === true },
+        { status: sent.skipped ? 503 : 502 },
+      );
+    }
+
+    const marked = await markProspectOutreachSent(prospect.id, sent.id);
+    return NextResponse.json(marked ? { ok: true, providerId: sent.id } : { error: "not_marked" }, {
+      status: marked ? 200 : 409,
+    });
   }
 
   const moved = await setProspectStage(body.id, body.stage);
