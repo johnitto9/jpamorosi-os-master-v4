@@ -556,7 +556,7 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
           scroller,
           start: "top top",
           end: "bottom bottom",
-          scrub: 0.6,
+          scrub: true,
           invalidateOnRefresh: true,
         },
       });
@@ -693,7 +693,7 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
           scroller,
           start: "top top",
           end: "bottom bottom",
-          scrub: 0.6,
+          scrub: true,
           invalidateOnRefresh: true,
         },
       });
@@ -808,7 +808,7 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
           scroller,
           start: "top top",
           end: "bottom bottom",
-          scrub: 0.6,
+          scrub: true,
           invalidateOnRefresh: true,
         },
       });

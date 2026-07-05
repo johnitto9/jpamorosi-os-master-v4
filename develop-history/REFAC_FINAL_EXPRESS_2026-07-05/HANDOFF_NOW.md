@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v7
+# HANDOFF — 2026-07-05 (leer esto primero) · v8
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..12`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..13`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..12.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..13.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -26,7 +26,7 @@ VACÍOS** → uploads locales (código R2-ready, sólo faltan envs).
 ## De dónde venimos
 12 sesiones FINALPROD (animaciones interludios mobile + fix Seedream 16:9), 2
 tandas de pulido (vault inline, botones generate separados, decisiones
-deseleccionables, scrollbar, project card), y esta REFAC final (exec01→12).
+deseleccionables, scrollbar, project card), y esta REFAC final (exec01→13).
 
 ## Qué se hizo en esta refac (TODO VIVO y verificado salvo aclaración)
 - **R5 prospecting REAL** (exec01): `lib/agent/prospects.ts` `harvestContact()`
@@ -88,10 +88,16 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→12).
   (`progress` + `velocity`) y `AuroraScene` reacciona con transform GPU-only
   (`x/y/scale`) en la capa aurora interna. Respeta reduced-motion. Verificado
   con `tsc`, rebuild final y health OK en `:3001`.
+- **Mobile jitter pass** (exec13): para evitar temblor en interludios GSAP
+  mobile, la aurora scroll-reactive queda desactivada en mobile/touch y las
+  timelines mobile usan `scrub:true` (sin smoothing extra encima de Lenis).
+  Verificado con `tsc`, rebuild y health OK.
 
 ## Qué queda (por prioridad, specs listas)
-1. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
-2. Setear `R2_*` + CDN si se quiere dejar de servir uploads desde volumen local.
+1. Verificacion visual/manual del temblor mobile en `YOU'RE INSIDE THE PROOF`
+   y `THE LIVING LAYER`.
+2. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
+3. Setear `R2_*` + CDN si se quiere dejar de servir uploads desde volumen local.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,

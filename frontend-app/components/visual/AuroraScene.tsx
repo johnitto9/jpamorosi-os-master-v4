@@ -45,6 +45,8 @@ export function AuroraScene() {
 
   useEffect(() => {
     if (reduce) return;
+    const coarseOrMobile = window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
+    if (coarseOrMobile) return;
     let settle = 0;
     const onScroll = (event: Event) => {
       const detail = (event as CustomEvent<{ progress?: number; velocity?: number }>).detail ?? {};
