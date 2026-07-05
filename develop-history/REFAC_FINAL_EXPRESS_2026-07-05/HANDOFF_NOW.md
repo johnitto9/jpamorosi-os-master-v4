@@ -1,12 +1,12 @@
-# HANDOFF — 2026-07-05 (leer esto primero) · v9
+# HANDOFF — 2026-07-05 (leer esto primero) · v10
 
 ## Leer en orden (5 min)
 1. Este archivo.
 2. `develop-history/REFAC_FINAL_EXPRESS_2026-07-05/00-verified-findings.md`
    (todo medido en vivo — no re-investigar).
-3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..15`.
+3. `develop-history/claude_state.json` → claves `phaseDoneRefacExec01..16`.
 4. Specs por bloque: `01-polish-items.md`, `02-chat-funnel-intelligence.md`,
-   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..15.md`.
+   `03-prospecting-and-email-tracking.md`. Logs: `EXEC_LOG_01..16.md`.
 
 ## Dónde estamos
 CV interactivo tipo OS (Next.js 15 + Tailwind v4 + GSAP/Lenis). Backend REAL
@@ -98,12 +98,19 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→13).
   upload admin probado con imagen+video de `mediatest/`; ambos quedaron
   `storage:"r2"`, servidos por Cloudflare 200, y BuenPick consume `heroImage` +
   `heroVideo` desde R2 en API pública, home y room.
+- **R2 browser/Next consumption** (exec16): `next.config.js` permite
+  `https://media.jpamorosi.dev` en `media-src` y en `images.remotePatterns`;
+  corregido el bloqueo CSP del video y el 400 de `/_next/image` para imagenes
+  R2. Verificado en `:3001` con BuenPick: CSP OK, HTML contiene ambas URLs y
+  optimizer devuelve `200 image/png`.
 
 ## Qué queda (por prioridad, specs listas)
 1. Verificacion visual/manual del temblor mobile en `YOU'RE INSIDE THE PROOF`
    y `THE LIVING LAYER`.
 2. Verificacion visual/manual de R1/R4/P3 si se quiere afinar copy/UX.
 3. En deploy real/Dokploy, replicar las mismas `R2_*` envs del Docker local.
+   Si el CDN publico cambia, ajustar tambien `NEXT_PUBLIC_MEDIA_CDN_BASE` y
+   `images.remotePatterns`.
 
 ## Archivos clave
 - Chat: `components/assistant/{AssistantWidget,AssistantFlow,InlineCanon,
@@ -127,7 +134,8 @@ deseleccionables, scrollbar, project card), y esta REFAC final (exec01→13).
   exec09 debe commitearse antes de seguir si este handoff aparece con worktree
   sucio.
 - **R2 sin envs**: uploads locales. Setear `R2_*` + `NEXT_PUBLIC_MEDIA_CDN_BASE`
-  para servir de bucket (sin cambios de código).
+  para servir de bucket. El CDN actual `media.jpamorosi.dev` ya esta permitido
+  por CSP y Next Image.
 - Cada cambio de front = rebuild ~3 min + verificación manual (no hay
   screenshots automatizados).
 

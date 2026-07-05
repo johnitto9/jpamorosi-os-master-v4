@@ -1,6 +1,8 @@
 // next.config.js
 
 // Security headers
+const mediaCdnOrigin = process.env.NEXT_PUBLIC_MEDIA_CDN_BASE || 'https://media.jpamorosi.dev';
+
 const securityHeaders = [
   {
     key: 'Strict-Transport-Security',
@@ -30,7 +32,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
-      "media-src 'self' data: blob:",
+      `media-src 'self' data: blob: ${mediaCdnOrigin}`,
       // 🔑 FIX: permitimos llamadas a Formspree y mantenemos Vercel
       "connect-src 'self' blob: data: https://formspree.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
       // (Opcional pero recomendado si alguna vez usás <form action="https://formspree.io/...">)
@@ -85,6 +87,13 @@ const nextConfig = {
 
   // Image optimization
   images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'media.jpamorosi.dev',
+        pathname: '/uploads/**'
+      }
+    ],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
