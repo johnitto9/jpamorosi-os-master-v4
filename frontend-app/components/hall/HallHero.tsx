@@ -15,6 +15,7 @@ import { HolographicCard } from "@/components/ui/holographic-card";
 import { OrbitalWave } from "@/components/ui/orbital-wave";
 import { Reveal } from "@/components/ui/reveal";
 import { getDict } from "@/lib/i18n/server";
+import { resolveMediaUrl } from "@/lib/media/resolve";
 
 const cta =
   "inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
@@ -34,7 +35,7 @@ function renderTagline(tagline: string) {
   );
 }
 
-export async function HallHero() {
+export async function HallHero({ profileImage }: { profileImage?: string } = {}) {
   // Map capability evidence slugs -> project titles for the matrix.
   const titleBySlug = new Map(getPublicProjects().map((p) => [p.slug, p.title]));
   const { lang, t } = await getDict(); // first section fully translated (SSR)
@@ -72,14 +73,8 @@ export async function HallHero() {
           </Reveal>
 
           <Reveal delay={0.28} className="mt-8 flex flex-wrap gap-3">
-            <Link href="#hall-of-fame" className={`${cta} bg-white text-black hover:bg-white/80`}>
-              {t.heroCta1}
-            </Link>
-            <Link
-              href="/projects"
-              className={`${cta} border border-white/20 text-white hover:border-cyan-400/60 hover:text-cyan-300`}
-            >
-              {t.heroCta2}
+            <Link href="#before-the-systems" className={`${cta} bg-white text-black hover:bg-white/80`}>
+              Let&apos;s started
             </Link>
             <Link
               href="/os"
@@ -133,7 +128,7 @@ export async function HallHero() {
           <HolographicCard className="relative z-10 w-full border border-white/10 bg-black/50 p-3 backdrop-blur-sm">
             <div className="relative overflow-hidden rounded-xl border border-white/10">
               <SmartImage
-                src={profile.avatar}
+                src={resolveMediaUrl(profileImage) ?? profile.avatar}
                 alt={`${profile.name} — ${profile.role}`}
                 priority
                 accent="#00f2ff"

@@ -23,14 +23,14 @@ export default async function AdminMediaPage() {
 
       <h2 className="mt-6 text-2xl font-bold">Interlude card images</h2>
       <p className="mt-1 text-sm text-white/55">
-        The images inside the home scroll scenes — BEFORE THE SYSTEMS (×2),
+        The profile image and home scroll scene media — BEFORE THE SYSTEMS (×2),
         YOU&apos;RE INSIDE THE PROOF, THE LIVING LAYER. Uploads go to{" "}
         {driver === "local-json" ? "the durable volume" : "storage"} (Cloudflare
         R2 when configured) and each field auto-saves. Empty = the built-in
         fallback (emoji) shows.
       </p>
       <div className="mt-6 max-w-4xl">
-        <InterludePanel initial={settings.interludes ?? {}} />
+        <InterludePanel initial={{ profileImage: settings.profileImage ?? "", ...(settings.interludes ?? {}) }} />
       </div>
     </div>
   );

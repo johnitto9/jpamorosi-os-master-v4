@@ -33,7 +33,16 @@ function dedupeActions(actions: AssistantAction[]): AssistantAction[] {
 function dedupeCards(cards: AssistantCard[]): AssistantCard[] {
   const seen = new Set<string>();
   return cards.filter((c) => {
-    const key = c.type === "project" ? c.slug : c.type === "image" ? c.src : `decisions:${c.items.map((i) => i.id).join(",")}`;
+    const key =
+      c.type === "project"
+        ? c.slug
+        : c.type === "image"
+          ? c.src
+          : c.type === "decisions"
+            ? `decisions:${c.items.map((i) => i.id).join(",")}`
+            : c.type === "lead_capture"
+              ? `lead_capture:${(c.fields ?? []).join(",")}`
+              : `info:${c.title}`;
     return seen.has(key) ? false : (seen.add(key), true);
   });
 }

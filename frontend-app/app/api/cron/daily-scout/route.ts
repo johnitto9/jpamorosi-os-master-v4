@@ -8,13 +8,14 @@
 // summarize call runs through our own logged LLM client — same no-silence,
 // same observability, zero new dependencies.
 //
-// Degrades: no WEB_SEARCH_API_KEY -> {skipped}; no LLM -> raw results digest;
+// Degrades: no search provider -> {skipped}; no LLM -> raw results digest;
 // no RESEND -> digest lands in email_logs only.
 import { NextResponse } from "next/server";
 import { guardInternal } from "@/lib/auth/internal";
 import { profile } from "@/content/profile";
+import { env } from "@/lib/env";
 import { webSearchEnabled, runWebSearchRaw } from "@/lib/agent/tools-server";
-import { ingestSearchHits, processPipelineBatch } from "@/lib/agent/prospects";
+import { ingestSearchHits, processPipelineBatch, prospectStats, topProspects } from "@/lib/agent/prospects";
 import { chatCompletion, isLlmConfigured } from "@/lib/agent/llm";
 import { notifyAdmin } from "@/lib/email/service";
 import { recordEvent } from "@/lib/events";
@@ -64,8 +65,8 @@ export async function POST(request: Request) {
   }
 
   if (!webSearchEnabled()) {
-    console.warn("[scout] WEB_SEARCH_API_KEY missing — daily scout skipped");
-    return NextResponse.json({ ok: false, skipped: "no_web_search_key" });
+    console.warn("[scout] no search provider configured — daily scout skipped");
+    return NextResponse.json({ ok: false, skipped: "no_search_provider" });
   }
 
   const day = new Date().getDay();
@@ -92,8 +93,9 @@ export async function POST(request: Request) {
   const pipeline = await processPipelineBatch(8);
 
   let digest = results.join("\n\n");
+  let summary: string | undefined;
   if (isLlmConfigured()) {
-    const summary = await chatCompletion([
+    summary = await chatCompletion([
       {
         role: "system",
         content: `You are a career scout for ${profile.name} (${profile.role}). Profile strengths: shipped AI orchestration engines, production WhatsApp agents, founder-built products; stack Next.js/TypeScript/Postgres/LLM systems. From the search results, pick the 3-5 MOST relevant opportunities/trends, explain the match in one line each, and suggest one concrete action (who to contact / what to send — his CV lives at jpamorosi.dev/cv). Plain text, short, actionable, in Spanish.`,
@@ -103,9 +105,23 @@ export async function POST(request: Request) {
     if (summary) digest = summary;
   }
 
-  await notifyAdmin("admin_alert", {
-    title: `Scout diario — oportunidades ${date}`,
-    detail: digest.slice(0, 4000),
+  const stats = await prospectStats();
+  const top = await topProspects(5);
+  const site = env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
+  await notifyAdmin("scout_digest", {
+    date,
+    queries,
+    ingested: caught,
+    advanced: pipeline.processed,
+    total: stats.total,
+    rawIngest: stats.rawIngest,
+    withEmail: stats.withEmail,
+    readyToContact: stats.readyToContact,
+    highScore: stats.highScore,
+    summary: (summary ?? digest).slice(0, 4000),
+    top,
+    adminUrl: `${site}/admin/prospects`,
+    exportUrl: `${site}/api/admin/prospects?format=jsonl&scope=all`,
   });
   await recordEvent("ai.response.generated", { via: "daily-scout", queries });
   await recordEvent("agent.daily_scout", {

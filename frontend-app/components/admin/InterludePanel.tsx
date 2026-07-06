@@ -10,10 +10,11 @@ import { useState } from "react";
 import { MediaDropzone } from "./MediaDropzone";
 
 const FIELDS = [
-  { key: "before1", label: "BEFORE THE SYSTEMS — card 1 (shop)" },
-  { key: "before2", label: "BEFORE THE SYSTEMS — card 2 (workshop)" },
-  { key: "proof1", label: "YOU'RE INSIDE THE PROOF" },
-  { key: "living1", label: "THE LIVING LAYER" },
+  { key: "profileImage", label: "HERO PROFILE IMAGE", kind: "image" },
+  { key: "before1", label: "BEFORE THE SYSTEMS — card 1 (shop)", kind: "image" },
+  { key: "before2", label: "BEFORE THE SYSTEMS — card 2 (workshop)", kind: "image" },
+  { key: "proof1", label: "YOU'RE INSIDE THE PROOF", kind: "image" },
+  { key: "living1", label: "THE LIVING LAYER", kind: "video" },
 ] as const;
 
 export function InterludePanel({ initial }: { initial: Record<string, string> }) {
@@ -44,10 +45,12 @@ export function InterludePanel({ initial }: { initial: Record<string, string> })
         <div key={f.key}>
           <MediaDropzone
             label={f.label}
-            kind="image"
+            kind={f.kind}
             value={vals[f.key] ?? ""}
             onChange={(url) => void save(f.key, url)}
-            hint="PNG/JPG/WebP · sube a R2 si está configurado, si no local"
+            hint={f.kind === "video"
+              ? "MP4/WebM optimizado · R2 si está configurado, si no local"
+              : "PNG/JPG/WebP · sube a R2 si está configurado, si no local"}
           />
           {saved === f.key && <p className="mt-1 text-[11px] text-emerald-300">Guardado ✓</p>}
           {error === f.key && <p className="mt-1 text-[11px] text-red-300">No se pudo guardar</p>}

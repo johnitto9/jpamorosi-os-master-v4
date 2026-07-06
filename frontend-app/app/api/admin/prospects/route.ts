@@ -14,11 +14,13 @@ import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/service";
 import {
   getProspect,
+  listBoardProspects,
   listProspects,
   listMailingCandidates,
   ingestDroppedText,
   markProspectOutreachSent,
   processPipelineBatch,
+  prospectStats,
   setProspectStage,
   type Prospect,
 } from "@/lib/agent/prospects";
@@ -63,6 +65,10 @@ function toCsv(rows: Prospect[]): string {
   return [header, ...body].join("\r\n");
 }
 
+function toJsonl(rows: Prospect[]): string {
+  return rows.map((p) => JSON.stringify(p)).join("\n");
+}
+
 function defaultOutreachBody(p: Prospect): string {
   const company = p.company ?? "tu equipo";
   const signal = p.fitReason ?? p.snippet ?? p.enrichment ?? p.title ?? "";
@@ -83,17 +89,36 @@ function defaultOutreachBody(p: Prospect): string {
 export async function GET(request: Request) {
   const blocked = await guardAdmin();
   if (blocked) return blocked;
+  const url = new URL(request.url);
+  const format = url.searchParams.get("format");
+  const scope = url.searchParams.get("scope");
 
   // ?format=csv -> download the mailing DB (qualified prospects with an email)
-  if (new URL(request.url).searchParams.get("format") === "csv") {
-    const csv = toCsv(await listMailingCandidates());
+  if (format === "csv") {
+    const rows = scope === "all" ? await listProspects(10_000) : await listMailingCandidates();
+    const csv = toCsv(rows);
     return new NextResponse(csv, {
       status: 200,
       headers: {
         "content-type": "text/csv; charset=utf-8",
-        "content-disposition": `attachment; filename="mailing-candidates-${new Date()
+        "content-disposition": `attachment; filename="${scope === "all" ? "prospects-snapshot" : "mailing-candidates"}-${new Date()
           .toISOString()
           .slice(0, 10)}.csv"`,
+      },
+    });
+  }
+
+  // ?format=jsonl&scope=all -> simple append/file-friendly snapshot for large
+  // daily bags. The UI should stay card-light; files can be huge.
+  if (format === "jsonl") {
+    const jsonl = toJsonl(await listProspects(10_000));
+    return new NextResponse(jsonl, {
+      status: 200,
+      headers: {
+        "content-type": "application/x-ndjson; charset=utf-8",
+        "content-disposition": `attachment; filename="prospects-snapshot-${new Date()
+          .toISOString()
+          .slice(0, 10)}.jsonl"`,
       },
     });
   }
@@ -101,7 +126,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     dbOn: isDbConfigured(),
-    prospects: await listProspects(),
+    stats: await prospectStats(),
+    prospects: await listBoardProspects(),
   });
 }
 

@@ -24,6 +24,12 @@ export type AssistantAction =
 export type AssistantCard =
   | { type: "project"; slug: string }
   | {
+      type: "lead_capture";
+      title?: string;
+      body?: string;
+      fields?: Array<"name" | "email" | "company" | "need" | "budget">;
+    }
+  | {
       type: "info";
       title: string;
       body?: string;

@@ -4,9 +4,9 @@
 # Two services / two purposes (see docs/HYBRID_DEPLOYMENT_STRATEGY.md):
 #
 #   web             -> production-like public image (STATIC, admin OFF).
-#                      Mirrors the Vercel public path. Runs by default.
-#     docker compose up --build            (run-amorosi-labs.bat docker-up)
-#     docker compose down                  (run-amorosi-labs.bat docker-down)
+#                      Mirrors the Vercel public path. Gated behind "web";
+#                      do not run it during backend/admin work.
+#     docker compose --profile web up --build -d web
 #
 #   amorosi-backend -> local backend/admin EMULATOR (local-json, admin ON),
 #                      port 3001, persistent volume. Future Dokploy target.
@@ -14,9 +14,10 @@
 #     docker compose --profile backend up --build   (bat backend-up)
 #     docker compose --profile backend down         (bat backend-down)
 #
-# NOTE: `--profile backend up` also starts the default `web` service (compose
-# always includes non-profiled services). To run only the emulator, append the
-# service name: `docker compose --profile backend up --build amorosi-backend`.
+# NOTE: all runnable app surfaces are profile-gated. For the normal local
+# backend/admin lab use `docker compose --profile backend --profile search up
+# --build -d amorosi-backend worker searxng searxng-valkey`; this keeps `web`
+# off unless explicitly requested.
 #
 # Docker is NOT required for normal development (use `pnpm dev`). It does NOT
 # replace Vercel — it is our prod-like backend lab.
@@ -25,6 +26,7 @@
 services:
   # --- Public production-like image (mirrors Vercel: static, admin off) -------
   web:
+    profiles: ["web"]
     build:
       context: ./frontend-app
       dockerfile: Dockerfile
@@ -153,6 +155,37 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # --- SearXNG: private sovereign discovery radar ---------------------------
+  # Optional local/Dokploy service for broad, low-cost web discovery. It is NOT
+  # published to the host by default; the backend reaches it through the Docker
+  # network at http://searxng:8080. Serper remains the premium fallback.
+  searxng:
+    profiles: ["search"]
+    image: docker.io/searxng/searxng:${SEARXNG_VERSION:-latest}
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_cache:/var/cache/searxng
+    depends_on:
+      searxng-valkey:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/config >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  searxng-valkey:
+    profiles: ["search"]
+    image: docker.io/valkey/valkey:9-alpine
+    command: valkey-server --save 30 1 --loglevel warning
+    volumes:
+      - searxng_valkey:/data
+    restart: unless-stopped
+
   # --- Autoheal: restarts any unhealthy container labeled autoheal=true -----
   # This is the "kubelet" of our kubernetes-lite: Docker healthchecks detect,
   # autoheal enforces. Needs the docker socket (read-only trigger surface).
@@ -177,3 +210,5 @@ volumes:
   # Durable store for the backend emulator (and future Dokploy deploy).
   amorosi_backend_data:
   amorosi_pg_data:
+  searxng_cache:
+  searxng_valkey:

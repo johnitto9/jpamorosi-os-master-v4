@@ -21,16 +21,16 @@ import path from "node:path";
 import { env } from "@/lib/env";
 import { ensureMediaDir } from "@/lib/media/store";
 import { recordEvent } from "@/lib/events";
+import { anySearchProviderEnabled, search } from "@/lib/search/router";
 import { isLlmConfigured } from "./llm";
 
 const MOCKUPS_PER_SESSION = 3;
-const SEARCH_TIMEOUT_MS = 8_000;
 // Under the routes' maxDuration=90. Wide 2K renders (16:9 reference/home) can
 // take 60–85s; a 60s ceiling was aborting them and surfacing as "No salió".
 const IMAGE_TIMEOUT_MS = 85_000;
 
 export function webSearchEnabled(): boolean {
-  return !!env.WEB_SEARCH_API_KEY;
+  return anySearchProviderEnabled();
 }
 
 export function mockupsEnabled(): boolean {
@@ -56,29 +56,23 @@ export async function runWebSearchRaw(
 ): Promise<SearchHit[] | null> {
   if (!webSearchEnabled() || !query.trim()) return null;
   await recordEvent("ai.tool.called", { tool: "web_search" });
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
   try {
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "X-API-KEY": env.WEB_SEARCH_API_KEY as string,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ q: query.slice(0, 200), num: Math.min(num, 10) }),
+    const report = await search({
+      query,
+      limit: Math.min(num, 10),
+      intent: num > 4 ? "broad-discovery" : "general-web-search",
     });
-    if (!res.ok) throw new Error(`serper ${res.status}`);
-    const data = (await res.json()) as { organic?: SearchHit[] };
-    return (data.organic ?? []).slice(0, num);
+    return report.results.map((r) => ({
+      title: r.title,
+      snippet: r.snippet,
+      link: r.url,
+    }));
   } catch (err) {
     await recordEvent("ai.tool.failed", {
       tool: "web_search",
       error: (err as Error).message.slice(0, 200),
     });
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

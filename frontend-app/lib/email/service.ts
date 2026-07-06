@@ -12,7 +12,7 @@
 // Secrets NEVER appear in logs; only template name, recipient and subject.
 // -----------------------------------------------------------------------------
 
-import { env, isEmailConfigured } from "@/lib/env";
+import { env, isEmailConfigured, outboundLeadEmailsEnabled } from "@/lib/env";
 import { isDbConfigured, tryQuery } from "@/lib/db/pool";
 import { ensureSchema } from "@/lib/db/bootstrap";
 import { recordEvent } from "@/lib/events";
@@ -23,6 +23,15 @@ export type SendResult = { ok: boolean; id?: string; skipped?: boolean; error?: 
 export type EmailTrackingContext = Omit<TrackedLinkInput, "target"> & {
   enabled?: boolean;
 };
+
+const OUTBOUND_LEAD_TEMPLATES = new Set<TemplateName>([
+  "lead_followup",
+  "prospect_outreach",
+]);
+
+export function isOutboundLeadTemplate(template: TemplateName): boolean {
+  return OUTBOUND_LEAD_TEMPLATES.has(template);
+}
 
 async function logEmail(
   template: string,
@@ -59,6 +68,15 @@ export async function sendEmail<T extends TemplateName>(input: {
     ...input.tracking,
     campaign: input.tracking?.campaign ?? template,
   });
+
+  if (isOutboundLeadTemplate(template) && !outboundLeadEmailsEnabled()) {
+    console.warn(
+      `[email] outbound lead gate disabled — "${template}" to ${to} logged only (subject: ${rendered.subject})`,
+    );
+    await logEmail(template, to, rendered.subject, false, undefined, "outbound_lead_email_disabled");
+    await recordEvent("email.blocked", { template, to, reason: "outbound_lead_email_disabled" });
+    return { ok: false, skipped: true, error: "outbound_lead_email_disabled" };
+  }
 
   if (!isEmailConfigured()) {
     console.warn(

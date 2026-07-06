@@ -46,6 +46,7 @@ export type EventType =
   | "admin.login.requested"
   | "admin.login.success"
   | "email.sent"
+  | "email.blocked"
   | "email.failed"
   | "media.uploaded"
   | "storage.r2.uploaded"

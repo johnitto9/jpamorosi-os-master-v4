@@ -40,6 +40,7 @@ export type InterludeImages = {
 export type SiteSettings = {
   heroVideo?: HeroVideo;
   interludes?: InterludeImages;
+  profileImage?: string;
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

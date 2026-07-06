@@ -14,6 +14,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AlertTriangle, CheckCircle2, Mail, Save } from "lucide-react";
 import type { AssistantResponse, DecisionProposal } from "@/lib/assistant/types";
 import { OMNI_TOUR, matchesTourTrigger } from "@/lib/assistant/omni-tour";
 import { personalizationAllowed } from "@/lib/consent";
@@ -90,6 +91,7 @@ function nudgeQueue(pathname: string, lang: Lang): PresetNudge[] {
 }
 
 function SessionRecoveryCard({ lang }: { lang: Lang }) {
+  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const copy =
@@ -130,46 +132,68 @@ function SessionRecoveryCard({ lang }: { lang: Lang }) {
   }
 
   return (
-    <div className="border-t border-white/10 bg-black/20 px-5 py-3">
-      <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-white">{copy.title}</p>
-          <p className="mt-0.5 text-[11px] leading-snug text-white/40">{copy.hint}</p>
-        </div>
-        <div className="flex min-w-0 items-center gap-2 sm:w-[260px]">
-          <input
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (state !== "idle") setState("idle");
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            placeholder={copy.placeholder}
-            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/35 px-2.5 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-400/60"
-          />
-          <button
-            type="button"
-            onClick={() => void submit()}
-            disabled={state === "sending" || email.trim().length < 5}
-            className="shrink-0 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-black hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+    <div className="relative mt-2 flex justify-end">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.04] px-3 text-[11px] font-semibold text-white/65 transition-colors hover:border-cyan-400/50 hover:text-cyan-200"
+      >
+        <Save size={13} aria-hidden />
+        {copy.title}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -3, scale: 0.98 }}
+            className="absolute right-0 top-9 z-30 w-[min(92vw,360px)] rounded-xl border border-white/12 bg-[#080b12]/95 p-3 shadow-2xl backdrop-blur-xl"
           >
-            {state === "sending" ? copy.sending : copy.action}
-          </button>
-        </div>
-      </div>
-      {(state === "sent" || state === "error") && (
-        <p className={`mt-1.5 text-right text-[10px] ${state === "sent" ? "text-emerald-300" : "text-amber-200"}`}>
-          {state === "sent" ? copy.sent : copy.error}
-        </p>
-      )}
+            <div className="flex items-start gap-2">
+              <Mail size={15} className="mt-0.5 shrink-0 text-cyan-300" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-white">{copy.title}</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-white/45">{copy.hint}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex min-w-0 items-center gap-2">
+              <input
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (state !== "idle") setState("idle");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submit();
+                  }
+                }}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder={copy.placeholder}
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/35 px-2.5 py-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-400/60"
+              />
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={state === "sending" || email.trim().length < 5}
+                className="shrink-0 rounded-lg bg-cyan-400 px-3 py-2 text-[11px] font-bold text-black hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {state === "sending" ? copy.sending : copy.action}
+              </button>
+            </div>
+            {(state === "sent" || state === "error") && (
+              <p className={`mt-2 flex items-center justify-end gap-1 text-right text-[10px] ${state === "sent" ? "text-emerald-300" : "text-amber-200"}`}>
+                {state === "sent" ? <CheckCircle2 size={12} aria-hidden /> : <AlertTriangle size={12} aria-hidden />}
+                {state === "sent" ? copy.sent : copy.error}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -958,6 +982,7 @@ export function AssistantWidget() {
                   onNew={() => setSetupOpen(true)}
                   lang={lang}
                 />
+                <SessionRecoveryCard lang={lang} />
 
                 {/* template picker */}
                 <AnimatePresence>
@@ -1151,8 +1176,6 @@ export function AssistantWidget() {
                   );
                 })()}
               </div>
-
-              <SessionRecoveryCard lang={lang} />
 
               {/* canon rail — palette + generated assets INSIDE the panel, so
                   branding-done never looks empty and the project room fills as

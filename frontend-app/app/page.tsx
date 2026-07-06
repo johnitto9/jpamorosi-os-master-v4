@@ -18,6 +18,8 @@ import { getPublicGroupedAuto } from '@/lib/projects/public-projects';
 import { getDict } from '@/lib/i18n/server';
 import { localizeProjects } from '@/lib/i18n/translate';
 import { LanguageSwitch } from '@/components/ui/language-switch';
+import { Mail } from 'lucide-react';
+import { GitHubMark } from '@/components/ui/store-badges';
 
 // SSR so PROJECT_PUBLIC_CONTENT_MODE=live (Docker) reflects admin/local-json edits
 // on the real Hall. On Vercel (mode=static) this reads the in-memory seed — safe,
@@ -52,7 +54,8 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const grouped = await getPublicGroupedAuto();
   const { lang, t, r } = await getDict(); // al_lang cookie -> translated shell (SSR)
-  const ilImages = (await getSiteSettings()).interludes; // admin-managed interlude images
+  const siteSettings = await getSiteSettings();
+  const ilImages = siteSettings.interludes; // admin-managed interlude images
   // CONTENT follows the visitor too: project copy through the LLM translation
   // cache (EN passthrough; first render per language warms the cache once)
   const [hall, featured, archive] = await Promise.all([
@@ -74,42 +77,48 @@ export default async function HomePage() {
         }}
       />
       <div className="relative z-10">
-      <HallHero />
+      <HallHero profileImage={siteSettings.profileImage} />
       {/* Interludes drive their OWN scroll choreography (GSAP ScrollTrigger).
           They must NOT sit inside SectionTransition's transform, which creates a
           containing block that breaks the interlude's position:sticky stage. */}
       <InterludeImagesProvider images={ilImages}><BeforeTheSystems t={t.il1} /></InterludeImagesProvider>
-      <SectionTransition blur={4}>
-        <HallOfFameGrid
-          projects={hall}
-          header={{ eyebrow: t.hallEyebrow, title: t.hallTitle, description: t.hallDesc }}
-          enterLabel={r.enter}
-        />
-      </SectionTransition>
-      <div className="mx-auto -mt-8 max-w-6xl px-6">
-        <Link
-          href="/projects"
-          className="inline-flex items-center gap-1 text-sm font-medium text-cyan-300 transition-colors hover:text-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-        >
-          {t.browseAll}
-        </Link>
+      <div className="relative min-h-[132vh] md:min-h-[138vh]">
+        <div className="sticky top-0 min-h-screen">
+          <HallOfFameGrid
+            projects={hall}
+            header={{ eyebrow: t.hallEyebrow, title: t.hallTitle, description: t.hallDesc }}
+            enterLabel={r.enter}
+          />
+          <div className="relative z-30 mx-auto max-w-6xl px-6 pb-12 pt-2 md:pt-0">
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-black/35 px-4 py-2 text-sm font-medium text-cyan-200 backdrop-blur-md transition-colors hover:border-cyan-300/45 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              {t.browseAll}
+            </Link>
+          </div>
+        </div>
       </div>
       <InterludeImagesProvider images={ilImages}><PortfolioSystemInterlude t={t.il2} /></InterludeImagesProvider>
-      <SectionTransition>
-        <FeaturedSystemsGrid
-          projects={featured}
-          header={{ eyebrow: t.featuredEyebrow, title: t.featuredTitle, description: t.featuredDesc }}
-          enterLabel={r.enter}
-        />
-      </SectionTransition>
+      <div className="relative min-h-[124vh] md:min-h-[130vh]">
+        <div className="sticky top-0 flex min-h-screen w-full items-center">
+          <FeaturedSystemsGrid
+            projects={featured}
+            header={{ eyebrow: t.featuredEyebrow, title: t.featuredTitle, description: t.featuredDesc }}
+            enterLabel={r.enter}
+          />
+        </div>
+      </div>
       <InterludeImagesProvider images={ilImages}><LivingLayerInterlude t={t.il3} /></InterludeImagesProvider>
-      <SectionTransition>
-        <LabArchiveGrid
-          projects={archive}
-          header={{ eyebrow: t.archiveEyebrow, title: t.archiveTitle, description: t.archiveDesc }}
-          enterLabel={r.enter}
-        />
-      </SectionTransition>
+      <div className="relative min-h-[124vh] md:min-h-[130vh]">
+        <div className="sticky top-0 flex min-h-screen w-full items-center">
+          <LabArchiveGrid
+            projects={archive}
+            header={{ eyebrow: t.archiveEyebrow, title: t.archiveTitle, description: t.archiveDesc }}
+            enterLabel={r.enter}
+          />
+        </div>
+      </div>
 
       {/* Hiring conversion band */}
       <SectionTransition>
@@ -151,14 +160,9 @@ export default async function HomePage() {
                   href={`mailto:${profile.links.email}`}
                   className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:border-cyan-400/60 hover:text-cyan-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 >
+                  <Mail size={16} className="mr-2" aria-hidden />
                   {t.contactEmail}
                 </a>
-                <Link
-                  href="/projects"
-                  className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:border-cyan-400/60 hover:text-cyan-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                >
-                  {t.contactExplore}
-                </Link>
                 {profile.links.github ? (
                   <a
                     href={profile.links.github}
@@ -166,7 +170,8 @@ export default async function HomePage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                   >
-                    GitHub ↗
+                    <GitHubMark size={16} />
+                    <span className="ml-2">GitHub</span>
                   </a>
                 ) : null}
               </div>

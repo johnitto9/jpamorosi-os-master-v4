@@ -32,8 +32,17 @@ type Prospect = {
   updatedAt: string;
 };
 
+type ProspectStats = {
+  total: number;
+  byStage: Record<string, number>;
+  withEmail: number;
+  readyToContact: number;
+  highScore: number;
+  rawIngest: number;
+};
+
 const COLUMNS: Array<{ stage: string; label: string; hint: string; color: string }> = [
-  { stage: "ingest", label: "Ingesta", hint: "dragado crudo", color: "rgba(255,255,255,0.4)" },
+  { stage: "ingest", label: "Ingesta", hint: "preview acotado", color: "rgba(255,255,255,0.4)" },
   { stage: "filter", label: "Filtrado", hint: "pasó la red", color: "#f0a500" },
   { stage: "enrich", label: "Enriquecido", hint: "búsqueda fina", color: "#8b5cf6" },
   { stage: "qualify", label: "Calificado", hint: "score + fit", color: "#00f2ff" },
@@ -456,6 +465,7 @@ function ProspectDrawer({
 
 export function ProspectBoard() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [stats, setStats] = useState<ProspectStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [dropText, setDropText] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -467,6 +477,7 @@ export function ProspectBoard() {
       const res = await fetch("/api/admin/prospects");
       const data = await res.json();
       if (Array.isArray(data?.prospects)) setProspects(data.prospects);
+      if (data?.stats) setStats(data.stats as ProspectStats);
     } catch {
       /* board keeps last known state */
     }
@@ -646,7 +657,46 @@ export function ProspectBoard() {
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px] text-white/35">
           <span>{lastReport ?? "El scout diario alimenta la ingesta solo; este botón corre un batch a demanda."}</span>
-          {discarded > 0 && <span>{discarded} descartados por la red</span>}
+          {discarded > 0 && <span>{discarded} descartados visibles · el bruto vive en snapshot</span>}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        {[
+          ["Total archive", stats?.total ?? prospects.length, "todo lo capturado"],
+          ["Raw bag", stats?.rawIngest ?? 0, "no se renderiza completo"],
+          ["With email", stats?.withEmail ?? 0, "posible outreach"],
+          ["Ready", stats?.readyToContact ?? 0, "contactar ahora"],
+          ["High score", stats?.highScore ?? 0, "score >= 70"],
+          ["Cards", prospects.length, "board curado"],
+        ].map(([label, value, hint]) => (
+          <div key={label} className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
+            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/35">{label}</p>
+            <p className="mt-1 text-2xl font-bold text-white">{value}</p>
+            <p className="mt-0.5 text-[10px] text-white/35">{hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+        <p className="text-xs text-white/45">
+          El board muestra señales únicas accionables. La bolsa completa del scout se guarda como archivo para análisis masivo.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/api/admin/prospects?format=jsonl&scope=all"
+            download
+            className="rounded-full border border-cyan-400/40 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-400/10"
+          >
+            JSONL snapshot
+          </a>
+          <a
+            href="/api/admin/prospects?format=csv&scope=all"
+            download
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/65 hover:border-white/30"
+          >
+            Full CSV
+          </a>
         </div>
       </div>
 

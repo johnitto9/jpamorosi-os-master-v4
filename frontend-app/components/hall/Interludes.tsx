@@ -215,12 +215,25 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
   // it through the media resolver (serves from R2/CDN when configured)
   const key = (Object.keys(IMG) as ImgKey[]).find((k) => IMG[k] === src);
   const finalSrc = resolveMediaUrl((key && overrides?.[key]) || src) ?? src;
+  const isVideo = /\.(mp4|webm)(?:$|\?)/i.test(finalSrc);
+  useEffect(() => setFailed(false), [finalSrc]);
   return (
     <div aria-hidden className={cn("relative overflow-hidden rounded-2xl border bg-white/[0.03]", a.border, className)} style={{ boxShadow: a.glow }}>
       {failed ? (
         <div className="flex h-full w-full items-center justify-center" style={{ background: a.ph }}>
           <span className="select-none text-5xl opacity-70">{emoji}</span>
         </div>
+      ) : isVideo ? (
+        <video
+          src={finalSrc}
+          muted
+          loop
+          playsInline
+          autoPlay
+          preload="metadata"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={finalSrc} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setFailed(true)} />
@@ -368,9 +381,9 @@ function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: A
 function MobileScene1({ t }: { t: InterludeCopy }) {
   const words = t.items;
   return (
-    <div data-scene-mobile className="relative block min-h-[280vh] lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[300vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="mixed" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-7 pt-4">
         {/* narrative at top — compact, line-clamp keeps body from overflowing */}
         <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
           <span className="il-thread absolute left-1/2 top-12 h-16 w-px -translate-x-1/2"
@@ -383,7 +396,7 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
 
         {/* print slot — flex-1 fills the middle, cards absolutely positioned
             inside so GSAP can translate them freely (enters from below, exits up) */}
-        <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
+        <div className="il-print-slot relative flex w-full flex-1 items-end justify-center pb-8">
           <div className="il-card-a absolute h-40 w-64 sm:h-44 sm:w-72">
             <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="h-full w-full" />
           </div>
@@ -393,7 +406,7 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
         </div>
 
         {/* milestone words band — fixed bottom slot, one word visible at a time */}
-        <div className="il-words-band pointer-events-none relative h-12 w-full max-w-md shrink-0">
+        <div className="il-words-band pointer-events-none relative mb-7 h-12 w-full max-w-md shrink-0">
           {words.map((m) => (
             <span key={m} className="il-word absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-bold text-amber-200 opacity-0 sm:text-2xl">{m}</span>
           ))}
@@ -411,9 +424,9 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
 // line-clamp keep the narrative from pushing the screen into the stack.
 function MobileScene2({ t }: { t: InterludeCopy }) {
   return (
-    <div data-scene-mobile className="relative block min-h-[260vh] lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[285vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="cyan" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-6 pt-4">
         <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
           <div className="il-eyebrow flex justify-center"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
           <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
@@ -425,20 +438,20 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
             slot so GSAP can translate it (yPercent 130 → 0 → -14) without
             affecting the layer stack below. */}
         <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
-          <div className="il-screen absolute h-40 w-64 sm:h-44 sm:w-72">
+          <div className="il-screen absolute top-[12%] h-40 w-64 sm:h-44 sm:w-72">
             <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="h-full w-full" />
           </div>
-        </div>
 
-        {/* layer stack — bottom slot, each card reveals with a soft back-ease */}
-        <div className="il-layers w-full max-w-md shrink-0 space-y-1.5">
-          {t.items.map((l) => (
-            <div key={l} className="il-layer flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-white/[0.04] px-3 py-1.5 backdrop-blur-sm"
-              style={{ boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}>
-              <span className="h-1 w-1 rounded-full bg-cyan-400" aria-hidden />
-              <span className="text-xs text-white/85 sm:text-sm">{l}</span>
-            </div>
-          ))}
+          {/* layer stack — overlaps the screen instead of sitting too low */}
+          <div className="il-layers absolute bottom-[10%] z-20 w-full max-w-md space-y-1.5">
+            {t.items.map((l) => (
+              <div key={l} className="il-layer flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-black/45 px-3 py-1.5 backdrop-blur-md"
+                style={{ boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}>
+                <span className="h-1 w-1 rounded-full bg-cyan-400" aria-hidden />
+                <span className="text-xs text-white/85 sm:text-sm">{l}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -453,7 +466,7 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
 function MobileScene3({ t }: { t: InterludeCopy }) {
   const words = t.items;
   return (
-    <div data-scene-mobile className="relative block min-h-[300vh] lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[320vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="violet" />
       <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
         <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
@@ -623,7 +636,7 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
     <section ref={root} id="before-the-systems" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="amber" image={IMG.before1} emoji="🏪" />
       <MobileScene1 t={t} />
-      <div data-scene className="relative hidden min-h-[320vh] lg:block">
+      <div data-scene className="relative hidden min-h-[340vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="mixed" />
           <div className="relative mx-auto flex w-full max-w-6xl items-center px-6">
@@ -731,7 +744,7 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
     <section ref={root} id="inside-the-proof" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="cyan" image={IMG.proof1} emoji="🖥️" />
       <MobileScene2 t={t} />
-      <div data-scene className="relative hidden min-h-[300vh] lg:block">
+      <div data-scene className="relative hidden min-h-[320vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="cyan" />
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:grid-cols-2">
@@ -869,7 +882,7 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
     <section ref={root} id="living-layer" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="violet" image={IMG.living1} emoji="🌀" />
       <MobileScene3 t={t} />
-      <div data-scene className="relative hidden min-h-[340vh] lg:block">
+      <div data-scene className="relative hidden min-h-[360vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="violet" />
           <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-10 px-6 text-center">

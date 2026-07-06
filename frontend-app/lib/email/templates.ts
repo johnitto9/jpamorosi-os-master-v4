@@ -234,6 +234,80 @@ export const templates = {
     };
   },
 
+  scout_digest(d: {
+    date: string;
+    queries: string[];
+    ingested: number;
+    advanced: number;
+    total: number;
+    rawIngest: number;
+    withEmail: number;
+    readyToContact: number;
+    highScore: number;
+    summary?: string;
+    top?: Array<{
+      company?: string | null;
+      title?: string | null;
+      email?: string | null;
+      url?: string | null;
+      score?: number;
+      fitReason?: string | null;
+      nextAction?: string | null;
+    }>;
+    adminUrl: string;
+    exportUrl: string;
+  }): RenderedEmail {
+    const stat = (label: string, value: number | string, color = "#ffffff") =>
+      `<td style="padding:9px 10px;text-align:center;border:1px solid #262640;border-radius:10px">
+        <div style="font-size:21px;font-weight:800;color:${color}">${esc(String(value))}</div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#9aa3b2">${esc(label)}</div>
+      </td>`;
+    const top = (d.top ?? []).slice(0, 5);
+    return {
+      subject: `🛰 Scout ${d.date} — +${d.ingested} captured · ${d.readyToContact} ready · ${d.withEmail} emails`,
+      html: shell(
+        `Scout diario ${d.date}`,
+        `<p style="margin:0 0 14px;color:#c9d4e3">El radar corrió discovery amplio, avanzó el pipeline y dejó el bruto como archivo. Las cards del admin muestran solo señales únicas que avanzaron o califican.</p>
+         <table style="width:100%;border-collapse:separate;border-spacing:6px;margin:0 0 16px"><tr>
+           ${stat("captured", d.ingested, "#00e5ff")}
+           ${stat("advanced", d.advanced, "#8b5cf6")}
+           ${stat("ready", d.readyToContact, "#34d399")}
+         </tr><tr>
+           ${stat("total", d.total)}
+           ${stat("raw bag", d.rawIngest, "#f0a500")}
+           ${stat("emails", d.withEmail, "#00e0a4")}
+         </tr></table>
+         ${chips(d.queries.map((q, i) => [`query ${i + 1}`, q]))}
+         ${d.summary ? `<p style="margin:0 0 4px;color:#9aa3b2;font-size:12px">Lectura del scout:</p>${quote(d.summary)}` : ""}
+         ${top.length > 0 ? `<div style="margin:16px 0 0">
+           <p style="margin:0 0 8px;color:#9aa3b2;font-size:12px;text-transform:uppercase;letter-spacing:1px">Top señales</p>
+           ${top.map((p) => `
+             <div style="margin:8px 0;padding:12px;border:1px solid #262640;border-radius:12px;background:#0c1420">
+               <p style="margin:0;color:#fff;font-weight:700">${esc(p.company || p.title || "Prospect")}${p.score != null ? ` <span style="color:#00e5ff;font-size:12px">score ${p.score}</span>` : ""}</p>
+               ${p.company && p.title ? `<p style="margin:3px 0 0;color:#9aa3b2;font-size:12px">${esc(p.title)}</p>` : ""}
+               ${p.fitReason ? `<p style="margin:8px 0 0;color:#c9d4e3;font-size:12px">${esc(p.fitReason)}</p>` : ""}
+               ${p.nextAction ? `<p style="margin:8px 0 0;color:#b7f7d4;font-size:12px">→ ${esc(p.nextAction)}</p>` : ""}
+               ${p.email ? `<p style="margin:6px 0 0;color:#00e5ff;font-size:12px">${esc(p.email)}</p>` : ""}
+               ${p.url ? `<p style="margin:6px 0 0"><a href="${esc(p.url)}" style="color:#00b8cc;text-decoration:none;font-size:12px">${esc(p.url)}</a></p>` : ""}
+             </div>
+           `).join("")}
+         </div>` : ""}
+         ${button(d.adminUrl, "Open prospect board →")}
+         <p style="margin:10px 0 0"><a href="${esc(d.exportUrl)}" style="color:#00b8cc;text-decoration:none">Download JSONL snapshot →</a></p>`,
+        "#00e5ff",
+      ),
+      text: `Scout ${d.date}
+Captured: ${d.ingested} · advanced: ${d.advanced} · ready: ${d.readyToContact} · emails: ${d.withEmail}
+Queries: ${d.queries.join(" | ")}
+${d.summary ? `\nSummary:\n${d.summary}\n` : ""}
+Top:
+${top.map((p, i) => `${i + 1}. ${p.company || p.title || "Prospect"}${p.score != null ? ` (${p.score})` : ""}${p.email ? ` · ${p.email}` : ""}${p.url ? ` · ${p.url}` : ""}\n${p.fitReason ?? ""}\n${p.nextAction ? `→ ${p.nextAction}` : ""}`).join("\n\n")}
+
+Board: ${d.adminUrl}
+Snapshot: ${d.exportUrl}`,
+    };
+  },
+
   // the heartbeat's warm outreach: the system follows up with a lead that
   // went quiet, using words the LLM wrote from THEIR actual conversation
   lead_followup(d: {

@@ -1,0 +1,12 @@
+use_default_settings: true
+
+server:
+  secret_key: "replace-with-dokploy-secret-or-mounted-settings"
+  image_proxy: false
+  limiter: true
+
+search:
+  formats:
+    - html
+    - json
+

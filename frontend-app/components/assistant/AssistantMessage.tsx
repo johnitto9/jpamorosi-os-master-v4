@@ -5,6 +5,8 @@ import type { AssistantResponse, DecisionProposal } from "@/lib/assistant/types"
 import { AssistantActionButton } from "./AssistantActionButton";
 import { AssistantProjectCard } from "./AssistantProjectCard";
 
+type LeadField = "name" | "email" | "company" | "need" | "budget";
+
 // --- lightweight, XSS-safe rich text -----------------------------------------
 // The LLM writes light markdown (**bold**, *italic*, `code`, bullet lists). We
 // rendered it raw before, so "**" leaked into the UI. This renders real nodes
@@ -148,6 +150,87 @@ function InfoCard({
   );
 }
 
+const FIELD_LABEL: Record<LeadField, string> = {
+  name: "Name",
+  email: "Email",
+  company: "Company",
+  need: "What do you need?",
+  budget: "Budget / timing",
+};
+
+function LeadCaptureCard({
+  card,
+}: {
+  card: Extract<NonNullable<AssistantResponse["cards"]>[number], { type: "lead_capture" }>;
+}) {
+  const fields = (card.fields?.length ? card.fields : ["email", "company", "need"]).slice(0, 5);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  async function submit() {
+    if (state === "saving" || state === "saved") return;
+    const payload = Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v.length > 0),
+    );
+    if (Object.keys(payload).length === 0) return;
+    setState("saving");
+    try {
+      const res = await fetch("/api/assistant/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setState(res.ok ? "saved" : "error");
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.05] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-white">{card.title ?? "Keep the thread alive"}</p>
+          {card.body && <p className="mt-1 text-xs leading-relaxed text-white/60">{card.body}</p>}
+        </div>
+        <span className="rounded-full border border-emerald-300/25 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-200">
+          lead
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {fields.map((field) => (
+          <label key={field} className={field === "need" ? "sm:col-span-2" : ""}>
+            <span className="sr-only">{FIELD_LABEL[field]}</span>
+            <input
+              type={field === "email" ? "email" : "text"}
+              value={values[field] ?? ""}
+              onChange={(e) => setValues((prev) => ({ ...prev, [field]: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submit();
+              }}
+              placeholder={FIELD_LABEL[field]}
+              className="h-9 w-full rounded-xl border border-white/10 bg-black/25 px-3 text-xs text-white outline-none transition-colors placeholder:text-white/35 focus:border-emerald-300/55"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-[11px] text-white/45">
+          {state === "saved" ? "Saved to the dossier." : state === "error" ? "Could not save. Try again." : "Juan can pick this up from admin."}
+        </p>
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={state === "saving" || state === "saved"}
+          className="h-8 rounded-full border border-emerald-300/35 bg-emerald-300/10 px-3 text-xs font-semibold text-emerald-100 transition-colors hover:border-emerald-200/70 disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          {state === "saving" ? "Saving..." : state === "saved" ? "Saved" : "Send"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AssistantMessage({
   turn,
   onDecision,
@@ -184,6 +267,8 @@ export function AssistantMessage({
           {res.cards.map((c, i) =>
             c.type === "project" ? (
               <AssistantProjectCard key={c.slug} slug={c.slug} />
+            ) : c.type === "lead_capture" ? (
+              <LeadCaptureCard key={`lead-${i}`} card={c} />
             ) : c.type === "info" ? (
               <InfoCard key={`info-${i}`} card={c} />
             ) : c.type === "decisions" ? (

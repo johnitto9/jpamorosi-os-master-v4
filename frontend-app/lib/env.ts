@@ -19,6 +19,11 @@ const boolish = z
   .default("false")
   .transform((v) => v === "true");
 
+const optionalBoolish = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((v) => v === "true");
+
 const schema = z.object({
   APP_ENV: z.enum(["local", "test", "production"]).default("local"),
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
@@ -49,6 +54,9 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
   RESEND_ADMIN_TO_EMAIL: z.string().default("jpamorosi14@gmail.com"),
+  // Safety gate: admin notifications may send, but emails TO discovered leads
+  // or outbound prospects stay blocked unless this is explicitly enabled.
+  OUTBOUND_LEAD_EMAILS_ENABLED: optionalBoolish,
   // Single allowed magic-link identity (no public multi-user registration).
   ADMIN_EMAIL: z.string().default("jpamorosi14@gmail.com"),
 
@@ -66,6 +74,12 @@ const schema = z.object({
 
   // --- Agent optional capabilities (env-gated tools).
   WEB_SEARCH_API_KEY: z.string().optional(), // serper.dev
+  SEARXNG_ENABLED: optionalBoolish,
+  SEARXNG_BASE_URL: z.string().url().optional(),
+  SEARXNG_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
+  SEARXNG_FALLBACK_TO_SERPER: optionalBoolish,
+  SEARCH_PRIMARY_PROVIDER: z.string().default("searxng"),
+  SEARCH_PREMIUM_PROVIDER: z.string().default("serper"),
   // Image model for generate_mockup. Seedream 4.5 via OpenRouter's dedicated
   // /api/v1/images endpoint (b64_json). This is the house image model for
   // EVERYTHING we generate (logos, mockups, home, screens, storyboards).
@@ -117,6 +131,11 @@ export function getStorageDriver(): string {
 /** Email sending is live (otherwise the service logs instead of sending). */
 export function isEmailConfigured(): boolean {
   return !!env.RESEND_API_KEY && !!env.RESEND_FROM_EMAIL;
+}
+
+/** True only when autonomous/customer-facing outbound is explicitly allowed. */
+export function outboundLeadEmailsEnabled(): boolean {
+  return env.OUTBOUND_LEAD_EMAILS_ENABLED === true;
 }
 
 /** R2 offload configured (otherwise storage falls back to the local volume). */

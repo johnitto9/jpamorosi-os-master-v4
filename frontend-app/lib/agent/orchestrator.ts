@@ -124,6 +124,18 @@ const showCardArgSchema = z
   })
   .strict();
 
+const leadCaptureArgSchema = z
+  .object({
+    title: z.string().min(1).max(80).optional(),
+    body: z.string().max(220).optional(),
+    fields: z
+      .array(z.enum(["name", "email", "company", "need", "budget"]))
+      .min(1)
+      .max(5)
+      .optional(),
+  })
+  .strict();
+
 // brand-foundation tool arg (validated, never trusted) — feeds upsertBrandDNA
 const brandDnaArgSchema = z
   .object({
@@ -143,6 +155,12 @@ const KNOWN_INTENTS: AssistantIntent[] = [
 
 function normalizeIntent(raw?: string): AssistantIntent {
   return (KNOWN_INTENTS as string[]).includes(raw ?? "") ? (raw as AssistantIntent) : "unknown";
+}
+
+function shouldOfferLeadCapture(text: string, intent: AssistantIntent, leadState: LeadPatch | null): boolean {
+  if (leadState?.email || leadState?.phone) return false;
+  if (["hiring", "contact", "project_discovery", "capability"].includes(intent)) return true;
+  return /\b(hire|hiring|contract|freelance|agency|startup|founder|cto|project|build|quote|budget|meeting|contact|email|trabajo|contratar|presupuesto|empresa|startup|reuni[oó]n|contacto|laburo)\b/i.test(text);
 }
 
 // ---- Prompt ------------------------------------------------------------------
@@ -182,7 +200,7 @@ function systemPrompt(
     `HARD RULES:`,
     `- Answer ONLY from the site facts below. Never invent projects, metrics or links.`,
     `- Keep replies short (2-4 sentences), warm, concrete, in the visitor's language.`,
-    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna", "propose_decisions", "show_card"].join(", ")}.`,
+    `- You may call tools ONLY from this whitelist: ${[...TOOL_NAMES, ...serverToolNames(), "update_project", "confirm_palette", "set_brand_dna", "propose_decisions", "show_card", "show_lead_capture"].join(", ")}.`,
     webSearchEnabled()
       ? `- web_search(arg: query): research the visitor's company/product when they name it — use sparingly, once per conversation.`
       : ``,
@@ -207,6 +225,7 @@ function systemPrompt(
     `- If the message contains [visitor shared an image: ...] you cannot see the pixels: acknowledge it warmly, ask what it shows / what matters in it, and treat it as project context.`,
     `- Useful extra tool: open_github (Juan's code). Prefer buttons/actions over pasting raw links.`,
     `- Useful extra tool: show_card. Use it for compact structured summaries instead of long paragraphs. Arg is JSON string: {"title":"...","body":"...","items":[{"label":"...","value":"..."}],"tone":"cyan|violet|emerald"}.`,
+    `- Useful extra tool: show_lead_capture. Use it when the visitor shows hiring/project/contact intent and email/company/need are missing. Arg is JSON string: {"title":"...","body":"...","fields":["email","company","need"]}. Do not use it when contact is already known.`,
     `- Lead qualification is a conversation, not a form: at most ONE gentle question per reply. Never re-ask what is already known. Known so far: ${known.length ? known.join(", ") : "nothing"}.`,
     `- If the visitor shares contact info, company, budget or a project need, capture it in "lead".`,
     `- If asked for a CV, use tool open_or_generate_cv. To contact, open_contact.`,
@@ -406,6 +425,26 @@ async function tryLlmResponse(
     }
   }
 
+  let leadCaptureCard: AssistantCard | null = null;
+  const askedLeadCapture = (parsed.tools ?? []).find((t) => t.name === "show_lead_capture");
+  if (askedLeadCapture && !leadState?.email && !leadState?.phone) {
+    try {
+      const arg = leadCaptureArgSchema.parse(JSON.parse(argToString(askedLeadCapture.arg)));
+      leadCaptureCard = {
+        type: "lead_capture",
+        title: arg.title,
+        body: arg.body,
+        fields: arg.fields,
+      };
+      await recordEvent("ai.tool.called", { tool: "show_lead_capture" });
+    } catch (err) {
+      await recordEvent("ai.tool.failed", {
+        tool: "show_lead_capture",
+        error: (err as Error).message.slice(0, 120),
+      });
+    }
+  }
+
   // Map remaining tool calls through the whitelisted CLIENT registry
   // (server tools and unknown names are no-ops there).
   let actions: AssistantAction[] = [];
@@ -417,11 +456,24 @@ async function tryLlmResponse(
   }
   if (mockupCard) cards = [mockupCard, ...cards];
   if (decisionsCard) cards = [decisionsCard, ...cards];
+  const normalizedIntent = normalizeIntent(parsed.intent);
+  if (!leadCaptureCard && shouldOfferLeadCapture(text, normalizedIntent, leadState)) {
+    leadCaptureCard = {
+      type: "lead_capture",
+      title: lang === "es" ? "Te dejo un acceso directo" : "Quick handoff",
+      body:
+        lang === "es"
+          ? "Dejame email, empresa y necesidad; Juan puede retomar esto desde el dossier."
+          : "Drop email, company and need; Juan can pick this up from the dossier.",
+      fields: ["email", "company", "need"],
+    };
+  }
+  if (leadCaptureCard) cards = [leadCaptureCard, ...cards];
   if (infoCard) cards = [infoCard, ...cards];
 
   const response = enforceResponse({
     message: parsed.message,
-    intent: normalizeIntent(parsed.intent),
+    intent: normalizedIntent,
     actions,
     cards,
     safety: { source: "site_content", confidence: "medium" },

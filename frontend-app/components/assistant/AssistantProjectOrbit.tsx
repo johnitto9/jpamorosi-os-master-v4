@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Plus } from "lucide-react";
 import { WIZARD, DEFAULT_LANG, LANGS, type Lang } from "@/lib/i18n/dictionaries";
 
 // helper used by callers that don't yet expose `lang` — kept here so the
@@ -109,7 +110,7 @@ export function ProjectStrip({
   const t = WIZARD[lang];
   if (projects.length === 0) return null;
   return (
-    <div className="no-scrollbar mt-2 flex items-stretch gap-2 overflow-x-auto pb-1">
+    <div className="no-scrollbar mt-2 flex items-center gap-2 overflow-x-auto pb-1">
       {projects.map((p) => {
         const on = selected.includes(p.id);
         return (
@@ -117,45 +118,41 @@ export function ProjectStrip({
             key={p.id}
             onClick={() => onToggle(p.id)}
             aria-pressed={on}
-            className={`flex w-40 shrink-0 flex-col rounded-xl border p-2.5 text-left transition-all ${
+            className={`flex h-14 w-[224px] shrink-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-all ${
               on
-                ? "border-cyan-400/70 bg-cyan-400/10"
-                : "border-white/10 opacity-50 grayscale hover:opacity-80"
+                ? "border-cyan-400/70 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(34,211,238,0.18)]"
+                : "border-white/10 bg-white/[0.025] opacity-70 grayscale hover:opacity-95"
             }`}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-black/25">
               {p.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.logoUrl} alt="" className="h-4 w-4 shrink-0 rounded object-cover" />
+                <img src={p.logoUrl} alt="" className="h-full w-full rounded-md object-cover" />
               ) : (
-                <span aria-hidden>{KIND_META[p.kind]?.icon ?? "🧩"}</span>
+                <span aria-hidden className="text-sm">{KIND_META[p.kind]?.icon ?? "🧩"}</span>
               )}
-              <span className="truncate text-xs font-semibold text-white">{p.name}</span>
             </div>
-            <div className="mt-1.5 flex items-center gap-1">
-              {(p.palette.length > 0 ? p.palette : ["#00e5ff", "#8b5cf6"]).slice(0, 5).map((c, i) => (
-                <span key={i} aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-              ))}
-              <span className="ml-auto text-[9px] text-white/40">
-                {p.stack.length > 0 ? `${p.stack.length} stack` : "—"}
-              </span>
+            <div className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold text-white">{p.name}</span>
+              <div className="mt-1 flex items-center gap-1">
+                {(p.palette.length > 0 ? p.palette : ["#00e5ff", "#8b5cf6"]).slice(0, 5).map((c, i) => (
+                  <span key={i} aria-hidden className="h-2 w-2 rounded-full" style={{ background: c }} />
+                ))}
+                {p.stack.length > 0 ? (
+                  <span className="ml-1 text-[9px] text-white/35">{p.stack.length} stack</span>
+                ) : null}
+              </div>
             </div>
-            {/* always rendered (invisible when idle) so the active state never
-                changes the card height — no vertical jump on select */}
-            <span
-              className={`mt-1 font-mono text-[8px] uppercase tracking-[0.2em] text-cyan-300 ${on ? "" : "invisible"}`}
-            >
-              {t.stripActive}
-            </span>
+            {on ? <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.9)]" /> : null}
           </button>
         );
       })}
       <button
         onClick={onNew}
         aria-label={t.stripNew}
-        className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/20 text-lg text-white/40 transition-colors hover:border-cyan-400/60 hover:text-cyan-300"
+        className="flex h-14 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-white/20 text-white/45 transition-colors hover:border-cyan-400/60 hover:text-cyan-300"
       >
-        +
+        <Plus size={18} aria-hidden />
       </button>
       {multi && (
         <span className="self-center whitespace-nowrap pl-1 text-[9px] text-white/30">

@@ -26,8 +26,10 @@ import { isDbConfigured, tryQuery } from "@/lib/db/pool";
 import { ensureSchema } from "@/lib/db/bootstrap";
 import { recordEvent } from "@/lib/events";
 import { profile } from "@/content/profile";
+import { premiumEnrichCandidate } from "@/lib/opportunity-discovery/pipeline";
+import { selectPremiumHarvestUrls } from "@/lib/opportunity-discovery/planner";
 import { chatCompletion, isLlmConfigured } from "./llm";
-import { runWebSearchRaw, webSearchEnabled, type SearchHit } from "./tools-server";
+import type { SearchHit } from "./tools-server";
 
 export type ProspectStage =
   | "ingest" | "filter" | "enrich" | "qualify" | "contact" | "contacted" | "discarded";
@@ -48,6 +50,15 @@ export type Prospect = {
   score: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ProspectStats = {
+  total: number;
+  byStage: Record<string, number>;
+  withEmail: number;
+  readyToContact: number;
+  highScore: number;
+  rawIngest: number;
 };
 
 const QUALIFY_THRESHOLD = 55;
@@ -185,7 +196,7 @@ async function fetchTextSafe(url: string, ms: number): Promise<string | null> {
  *  pages (where emails actually live). Bounded: <=3 network fetches, short
  *  timeout each. This is the step that was missing — serper SERPs carry no
  *  emails, so without fetching the pages the funnel produced hollow cards. */
-async function harvestContact(
+export async function harvestContact(
   url: string | null,
   extraText: string | null,
 ): Promise<{ email: string | null; company: string | null }> {
@@ -207,6 +218,28 @@ async function harvestContact(
     if (email && company) break;
   }
   return { email, company };
+}
+
+export async function harvestContactFromUrls(
+  urls: Array<string | null | undefined>,
+  extraText: string | null,
+): Promise<{ email: string | null; company: string | null; sourceUrl: string | null }> {
+  let best: { email: string | null; company: string | null; sourceUrl: string | null } = {
+    email: cleanEmail(extraText?.match(EMAIL_RE)?.[0]) ?? null,
+    company: null,
+    sourceUrl: null,
+  };
+  for (const url of urls) {
+    if (!url) continue;
+    const found = await harvestContact(url, extraText);
+    best = {
+      email: best.email ?? found.email,
+      company: best.company ?? found.company,
+      sourceUrl: found.email || found.company ? url : best.sourceUrl,
+    };
+    if (best.email && best.company) break;
+  }
+  return best;
 }
 
 /** Admin-dropped email/text about a lead. LLM parses when available; the
@@ -270,6 +303,90 @@ export async function listProspects(limit = 300): Promise<Prospect[]> {
   if (!(await dbReady())) return [];
   const res = await tryQuery<Prospect>(
     `SELECT ${SELECT} FROM prospects ORDER BY updated_at DESC LIMIT $1`,
+    [limit],
+  );
+  return res?.rows ?? [];
+}
+
+/** Board surface: keep raw scout noise bounded. The archive/export can hold
+ *  thousands; cards are only for active/advanced opportunities plus a small
+ *  ingest preview so the admin sees the net is working without drowning. */
+export async function listBoardProspects(): Promise<Prospect[]> {
+  if (!(await dbReady())) return [];
+  const res = await tryQuery<Prospect>(
+    `(SELECT ${SELECT} FROM prospects
+       WHERE stage = 'ingest'
+       ORDER BY updated_at DESC
+       LIMIT 20)
+     UNION ALL
+     (SELECT ${SELECT} FROM prospects
+       WHERE stage IN ('filter','enrich','qualify','contact','contacted')
+       ORDER BY
+         CASE
+           WHEN stage = 'contact' THEN 0
+           WHEN stage = 'qualify' THEN 1
+           WHEN stage = 'enrich' THEN 2
+           WHEN stage = 'filter' THEN 3
+           ELSE 4
+         END,
+         score DESC,
+         updated_at DESC
+       LIMIT 280)`,
+  );
+  return res?.rows ?? [];
+}
+
+export async function prospectStats(): Promise<ProspectStats> {
+  if (!(await dbReady())) {
+    return { total: 0, byStage: {}, withEmail: 0, readyToContact: 0, highScore: 0, rawIngest: 0 };
+  }
+  const res = await tryQuery<{
+    total: number;
+    withEmail: number;
+    readyToContact: number;
+    highScore: number;
+    rawIngest: number;
+    byStage: Record<string, number>;
+  }>(
+    `WITH totals AS (
+       SELECT
+         count(*)::int AS total,
+         count(*) FILTER (WHERE email IS NOT NULL)::int AS with_email,
+         count(*) FILTER (WHERE stage = 'contact')::int AS ready_to_contact,
+         count(*) FILTER (WHERE score >= 70)::int AS high_score,
+         count(*) FILTER (WHERE stage = 'ingest')::int AS raw_ingest
+       FROM prospects
+     ),
+     stages AS (
+       SELECT COALESCE(jsonb_object_agg(stage, n), '{}'::jsonb) AS by_stage
+       FROM (SELECT stage, count(*)::int AS n FROM prospects GROUP BY stage) s
+     )
+     SELECT total AS "total",
+            with_email AS "withEmail",
+            ready_to_contact AS "readyToContact",
+            high_score AS "highScore",
+            raw_ingest AS "rawIngest",
+            by_stage AS "byStage"
+     FROM totals, stages`,
+  );
+  const row = res?.rows[0];
+  return {
+    total: row?.total ?? 0,
+    byStage: row?.byStage ?? {},
+    withEmail: row?.withEmail ?? 0,
+    readyToContact: row?.readyToContact ?? 0,
+    highScore: row?.highScore ?? 0,
+    rawIngest: row?.rawIngest ?? 0,
+  };
+}
+
+export async function topProspects(limit = 5): Promise<Prospect[]> {
+  if (!(await dbReady())) return [];
+  const res = await tryQuery<Prospect>(
+    `SELECT ${SELECT} FROM prospects
+     WHERE stage IN ('qualify','contact','contacted')
+     ORDER BY score DESC, email IS NOT NULL DESC, updated_at DESC
+     LIMIT $1`,
     [limit],
   );
   return res?.rows ?? [];
@@ -342,9 +459,22 @@ const RELEVANT = [
 ];
 const JUNK_DOMAINS = ["youtube.com", "facebook.com", "pinterest.com", "tiktok.com"];
 
-function relevanceScore(p: Prospect): number {
+export function relevanceScore(p: Pick<Prospect, "title" | "snippet">): number {
   const hay = `${p.title ?? ""} ${p.snippet ?? ""}`.toLowerCase();
   return RELEVANT.filter((k) => hay.includes(k)).length;
+}
+
+export function nextStageFromIngest(
+  p: Pick<Prospect, "url" | "title" | "snippet" | "source">,
+): ProspectStage {
+  const junk = p.url ? JUNK_DOMAINS.some((d) => p.url!.includes(d)) : false;
+  return !junk && (relevanceScore(p) >= 2 || p.source === "email_drop")
+    ? "filter"
+    : "discarded";
+}
+
+export function nextStageFromQualify(score: number): ProspectStage {
+  return score >= QUALIFY_THRESHOLD ? "contact" : "discarded";
 }
 
 async function advance(
@@ -440,33 +570,45 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
     const from = p.stage;
     if (p.stage === "ingest") {
       // deterministic relevance gate: junk drowns, signal passes
-      const junk = p.url && JUNK_DOMAINS.some((d) => p.url!.includes(d));
-      const to = !junk && (relevanceScore(p) >= 2 || p.source === "email_drop")
-        ? "filter" : "discarded";
+      const to = nextStageFromIngest(p);
       await advance(p.id, to);
       moves.push({ id: p.id, from, to });
     } else if (p.stage === "filter") {
-      // one fine search on the entity behind the card
-      let enrichment = "web search not configured — passed through";
-      if (webSearchEnabled()) {
-        const q = p.company ?? p.title ?? "";
-        const hits = q ? await runWebSearchRaw(`${q.slice(0, 80)} company product`, 3) : null;
-        if (hits && hits.length > 0) {
-          enrichment = hits
-            .map((h) => `${h.title ?? ""} — ${h.snippet ?? ""} (${h.link ?? ""})`)
-            .join("\n");
-        } else if (hits) {
-          enrichment = "no additional public signal found";
-        }
-      }
-      // harvest a real contact + company by fetching the page(s), not just the
-      // serper snippet (that's why cards used to land email-less)
+      // Premium enrichment is a scalpel now: only high-fit, incomplete cards
+      // can spend Serper, and the query is built for contact/hiring context.
+      const premium = await premiumEnrichCandidate(
+        {
+          title: p.title,
+          url: p.url,
+          snippet: p.snippet,
+          source: p.source,
+          company: p.company,
+          email: p.email,
+        },
+        { minPremiumScore: 38, premiumBudget: 1 },
+      );
+      const enrichment = [
+        premium.premiumCallsUsed > 0
+          ? `premium:serper:${premium.candidate.premiumQuery ?? ""}`
+          : premium.enrichmentText,
+        premium.premiumCallsUsed > 0 ? premium.enrichmentText : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 2000);
+      const premiumUrls = selectPremiumHarvestUrls(premium.candidate, premium.candidate.enrichment, 2);
+      // Harvest the original URL plus selected premium Serper URLs. Serper is
+      // only useful if it opens pages where contact data can actually be read.
       const found =
         p.email && p.company
-          ? { email: p.email, company: p.company }
-          : await harvestContact(p.url, enrichment);
+          ? { email: p.email, company: p.company, sourceUrl: p.url }
+          : await harvestContactFromUrls([p.url, ...premiumUrls], enrichment);
       await advance(p.id, "enrich", {
-        enrichment: enrichment.slice(0, 2000),
+        enrichment: [
+          enrichment,
+          premiumUrls.length > 0 ? `premium:scrape:${premiumUrls.join(", ")}` : null,
+          found.sourceUrl ? `contact:source:${found.sourceUrl}` : null,
+        ].filter(Boolean).join("\n").slice(0, 2000),
         email: found.email ?? undefined,
         company: found.company ?? undefined,
       });
@@ -479,7 +621,7 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
       await advance(p.id, "qualify", q);
       moves.push({ id: p.id, from, to: "qualify" });
     } else if (p.stage === "qualify") {
-      const to = p.score >= QUALIFY_THRESHOLD ? "contact" : "discarded";
+      const to = nextStageFromQualify(p.score);
       await advance(p.id, to);
       moves.push({ id: p.id, from, to });
     }
