@@ -12,6 +12,7 @@ import { guardAdmin } from "@/lib/auth/guard";
 import { isDbConfigured } from "@/lib/db/pool";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/service";
+import { getSiteSettings } from "@/lib/media/store";
 import {
   getProspect,
   listBoardProspects,
@@ -152,7 +153,10 @@ export async function POST(request: Request) {
 
     // Single coherent generator — language, subject, body and chrome all derive
     // from the same stored signals, so manual and autonomous paths never drift.
-    const outreach = buildProspectOutreachData(prospect, env.NEXT_PUBLIC_SITE_URL);
+    const settings = await getSiteSettings();
+    const outreach = buildProspectOutreachData(prospect, env.NEXT_PUBLIC_SITE_URL, {
+      visualUrl: settings.interludes?.proof1,
+    });
     const sent = await sendEmail({
       template: "prospect_outreach",
       to: prospect.email,

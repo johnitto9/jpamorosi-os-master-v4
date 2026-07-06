@@ -668,6 +668,7 @@ function publicNextStep(lang: ProspectLang): string {
 export function buildProspectOutreachData(
   p: Prospect,
   siteUrl: string,
+  options: { visualUrl?: string } = {},
 ): ProspectOutreachData {
   const lang = detectProspectLang(p);
   const subject = subjectParts(p, lang);
@@ -682,7 +683,7 @@ export function buildProspectOutreachData(
     signals: prospectSignals(p),
     fitReason: publicOverlap(p, lang),
     nextAction: publicNextStep(lang),
-    visualUrl: new URL("/og.jpg", siteUrl).toString(),
+    visualUrl: options.visualUrl ?? new URL("/og.jpg", siteUrl).toString(),
     avatarUrl: PROFILE_AVATAR_URL,
     lang,
     seed: p.id,
