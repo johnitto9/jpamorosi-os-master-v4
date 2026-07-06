@@ -40,7 +40,7 @@ export async function chatCompletion(
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
         // OpenRouter attribution headers (optional, good citizenship)
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://jpamorosi.com",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://jpamorosi.dev",
         "X-Title": "Amorosi Labs Assistant",
       },
       body: JSON.stringify({

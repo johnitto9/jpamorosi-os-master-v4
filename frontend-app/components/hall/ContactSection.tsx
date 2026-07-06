@@ -1,14 +1,10 @@
 "use client";
 
 // components/hall/ContactSection.tsx
-// Home contact form — same Formspree form as the OS ContactApp
-// (packages/desktop/apps/ContactApp.tsx, form id "xanbvlqw") restyled to the
-// Hall's aero/glass look, so both surfaces deliver to the same inbox.
-// Client component (Formspree hook); parent section stays server-rendered.
+// Home contact form — posts to the local contact API so the same email service
+// sends the admin dossier and the visitor's "got it" confirmation.
 
-import { useForm, ValidationError } from "@formspree/react";
-
-const FORMSPREE_ID = "xanbvlqw"; // shared with /os ContactApp
+import { FormEvent, useState } from "react";
 
 export type ContactFormCopy = {
   name: string;
@@ -24,13 +20,42 @@ export type ContactFormCopy = {
 };
 
 export function ContactSection({ t }: { t: ContactFormCopy }) {
-  const [state, handleSubmit] = useForm(FORMSPREE_ID);
+  const [submitting, setSubmitting] = useState(false);
+  const [succeeded, setSucceeded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const field =
     "w-full rounded-xl border border-white/15 bg-black/40 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none backdrop-blur transition-colors focus:border-cyan-400/60";
   const label = "block text-xs font-medium uppercase tracking-[0.2em] text-white/50";
 
-  if (state.succeeded) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const form = new FormData(event.currentTarget);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: String(form.get("name") ?? ""),
+          email: String(form.get("email") ?? ""),
+          message: String(form.get("message") ?? ""),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        setError(typeof data?.error === "string" ? data.error : "No se pudo enviar.");
+        return;
+      }
+      setSucceeded(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (succeeded) {
     return (
       <div
         className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-2xl border border-cyan-400/20 bg-white/[0.03] p-8 text-center backdrop-blur"
@@ -60,12 +85,6 @@ export function ContactSection({ t }: { t: ContactFormCopy }) {
             placeholder={t.namePh}
             className={`${field} mt-1.5`}
           />
-          <ValidationError
-            prefix={t.name}
-            field="name"
-            errors={state.errors}
-            className="mt-1 text-xs text-red-400"
-          />
         </div>
         <div>
           <label htmlFor="contact-email" className={label}>
@@ -78,12 +97,6 @@ export function ContactSection({ t }: { t: ContactFormCopy }) {
             required
             placeholder={t.emailPh}
             className={`${field} mt-1.5`}
-          />
-          <ValidationError
-            prefix={t.email}
-            field="email"
-            errors={state.errors}
-            className="mt-1 text-xs text-red-400"
           />
         </div>
       </div>
@@ -99,21 +112,15 @@ export function ContactSection({ t }: { t: ContactFormCopy }) {
           placeholder={t.messagePh}
           className={`${field} mt-1.5 resize-none`}
         />
-        <ValidationError
-          prefix={t.message}
-          field="message"
-          errors={state.errors}
-          className="mt-1 text-xs text-red-400"
-        />
       </div>
       <button
         type="submit"
-        disabled={state.submitting}
+        disabled={submitting}
         className="inline-flex w-full items-center justify-center rounded-full bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-cyan-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
-        {state.submitting ? t.sending : t.send}
+        {submitting ? t.sending : t.send}
       </button>
-      <ValidationError errors={state.errors} className="text-xs text-red-400" />
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </form>
   );
 }

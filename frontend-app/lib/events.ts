@@ -48,6 +48,7 @@ export type EventType =
   | "email.sent"
   | "email.blocked"
   | "email.failed"
+  | "email.smoke_outbound_bypass"
   | "media.uploaded"
   | "storage.r2.uploaded"
   | "storage.local.uploaded";

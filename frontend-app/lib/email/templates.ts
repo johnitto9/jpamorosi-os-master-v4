@@ -71,6 +71,17 @@ const paletteBar = (colors?: string[]) =>
         .join("")}</p>`
     : "";
 
+const bulletList = (items?: string[]) => {
+  const on = (items ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 4);
+  if (on.length === 0) return "";
+  return `<div style="margin:16px 0;padding:14px 16px;background:#0c1420;border:1px solid #202f46;border-radius:10px">
+    <p style="margin:0 0 8px;color:#00d5e8;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700">Signals I reviewed</p>
+    <ul style="margin:0;padding-left:18px;color:#c9d4e3">${on
+      .map((item) => `<li style="margin:6px 0">${esc(item)}</li>`)
+      .join("")}</ul>
+  </div>`;
+};
+
 // ---- templates ---------------------------------------------------------------
 
 export const templates = {
@@ -113,7 +124,7 @@ export const templates = {
       html: shell(
         `Thanks${d.name ? `, ${d.name}` : ""}!`,
         `<p>Your message reached Juan Pablo Amorosi. He reads everything personally and usually replies within a day.</p>
-         <p>Meanwhile, the shipped systems live at <a href="https://jpamorosi.com" style="color:#00d5e8">jpamorosi.com</a>.</p>`,
+         <p>Meanwhile, the shipped systems live at <a href="https://jpamorosi.dev" style="color:#00d5e8">jpamorosi.dev</a>.</p>`,
       ),
       text: `Thanks${d.name ? `, ${d.name}` : ""}! Your message reached Juan. He usually replies within a day.`,
     };
@@ -207,9 +218,9 @@ export const templates = {
       html: shell(
         `About ${d.project}`,
         `<p>${esc(d.summary ?? `Following up on ${d.project} — here's the room with the full story.`)}</p>
-         ${button(`https://jpamorosi.com/projects/${encodeURIComponent(d.project)}`, "Open the project room →")}`,
+         ${button(`https://jpamorosi.dev/projects/${encodeURIComponent(d.project)}`, "Open the project room →")}`,
       ),
-      text: `${d.summary ?? `Following up on ${d.project}.`}\nhttps://jpamorosi.com/projects/${d.project}`,
+      text: `${d.summary ?? `Following up on ${d.project}.`}\nhttps://jpamorosi.dev/projects/${d.project}`,
     };
   },
 
@@ -336,19 +347,33 @@ Snapshot: ${d.exportUrl}`,
     body: string;
     siteUrl: string;
     sourceUrl?: string;
+    signals?: string[];
+    fitReason?: string;
+    nextAction?: string;
+    visualUrl?: string;
   }): RenderedEmail {
+    const evidence = bulletList(d.signals);
+    const fit = d.fitReason ? row("Where I see leverage", d.fitReason) : "";
+    const action = d.nextAction ? row("Concrete next step", d.nextAction) : "";
+    const visual = d.visualUrl
+      ? `<p style="margin:0 0 16px"><img src="${esc(d.visualUrl)}" alt="Amorosi Labs systems preview" width="508" style="display:block;width:100%;max-width:508px;border-radius:12px;border:1px solid #262640"></p>`
+      : "";
     return {
       subject: d.company
         ? `Idea concreta para ${d.company}`
         : "Idea concreta para tu producto",
       html: shell(
         `Hi${d.contactName ? `, ${d.contactName}` : ""}`,
-        `<p style="white-space:pre-line">${esc(d.body)}</p>
+        `${visual}
+         <p style="white-space:pre-line">${esc(d.body)}</p>
+         ${evidence}${fit}${action}
          ${button(d.siteUrl, "See the systems →")}
          ${d.sourceUrl ? `<p style="margin-top:14px;color:#565672;font-size:11px">Context I reviewed: <a href="${esc(d.sourceUrl)}" style="color:#00b8cc;text-decoration:none">${esc(d.sourceUrl)}</a></p>` : ""}
          <p style="color:#9aa3b2;font-size:12px">Reply here and it lands directly with Juan.</p>`,
       ),
-      text: `Hi${d.contactName ? ` ${d.contactName}` : ""},\n\n${d.body}\n\n${d.siteUrl}${d.sourceUrl ? `\n\nContext reviewed: ${d.sourceUrl}` : ""}\n\nReply here and it lands directly with Juan.`,
+      text: `Hi${d.contactName ? ` ${d.contactName}` : ""},\n\n${d.body}${
+        d.signals?.length ? `\n\nSignals I reviewed:\n${d.signals.slice(0, 4).map((s) => `- ${s}`).join("\n")}` : ""
+      }${d.fitReason ? `\n\nWhere I see leverage:\n${d.fitReason}` : ""}${d.nextAction ? `\n\nConcrete next step:\n${d.nextAction}` : ""}\n\n${d.siteUrl}${d.sourceUrl ? `\n\nContext reviewed: ${d.sourceUrl}` : ""}\n\nReply here and it lands directly with Juan.`,
     };
   },
 

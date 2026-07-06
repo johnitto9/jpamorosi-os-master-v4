@@ -16,7 +16,7 @@ function readArg(name, fallback) {
 const baseUrl = readArg("url", process.env.SMOKE_EMAIL_BASE_URL ?? DEFAULT_URL).replace(/\/$/, "");
 const to = readArg("to", process.env.SMOKE_EMAIL_TO ?? DEFAULT_ADMIN_EMAIL);
 const leadEmail = readArg("lead-email", process.env.SMOKE_LEAD_EMAIL ?? DEFAULT_LEAD_EMAIL);
-const mode = readArg("mode", process.env.SMOKE_EMAIL_MODE ?? "full_lead_cycle");
+const mode = readArg("mode", process.env.SMOKE_EMAIL_MODE ?? "scout_outreach");
 const token = readArg("token", process.env.INTERNAL_API_TOKEN ?? process.env.SERVICE_API_TOKEN);
 
 if (!token) {

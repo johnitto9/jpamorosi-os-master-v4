@@ -86,6 +86,18 @@ function defaultOutreachBody(p: Prospect): string {
   ].join("\n");
 }
 
+function prospectSignals(p: Prospect): string[] {
+  return [
+    p.fitReason,
+    p.snippet,
+    p.enrichment,
+    p.nextAction,
+  ]
+    .map((s) => s?.replace(/\s+/g, " ").trim())
+    .filter((s): s is string => Boolean(s))
+    .map((s) => s.slice(0, 220));
+}
+
 export async function GET(request: Request) {
   const blocked = await guardAdmin();
   if (blocked) return blocked;
@@ -175,6 +187,10 @@ export async function POST(request: Request) {
         body: body.body?.trim() || defaultOutreachBody(prospect),
         siteUrl: env.NEXT_PUBLIC_SITE_URL,
         sourceUrl: prospect.url ?? undefined,
+        signals: prospectSignals(prospect),
+        fitReason: prospect.fitReason ?? undefined,
+        nextAction: prospect.nextAction ?? undefined,
+        visualUrl: new URL("/og.jpg", env.NEXT_PUBLIC_SITE_URL).toString(),
       },
       tracking: {
         prospectId: prospect.id,

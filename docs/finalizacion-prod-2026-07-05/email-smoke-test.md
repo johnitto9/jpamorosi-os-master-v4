@@ -1,21 +1,24 @@
 # Email Smoke Test
 
 Objetivo: probar el renderer y transporte real de emails sin activar la
-compuerta de outreach hacia leads.
+compuerta general de outreach hacia leads.
 
 ## Qué prueba
 
 - Ruta interna protegida: `POST /api/internal/email-smoke`.
-- Templates reales: `lead_received` para admin y `contact_confirmation` para
-  el lead simulado.
+- Modo default `scout_outreach`: template real `prospect_outreach`, con datos
+  enriquecidos parecidos a los que deja la maquinaria de scouting.
+- Modo `full_lead_cycle`: `lead_received` para admin y `contact_confirmation`
+  para el lead simulado.
 - Servicio real: `sendEmail()` + Resend + `email_logs` + `email.sent`.
 - Payload realista de una empresa interesada.
 - Validación rápida de que el render no sale como JSON crudo:
   `htmlHasJsonArtifacts` debe ser `false`.
 
-Este smoke no usa `prospect_outreach` ni `lead_followup`, por lo tanto no
-requiere `OUTBOUND_LEAD_EMAILS_ENABLED=true`. El segundo email es sólo la
-confirmación normal de contacto a un lead que dejó sus datos.
+El modo default usa `prospect_outreach`, pero sólo desde la ruta interna
+protegida, en `APP_ENV!=production`, con campaign
+`email_smoke_prospect_outreach`. No cambia `OUTBOUND_LEAD_EMAILS_ENABLED` ni
+habilita envíos autónomos.
 
 ## Ejecución local con Docker
 
@@ -32,15 +35,20 @@ Resultado esperado:
   "status": 200,
   "ok": true,
   "sent": true,
-  "mode": "full_lead_cycle",
+  "mode": "scout_outreach",
   "adminTo": "jpamorosi14@gmail.com",
   "leadEmail": "amorosijp@gmail.com",
   "htmlHasJsonArtifacts": false,
   "deliveries": [
-    { "template": "lead_received", "to": "jpamorosi14@gmail.com", "ok": true },
-    { "template": "contact_confirmation", "to": "amorosijp@gmail.com", "ok": true }
+    { "template": "prospect_outreach", "to": "amorosijp@gmail.com", "ok": true }
   ]
 }
+```
+
+Para probar el flujo de contacto entrante:
+
+```bash
+INTERNAL_API_TOKEN="$TOKEN" pnpm smoke:email -- --url http://localhost:3001 --mode full_lead_cycle
 ```
 
 Si `RESEND_API_KEY` o `RESEND_FROM_EMAIL` faltan, el servicio responde con

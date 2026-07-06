@@ -59,6 +59,7 @@ export async function sendEmail<T extends TemplateName>(input: {
   to: string;
   data: Parameters<(typeof templates)[T]>[0];
   tracking?: EmailTrackingContext;
+  smokeTestBypassOutboundGate?: boolean;
 }): Promise<SendResult> {
   const { template, to } = input;
   const renderedBase: RenderedEmail = (
@@ -69,13 +70,22 @@ export async function sendEmail<T extends TemplateName>(input: {
     campaign: input.tracking?.campaign ?? template,
   });
 
-  if (isOutboundLeadTemplate(template) && !outboundLeadEmailsEnabled()) {
+  const smokeBypass =
+    input.smokeTestBypassOutboundGate === true &&
+    env.APP_ENV !== "production" &&
+    input.tracking?.campaign === "email_smoke_prospect_outreach";
+
+  if (isOutboundLeadTemplate(template) && !outboundLeadEmailsEnabled() && !smokeBypass) {
     console.warn(
       `[email] outbound lead gate disabled — "${template}" to ${to} logged only (subject: ${rendered.subject})`,
     );
     await logEmail(template, to, rendered.subject, false, undefined, "outbound_lead_email_disabled");
     await recordEvent("email.blocked", { template, to, reason: "outbound_lead_email_disabled" });
     return { ok: false, skipped: true, error: "outbound_lead_email_disabled" };
+  }
+
+  if (smokeBypass) {
+    await recordEvent("email.smoke_outbound_bypass", { template, to });
   }
 
   if (!isEmailConfigured()) {
