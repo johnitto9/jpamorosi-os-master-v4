@@ -73,6 +73,7 @@ Servicios externos:
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `RESEND_ADMIN_TO_EMAIL`
+- `OUTBOUND_LEAD_EMAILS_ENABLED=false` durante staging/cutover; `true` solo para outreach real aprobado.
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_MODEL=z-ai/glm-5.2`
 - `OPENROUTER_IMAGE_MODEL=bytedance-seed/seedream-4.5`
@@ -176,6 +177,10 @@ curl -fsS https://api.jpamorosi.dev/api/status
 - R2 smoke test OK.
 - Resend dominio verificado.
 - Recovery email OK.
+- Outbound lead/prospect gate probado:
+  - `OUTBOUND_LEAD_EMAILS_ENABLED=false` bloquea `lead_followup` y `prospect_outreach`.
+  - admin digests/alerts siguen funcionando.
+  - primer envio real se hace manual con `OUTBOUND_LEAD_EMAILS_ENABLED=true`.
 - Dump restore probado en entorno temporal.
 - Worker corre scout una vez por dia y respeta idempotencia por evento `agent.daily_scout`.
 
@@ -183,5 +188,5 @@ curl -fsS https://api.jpamorosi.dev/api/status
 
 - `PROJECT_STORAGE_DRIVER=local-json` en prod requiere volumen durable y backup de `/app/data`; preferible migrar contenido a `postgres`.
 - Recovery links reusables por 30 dias; mejorar a token single-use.
-- `/api/admin/scout-run` usa URL interna local en el codigo actual; revisar que en contenedor/prod use `BACKEND_URL` o ruta correcta.
-- SearXNG ya tiene abstraccion SearchProvider; falta prueba integrada con instancia real encendida y luego activar `SEARXNG_ENABLED=true`.
+- `/api/admin/scout-run` usa `localhost:3000` dentro del contenedor, valido para Next standalone; si Dokploy separa procesos/red, parametrizar `BACKEND_INTERNAL_URL`.
+- Mantener `OUTBOUND_LEAD_EMAILS_ENABLED=false` si no hay revision humana de prospects.

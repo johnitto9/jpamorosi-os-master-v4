@@ -71,14 +71,29 @@ The **code is production-ready** (`lib/media/storage.ts`: R2 upload + automatic 
 ### (b) Search flow (Serper) — **works in code, dormant in current prod.**
 `WEB_SEARCH_API_KEY` → `serper.dev`. `daily-scout` rotates 7 weekly angles (2/day), ingests hits into `prospects` (URL-deduped), and advances the kanban one stage per pass (`ingest→filter→enrich→qualify→contact`). Key exists in `secrets/serper-apikey.txt`. **Caveat:** it only fires from the Docker `worker` container. On Vercel there is no scheduler, so nothing runs unless the backend profile is deployed (Dokploy/VPS) or you add a Vercel Cron / external ping.
 
-### (c) Email-finding for a marketing DB — **this is the real weak spot (matches your doubt).**
+### (c) Email-finding for a marketing DB — **SUPERSEDED 2026-07-06.**
+
+> Historical baseline note: this section described the pre-SearXNG/prospecting
+> state. Current behavior is documented in
+> `docs/finalizacion-prod-2026-07-05/DEV_HISTORY.md` and
+> `docs/serper-augmented-2026-07-06/README.md`.
+
 The scout finds **opportunities/URLs** (job posts, hiring pages), **not emails.** `ingestSearchHits` stores title/snippet/url only. The `enrich` stage does one more Serper search but **only stores it as text** — it never parses emails out. The **only** path that fills the `prospects.email` column is `ingestDroppedText` (you manually paste an email/forwarded text → regex extracts it). So today the system does **not** autonomously build an email list.
 
-**Simple, no-over-engineering proposal (reuses what exists):**
+**Historical simple proposal (reuses what existed at that time; superseded):**
 1. In the `enrich` stage, add one extra Serper query `"{company}" contact email` and regex-extract emails into the existing `prospects.email` column. Bounded cost (already inside the per-batch limit).
 2. Add an admin action "Export qualified + has-email → CSV" from `/admin/prospects` (the table already has stage + email).
 3. Reuse the existing **Resend** integration for warm/opt-in outreach only. Do **not** build a scraper or a cold-blast engine — keep a human confirm step in admin.
 This stays within "sencillo con lo que ya tenemos" and folds naturally into the autonomy/prospects task scope (not T00).
+
+Current implementation now does:
+
+- SearXNG discovery + provider-aware enrichment queries.
+- Bounded scraping of original and selected result URLs.
+- Serper only as premium last step.
+- Email extraction into `prospects.email` when public emails exist.
+- CSV/JSONL export from `/api/admin/prospects`.
+- `OUTBOUND_LEAD_EMAILS_ENABLED=false` as the prod safety gate.
 
 ## 6. Documentation contradictions found
 

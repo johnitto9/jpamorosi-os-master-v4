@@ -156,6 +156,55 @@ Si `/search?format=json` responde `403`, revisar `deploy/searxng/settings.yml`: 
 7. Activar `OUTBOUND_LEAD_EMAILS_ENABLED=true` solo despues de aprobar `06-finiquitacion-real-test-gate.md`.
 8. Monitorear logs 24h.
 
+## Activar outbound real
+
+La compuerta controla solo emails hacia leads/prospects. No bloquea admin alerts,
+magic links, scout digest ni daily pulse.
+
+Precondiciones:
+
+1. `RESEND_FROM_EMAIL` usa dominio verificado.
+2. `RESEND_API_KEY` vive solo en Dokploy/VPS.
+3. `OUTBOUND_LEAD_EMAILS_ENABLED=false` ya fue probado con scout/heartbeat.
+4. `/admin/prospects` tiene candidatos revisados manualmente.
+5. Export CSV de mailing candidates revisado.
+6. `email_logs` no muestra errores de config.
+
+Cambio:
+
+```env
+OUTBOUND_LEAD_EMAILS_ENABLED=true
+```
+
+Reiniciar:
+
+```bash
+docker compose --profile backend --profile search up -d amorosi-backend worker
+```
+
+Prueba inicial:
+
+1. Elegir 1 prospect en stage `contact`, con email y buen `fitReason`.
+2. Enviar desde `/admin/prospects` con texto revisado.
+3. Verificar:
+   - `email_logs.status = sent`.
+   - evento `email.sent`.
+   - Resend dashboard accepted/delivered.
+   - prospect pasa a `contacted` solo si Resend confirmo envio.
+
+Limite operativo inicial:
+
+- Primer dia: max 3 envios manuales.
+- No activar automatizacion masiva hasta tener respuesta/deliverability sana.
+
+Rollback:
+
+```env
+OUTBOUND_LEAD_EMAILS_ENABLED=false
+```
+
+Reiniciar backend/worker. Los prospects quedan intactos.
+
 ## Rollback
 
 Mantener el dump previo al cutover. Si falla:

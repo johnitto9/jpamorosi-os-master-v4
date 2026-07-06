@@ -361,3 +361,31 @@ Criterio cubierto:
 - candidato fuerte con email/company no usa Serper;
 - discovery amplio respeta presupuesto premium;
 - la query premium contiene identidad + keywords de contacto/hiring/contexto.
+
+## 2026-07-06 - Docs deploy/prod y outbound gate
+
+Docs revisadas/actualizadas:
+
+- `docs/secrets-and-deploy.md`
+- `docs/deploy-vps.md`
+- `docs/resend-email-system.md`
+- `docs/finalizacion-prod-2026-07-05/01-plan-prod-deploy.md`
+- `docs/finalizacion-prod-2026-07-05/05-runbook-dokploy-cutover.md`
+- `docs/final-refactor/RELEASE_PROD_READINESS.md`
+- `docs/final-refactor/tasks/T00_BASELINE_REPORT_2026-07-04.md`
+
+Puntos agregados:
+
+- `OUTBOUND_LEAD_EMAILS_ENABLED=false` como default de staging/cutover.
+- `OUTBOUND_LEAD_EMAILS_ENABLED=true` solo para outreach real aprobado.
+- Checklist para levantar compuerta:
+  - dominio Resend verificado;
+  - email logs sanos;
+  - `/admin/prospects` revisado;
+  - export CSV revisado;
+  - primer envio manual a 1 prospect.
+- Rollback inmediato:
+  - volver a `OUTBOUND_LEAD_EMAILS_ENABLED=false`;
+  - reiniciar backend/worker;
+  - no requiere rollback de DB.
+- Se actualizo documentacion vieja que decia que el scout no extraia emails autonomamente; ahora queda marcada como baseline historico superado.

@@ -128,19 +128,21 @@ not on Vercel. To turn it on:
 3. `daily-scout` sweeps rotating market angles → ingests into `prospects` (kanban
    at `/admin/prospects`) → advances one stage/pass → emails a digest.
 
-**Honest gap (email marketing DB):** the scout captures *opportunities/URLs*, not
-emails. The only path that fills `prospects.email` today is the manual
-"drop a forwarded email/text" intake. To actually build a mailing list without
-over-engineering:
+**Current prospecting state:** the scout now builds more than URL cards. The
+`enrich` stage uses SearXNG-first discovery, bounded scraping of the original and
+selected result URLs, and Serper only as a premium last step. Emails found in
+public pages are persisted to `prospects.email`; export surfaces exist in
+`/api/admin/prospects` (`csv`, `jsonl`, scoped/all).
 
-- add one Serper `"{company}" contact email` query in the `enrich` stage and
-  regex-extract into the existing `prospects.email` column;
-- add an admin "export qualified + has-email → CSV" action;
-- reuse the existing Resend integration for **warm/opt-in** outreach only, with a
-  human confirm step. No scraper, no cold-blast engine.
+Outbound remains intentionally gated:
 
-This is a small, scoped task (folds into the prospects pipeline) — not part of the
-release hardening. Flagged here so it isn't forgotten.
+```env
+OUTBOUND_LEAD_EMAILS_ENABLED=false
+```
+
+With the gate off, admin digests/alerts still send, but `lead_followup` and
+`prospect_outreach` are blocked. Flip to `true` only after manual review of the
+first mailing candidates and one controlled send from `/admin/prospects`.
 
 ## 8. Deploy sequence
 
