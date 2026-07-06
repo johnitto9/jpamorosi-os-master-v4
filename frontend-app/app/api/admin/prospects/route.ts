@@ -156,6 +156,7 @@ export async function POST(request: Request) {
     const settings = await getSiteSettings();
     const outreach = buildProspectOutreachData(prospect, env.NEXT_PUBLIC_SITE_URL, {
       visualUrl: settings.interludes?.proof1,
+      avatarUrl: settings.profileImage,
     });
     const sent = await sendEmail({
       template: "prospect_outreach",

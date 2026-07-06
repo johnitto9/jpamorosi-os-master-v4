@@ -516,13 +516,6 @@ export function detectProspectLang(
 // always yields the same coherent es/en email: subject, body and chrome never
 // drift apart. 0 tokens, 0 extra cost, no schema change.
 
-// Profile avatar — the exact Cloudflare R2 asset the Home page consumes via
-// siteSettings.profileImage. Hardcoded here because settings.json is a runtime
-// volume the email path can't read during generation. If the Home asset changes,
-// update this constant to match.
-const PROFILE_AVATAR_URL =
-  "https://media.jpamorosi.dev/uploads/1783349431385-56e26a95-6456-4eac-b8cd-9b02609793a5-1.png";
-
 // 5 "what I've built" variants — rotated deterministically by prospect.id.
 // No tech-stack name-dropping unless causally relevant; these describe outcomes.
 const BUILT_VARIANTS_ES = [
@@ -668,7 +661,7 @@ function publicNextStep(lang: ProspectLang): string {
 export function buildProspectOutreachData(
   p: Prospect,
   siteUrl: string,
-  options: { visualUrl?: string } = {},
+  options: { visualUrl?: string; avatarUrl?: string } = {},
 ): ProspectOutreachData {
   const lang = detectProspectLang(p);
   const subject = subjectParts(p, lang);
@@ -684,7 +677,7 @@ export function buildProspectOutreachData(
     fitReason: publicOverlap(p, lang),
     nextAction: publicNextStep(lang),
     visualUrl: options.visualUrl ?? new URL("/og.jpg", siteUrl).toString(),
-    avatarUrl: PROFILE_AVATAR_URL,
+    avatarUrl: options.avatarUrl ?? new URL("/imgs/img-profile-jpa.jpg", siteUrl).toString(),
     lang,
     seed: p.id,
   };

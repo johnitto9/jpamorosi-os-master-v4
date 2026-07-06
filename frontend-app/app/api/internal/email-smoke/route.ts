@@ -47,13 +47,17 @@ function hasJsonArtifacts(rendered: { html: string; text: string }) {
   return /(\{\\?"|\\?"[a-zA-Z0-9_]+\\?":|\[\s*\{)/.test(sample);
 }
 
-async function emailProofVisualUrl(): Promise<string> {
+async function emailMediaUrls(): Promise<{ visualUrl: string; avatarUrl?: string }> {
   const settings = await getSiteSettings();
-  return settings.interludes?.proof1 ?? new URL("/og.jpg", env.NEXT_PUBLIC_SITE_URL).toString();
+  return {
+    visualUrl: settings.interludes?.proof1 ?? new URL("/og.jpg", env.NEXT_PUBLIC_SITE_URL).toString(),
+    avatarUrl: settings.profileImage,
+  };
 }
 
 async function buildScoutOutreachData(input: z.infer<typeof bodySchema>) {
   const siteUrl = env.NEXT_PUBLIC_SITE_URL;
+  const media = await emailMediaUrls();
   return {
     company: "Northstar AI Operations",
     contactName: "Lucia",
@@ -71,8 +75,8 @@ async function buildScoutOutreachData(input: z.infer<typeof bodySchema>) {
       "El match es alto porque el problema mezcla producto, automatizacion comercial, datos operativos y agentes IA, justo el tipo de sistema que Juan ya shippea.",
     nextAction:
       "Responder con un flujo operativo concreto para auditar: intake de leads, scoring, CRM o follow-up.",
-    visualUrl: await emailProofVisualUrl(),
-    avatarUrl: "https://media.jpamorosi.dev/uploads/1783349431385-56e26a95-6456-4eac-b8cd-9b02609793a5-1.png",
+    visualUrl: media.visualUrl,
+    avatarUrl: media.avatarUrl ?? new URL("/imgs/img-profile-jpa.jpg", siteUrl).toString(),
     lang: "es" as const,
   };
 }
@@ -177,12 +181,12 @@ export async function POST(request: Request) {
   if (parsed.data.mode === "showcase") {
     const leads = buildShowcaseLeads();
     const siteUrl = env.NEXT_PUBLIC_SITE_URL;
-    const visualUrl = await emailProofVisualUrl();
+    const media = await emailMediaUrls();
     const deliveries = [];
 
     for (const lead of leads) {
       const lang = detectProspectLang(lead);
-      const outreach = buildProspectOutreachData(lead, siteUrl, { visualUrl });
+      const outreach = buildProspectOutreachData(lead, siteUrl, media);
       const rendered = templates.prospect_outreach(outreach);
       const result = await sendEmail({
         template: "prospect_outreach",
@@ -201,6 +205,8 @@ export async function POST(request: Request) {
         subject: rendered.subject,
         detectedLang: lang,
         company: lead.company ?? undefined,
+        avatarUrl: outreach.avatarUrl,
+        visualUrl: outreach.visualUrl,
         seed: lead.id,
         htmlHasJsonArtifacts: hasJsonArtifacts(rendered),
         textPreview: rendered.text.slice(0, 600),
@@ -239,6 +245,8 @@ export async function POST(request: Request) {
           error: result.error,
           providerId: result.id,
           subject: rendered.subject,
+          avatarUrl: outreachData.avatarUrl,
+          visualUrl: outreachData.visualUrl,
           htmlHasJsonArtifacts: hasJsonArtifacts(rendered),
           textPreview: rendered.text.slice(0, 1000),
         },
