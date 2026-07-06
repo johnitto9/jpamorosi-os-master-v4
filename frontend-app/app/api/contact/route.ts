@@ -16,7 +16,7 @@ const contactSchema = z.object({
 
 export async function POST(request: Request) {
   // anti-spam: 5 submissions / 10 min per IP
-  const limited = rateLimited(request, 'contact', 5, 10 * 60_000)
+  const limited = await rateLimited(request, 'contact', 5, 10 * 60_000)
   if (limited) return limited
 
   try {

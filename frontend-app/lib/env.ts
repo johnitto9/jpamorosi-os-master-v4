@@ -72,6 +72,12 @@ const schema = z.object({
   INTERNAL_API_TOKEN: z.string().optional(),
   SERVICE_API_TOKEN: z.string().optional(),
 
+  // --- Distributed rate limiting. Optional locally; recommended on Vercel/prod.
+  // Upstash Redis REST endpoint/token. Without these, rate-limit falls back to
+  // the in-process limiter, which is only a dev/Docker burst guard.
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+
   // --- Agent optional capabilities (env-gated tools).
   WEB_SEARCH_API_KEY: z.string().optional(), // serper.dev
   SEARXNG_ENABLED: optionalBoolish,

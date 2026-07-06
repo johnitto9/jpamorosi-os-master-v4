@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   // brute-force guard: 8 attempts / 10 min per IP (T07, spec 17)
-  const limited = rateLimited(request, "admin-login", 8, 10 * 60_000);
+  const limited = await rateLimited(request, "admin-login", 8, 10 * 60_000);
   if (limited) return limited;
 
   let json: unknown;

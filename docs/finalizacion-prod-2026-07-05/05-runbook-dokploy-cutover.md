@@ -60,6 +60,8 @@ SEARXNG_TIMEOUT_MS=8000
 SEARXNG_FALLBACK_TO_SERPER=true
 SEARCH_PRIMARY_PROVIDER=searxng
 SEARCH_PREMIUM_PROVIDER=serper
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
@@ -204,6 +206,18 @@ OUTBOUND_LEAD_EMAILS_ENABLED=false
 ```
 
 Reiniciar backend/worker. Los prospects quedan intactos.
+
+## Rate limit
+
+Rate limit:
+
+- En Docker single-process el limiter in-memory sirve para dev/lab.
+- En Vercel/serverless o multi-replica, configurar Upstash:
+
+```env
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+```
 
 ## Rollback
 

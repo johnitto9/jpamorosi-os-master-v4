@@ -11,6 +11,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { runAgent } from "@/lib/agent/orchestrator";
 import { findSessionByDevice } from "@/lib/agent/memory";
 import { ASSISTANT_LIMITS, type AssistantRequestMessage } from "@/lib/assistant/types";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,10 @@ function readSessionId(request: Request): string | null {
 }
 
 export async function POST(request: Request) {
+  // Cost guard: this public endpoint can hit the LLM/tools. Use Upstash in prod.
+  const limited = await rateLimited(request, "assistant", 20, 10 * 60_000);
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();

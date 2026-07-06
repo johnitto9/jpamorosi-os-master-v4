@@ -389,3 +389,51 @@ Puntos agregados:
   - reiniciar backend/worker;
   - no requiere rollback de DB.
 - Se actualizo documentacion vieja que decia que el scout no extraia emails autonomamente; ahora queda marcada como baseline historico superado.
+
+## 2026-07-06 - Security hardening bugs reales
+
+Problemas abordados:
+
+- Endpoints LLM publicos sin rate limit:
+  - `/api/assistant`
+  - `/api/ai/chat`
+- Rate limiter in-memory insuficiente para Vercel/serverless.
+- Prompt injection demasiado regex-only.
+- Artefactos muertos claros.
+
+Cambios:
+
+- `rateLimited()` ahora es async y usa Upstash Redis REST si existen:
+  - `UPSTASH_REDIS_REST_URL`
+  - `UPSTASH_REDIS_REST_TOKEN`
+- Fallback in-memory queda solo para local/Docker single-process.
+- `/api/assistant`: 20 requests / 10 min / IP.
+- `/api/ai/chat`: 10 requests / 10 min / IP.
+- Guardrails amplian deteccion de override/instruction exfiltration en ingles/español.
+- A pedido del usuario, no se limita ni se agrega compuerta al scraping de data publica; el harvesting queda activo.
+- Eliminados artefactos muertos:
+  - `frontend-app/app/layout.original.tsx`
+  - `frontend-app/package-full.json`
+  - `frontend-app/package-minimal.json`
+
+Tests:
+
+- `tests/rate_limit.spec.ts`
+- `tests/assistant_rate_limit.spec.ts`
+- `tests/assistant_guardrails.spec.ts`
+- `tests/prospect_harvest.spec.ts`
+- `tests/email_gate.spec.ts`
+
+Resultado parcial:
+
+- Security-focused Vitest: `5 files`, `25 passed`.
+- TypeScript: OK.
+
+Resultado final:
+
+- Regresion focalizada: `13 files`, `48 passed`, `3 skipped` (live opt-in).
+- TypeScript: OK.
+- Docker rebuild: OK.
+- Backend: healthy en `localhost:3001`.
+- Puerto host `3000`: sin listener.
+- SearXNG: healthy interno.

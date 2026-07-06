@@ -33,7 +33,8 @@ export function isAllowedHref(href: string): boolean {
 }
 
 // Patterns that indicate an attempt to abuse the assistant.
-const INJECTION = /ignore (all|previous|the) (instructions|rules)|system prompt|jailbreak|developer mode|pretend you|disregard/i;
+const INJECTION =
+  /ignore (all|previous|the) (instructions|rules)|system prompt|jailbreak|developer mode|pretend you|disregard|override (your|the) (rules|instructions)|reveal (your|the) (prompt|system)|act as (?:if )?you are not|no longer follow|olvida (tus|las) instrucciones|ignora (tus|las) reglas|modo desarrollador/i;
 
 // Intent-based exfiltration guard (NOT keyword-based):
 // A software brief legitimately uses words like "backoffice", "admin", "token",
@@ -52,6 +53,15 @@ const ADMIN_TERM = /\b(admin|backoffice|back[- ]?office|panel de administraci[o�
 function isExfilAttempt(text: string): boolean {
   if (!EXFIL_VERB.test(text)) return false;
   return SECRET_NOUN.test(text) || ADMIN_TERM.test(text);
+}
+
+function isInstructionOverrideAttempt(text: string): boolean {
+  const lower = text.toLowerCase();
+  const overrideIntent =
+    /\b(ignore|disregard|override|forget|bypass|disable|remove|change|reveal|show|print|olvida|ignora|cambia|mostra|mostrame|revela|salt[aá])\b/i.test(lower);
+  const target =
+    /\b(system|developer|instruction|instructions|rules|policy|prompt|guardrail|safety|sistema|desarrollador|instrucciones|reglas|politica|pol[ií]tica)\b/i.test(lower);
+  return overrideIntent && target;
 }
 
 // Off-topic ADVICE requests (medical/legal/financial), not domain briefs. A
@@ -85,7 +95,7 @@ export function guardInput(raw: unknown): GuardVerdict {
   }
   const cleaned = raw.slice(0, ASSISTANT_LIMITS.maxInputChars).trim();
 
-  if (INJECTION.test(cleaned)) {
+  if (INJECTION.test(cleaned) || isInstructionOverrideAttempt(cleaned)) {
     return {
       ok: false,
       response: refusal(

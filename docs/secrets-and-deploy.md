@@ -29,6 +29,7 @@ Verificá siempre con `git check-ignore -v secrets/` antes de commitear.
 | Media CDN | `NEXT_PUBLIC_MEDIA_CDN_BASE` | assets servidos locales |
 | Internal APIs | `INTERNAL_API_TOKEN` (o `SERVICE_API_TOKEN`) | `/api/internal/*` responde 503 |
 | Web search | `WEB_SEARCH_API_KEY` (serper.dev) | tool oculta al modelo |
+| Rate limit distribuido | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | fallback in-memory; no alcanza para Vercel/serverless serio |
 
 ## Reglas operativas
 1. Nunca commitear credenciales ni copiarlas a archivos versionados.
@@ -77,3 +78,18 @@ OUTBOUND_LEAD_EMAILS_ENABLED=false
 ```
 
 Redeploy/restart backend y worker. Esto no apaga admin alerts ni magic links.
+
+## Rate limit en producción
+
+Los endpoints públicos que pueden consumir LLM/tools (`/api/assistant` y
+`/api/ai/chat`) tienen rate limit. En Docker/local funciona con memoria de
+proceso. En Vercel/serverless eso no alcanza porque el proceso puede reiniciar.
+
+Para prod serio configurar Upstash Redis REST:
+
+```env
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+```
+
+Sin esas variables, el limiter sigue activo pero solo como defensa local.

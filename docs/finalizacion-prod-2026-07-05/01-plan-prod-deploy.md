@@ -67,6 +67,8 @@ Requeridas:
 - `ADMIN_SESSION_SECRET=...`
 - `ADMIN_EMAIL=...`
 - `INTERNAL_API_TOKEN=...`
+- `UPSTASH_REDIS_REST_URL=...` recomendado si hay endpoints publicos en Vercel/serverless.
+- `UPSTASH_REDIS_REST_TOKEN=...`
 
 Servicios externos:
 
@@ -183,6 +185,7 @@ curl -fsS https://api.jpamorosi.dev/api/status
   - primer envio real se hace manual con `OUTBOUND_LEAD_EMAILS_ENABLED=true`.
 - Dump restore probado en entorno temporal.
 - Worker corre scout una vez por dia y respeta idempotencia por evento `agent.daily_scout`.
+- Rate limit distribuido configurado para endpoints LLM publicos si corren en serverless.
 
 ## Riesgos prod
 

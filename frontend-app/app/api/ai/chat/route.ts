@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { runAgent } from "@/lib/agent/orchestrator";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,10 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: Request) {
+  // Programmatic public alias: stricter than the widget endpoint.
+  const limited = await rateLimited(request, "ai-chat", 10, 10 * 60_000);
+  if (limited) return limited;
+
   let body: { message?: unknown; sessionId?: unknown };
   try {
     body = await request.json();
