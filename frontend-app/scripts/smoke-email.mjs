@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 const DEFAULT_URL = "http://localhost:3001";
-const DEFAULT_EMAIL = "jpamorosi14@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "jpamorosi14@gmail.com";
+const DEFAULT_LEAD_EMAIL = "amorosijp@gmail.com";
 
 function readArg(name, fallback) {
   const prefix = `--${name}=`;
@@ -13,8 +14,8 @@ function readArg(name, fallback) {
 }
 
 const baseUrl = readArg("url", process.env.SMOKE_EMAIL_BASE_URL ?? DEFAULT_URL).replace(/\/$/, "");
-const to = readArg("to", process.env.SMOKE_EMAIL_TO ?? DEFAULT_EMAIL);
-const leadEmail = readArg("lead-email", process.env.SMOKE_LEAD_EMAIL ?? to);
+const to = readArg("to", process.env.SMOKE_EMAIL_TO ?? DEFAULT_ADMIN_EMAIL);
+const leadEmail = readArg("lead-email", process.env.SMOKE_LEAD_EMAIL ?? DEFAULT_LEAD_EMAIL);
 const token = readArg("token", process.env.INTERNAL_API_TOKEN ?? process.env.SERVICE_API_TOKEN);
 
 if (!token) {

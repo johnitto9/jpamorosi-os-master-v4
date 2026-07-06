@@ -20,7 +20,7 @@ requiere `OUTBOUND_LEAD_EMAILS_ENABLED=true`.
 ```bash
 cd frontend-app
 TOKEN="$(docker.exe compose exec -T amorosi-backend printenv INTERNAL_API_TOKEN | tr -d '\r')"
-INTERNAL_API_TOKEN="$TOKEN" pnpm smoke:email -- --url http://localhost:3001 --to jpamorosi14@gmail.com --lead-email jpamorosi14@gmail.com
+INTERNAL_API_TOKEN="$TOKEN" pnpm smoke:email -- --url http://localhost:3001 --to jpamorosi14@gmail.com --lead-email amorosijp@gmail.com
 ```
 
 Resultado esperado:
@@ -32,7 +32,7 @@ Resultado esperado:
   "sent": true,
   "template": "lead_received",
   "to": "jpamorosi14@gmail.com",
-  "leadEmail": "jpamorosi14@gmail.com",
+  "leadEmail": "amorosijp@gmail.com",
   "htmlHasJsonArtifacts": false
 }
 ```
