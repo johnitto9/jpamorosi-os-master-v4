@@ -71,16 +71,44 @@ const paletteBar = (colors?: string[]) =>
         .join("")}</p>`
     : "";
 
-const bulletList = (items?: string[]) => {
+const bulletList = (items?: string[], label = "Signals I reviewed") => {
   const on = (items ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 4);
   if (on.length === 0) return "";
   return `<div style="margin:16px 0;padding:14px 16px;background:#0c1420;border:1px solid #202f46;border-radius:10px">
-    <p style="margin:0 0 8px;color:#00d5e8;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700">Signals I reviewed</p>
+    <p style="margin:0 0 8px;color:#00d5e8;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700">${esc(label)}</p>
     <ul style="margin:0;padding-left:18px;color:#c9d4e3">${on
       .map((item) => `<li style="margin:6px 0">${esc(item)}</li>`)
       .join("")}</ul>
   </div>`;
 };
+
+// Bilingual labels for prospect_outreach — 0 tokens, pure lookup.
+const OUTREACH_LANG = {
+  es: {
+    greeting: "Hola",
+    role: "AI Product Engineer · construyo sistemas de IA que quedan operando",
+    signals: "Señales observadas",
+    fitLabel: "Overlap con lo que construí",
+    actionLabel: "Próximo paso",
+    cta: "Ver los sistemas en producción →",
+    contextLabel: "Contexto que revisé:",
+    replyNote: "Respondé a este email y le llega directamente a Juan.",
+    visualAlt: "Sistemas de IA en producción de Amorosi Labs",
+    visualCaption: "Sistemas reales que ya están corriendo en producción",
+  },
+  en: {
+    greeting: "Hi",
+    role: "AI Product Engineer · I build AI systems that stay running",
+    signals: "Signals observed",
+    fitLabel: "Overlap with what I've built",
+    actionLabel: "Next step",
+    cta: "See the systems in production →",
+    contextLabel: "Context I reviewed:",
+    replyNote: "Reply here and it lands directly with Juan.",
+    visualAlt: "Amorosi Labs AI systems in production",
+    visualCaption: "Real systems already running in production",
+  },
+} as const;
 
 // ---- templates ---------------------------------------------------------------
 
@@ -344,6 +372,8 @@ Snapshot: ${d.exportUrl}`,
   prospect_outreach(d: {
     company?: string;
     contactName?: string;
+    subjectSignal?: string;
+    subjectReason?: string;
     body: string;
     siteUrl: string;
     sourceUrl?: string;
@@ -351,29 +381,60 @@ Snapshot: ${d.exportUrl}`,
     fitReason?: string;
     nextAction?: string;
     visualUrl?: string;
+    lang?: "es" | "en";
+    avatarUrl?: string;
+    seed?: number;
   }): RenderedEmail {
-    const evidence = bulletList(d.signals);
-    const fit = d.fitReason ? row("Where I see leverage", d.fitReason) : "";
-    const action = d.nextAction ? row("Concrete next step", d.nextAction) : "";
-    const visual = d.visualUrl
-      ? `<p style="margin:0 0 16px"><img src="${esc(d.visualUrl)}" alt="Amorosi Labs systems preview" width="508" style="display:block;width:100%;max-width:508px;border-radius:12px;border:1px solid #262640"></p>`
+    const lang = d.lang ?? "es";
+    const L = OUTREACH_LANG[lang];
+    const evidence = bulletList(d.signals, L.signals);
+    const fit = d.fitReason ? row(L.fitLabel, d.fitReason) : "";
+    const action = d.nextAction ? row(L.actionLabel, d.nextAction) : "";
+    const fallbackSignal = d.company
+      ? lang === "en" ? `Operational signals at ${d.company}` : `Señales operativas en ${d.company}`
+      : lang === "en" ? "Operational signals" : "Señales operativas";
+    const fallbackReason = lang === "en"
+      ? "a focused AI system may fit"
+      : "un sistema de IA enfocado puede encajar";
+    const subject = `${d.subjectSignal ?? fallbackSignal} — ${d.subjectReason ?? fallbackReason}`;
+
+    // Sender signature (photo + name + role) — the human face goes UP top so it
+    // reads as a person writing, not a banner. The systems visual lives further
+    // down, so the two images never sit back-to-back.
+    const signature = d.avatarUrl
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>
+           <td style="vertical-align:middle;padding-right:12px"><img src="${esc(d.avatarUrl)}" alt="Juan Pablo Amorosi" width="52" height="52" style="display:block;width:52px;height:52px;border-radius:50%;border:2px solid #262640;object-fit:cover"></td>
+           <td style="vertical-align:middle">
+             <div style="color:#ffffff;font-weight:700;font-size:14px">Juan Pablo Amorosi</div>
+             <div style="color:#9aa3b2;font-size:11px;line-height:1.4">${esc(L.role)}</div>
+           </td>
+         </tr></table>`
       : "";
+
+    // Systems visual as proof, right before the CTA, with a caption so it has a
+    // clear purpose instead of feeling like decoration.
+    const visual = d.visualUrl
+      ? `<div style="margin:20px 0 6px">
+           <img src="${esc(d.visualUrl)}" alt="${esc(L.visualAlt)}" width="508" style="display:block;width:100%;max-width:508px;border-radius:12px;border:1px solid #262640">
+           <p style="margin:8px 0 0;color:#565672;font-size:11px;text-align:center">${esc(L.visualCaption)}</p>
+         </div>`
+      : "";
+
     return {
-      subject: d.company
-        ? `Idea concreta para ${d.company}`
-        : "Idea concreta para tu producto",
+      subject,
       html: shell(
-        `Hi${d.contactName ? `, ${d.contactName}` : ""}`,
-        `${visual}
+        `${L.greeting}${d.contactName ? `, ${d.contactName}` : ""}`,
+        `${signature}
          <p style="white-space:pre-line">${esc(d.body)}</p>
          ${evidence}${fit}${action}
-         ${button(d.siteUrl, "See the systems →")}
-         ${d.sourceUrl ? `<p style="margin-top:14px;color:#565672;font-size:11px">Context I reviewed: <a href="${esc(d.sourceUrl)}" style="color:#00b8cc;text-decoration:none">${esc(d.sourceUrl)}</a></p>` : ""}
-         <p style="color:#9aa3b2;font-size:12px">Reply here and it lands directly with Juan.</p>`,
+         ${visual}
+         ${button(d.siteUrl, L.cta)}
+         ${d.sourceUrl ? `<p style="margin-top:14px;color:#565672;font-size:11px">${esc(L.contextLabel)} <a href="${esc(d.sourceUrl)}" style="color:#00b8cc;text-decoration:none">${esc(d.sourceUrl)}</a></p>` : ""}
+         <p style="color:#9aa3b2;font-size:12px">${esc(L.replyNote)}</p>`,
       ),
-      text: `Hi${d.contactName ? ` ${d.contactName}` : ""},\n\n${d.body}${
-        d.signals?.length ? `\n\nSignals I reviewed:\n${d.signals.slice(0, 4).map((s) => `- ${s}`).join("\n")}` : ""
-      }${d.fitReason ? `\n\nWhere I see leverage:\n${d.fitReason}` : ""}${d.nextAction ? `\n\nConcrete next step:\n${d.nextAction}` : ""}\n\n${d.siteUrl}${d.sourceUrl ? `\n\nContext reviewed: ${d.sourceUrl}` : ""}\n\nReply here and it lands directly with Juan.`,
+      text: `${L.greeting}${d.contactName ? ` ${d.contactName}` : ""},\n\n${d.body}${
+        d.signals?.length ? `\n\n${L.signals}:\n${d.signals.slice(0, 4).map((s) => `- ${s}`).join("\n")}` : ""
+      }${d.fitReason ? `\n\n${L.fitLabel}:\n${d.fitReason}` : ""}${d.nextAction ? `\n\n${L.actionLabel}:\n${d.nextAction}` : ""}\n\n${d.siteUrl}${d.sourceUrl ? `\n\n${L.contextLabel} ${d.sourceUrl}` : ""}\n\n${L.replyNote}`,
     };
   },
 

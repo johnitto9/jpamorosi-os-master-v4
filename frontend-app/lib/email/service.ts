@@ -73,7 +73,7 @@ export async function sendEmail<T extends TemplateName>(input: {
   const smokeBypass =
     input.smokeTestBypassOutboundGate === true &&
     env.APP_ENV !== "production" &&
-    input.tracking?.campaign === "email_smoke_prospect_outreach";
+    (input.tracking?.campaign ?? "").startsWith("email_smoke_");
 
   if (isOutboundLeadTemplate(template) && !outboundLeadEmailsEnabled() && !smokeBypass) {
     console.warn(

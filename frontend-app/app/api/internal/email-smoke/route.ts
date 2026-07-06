@@ -6,6 +6,11 @@ import { guardInternal } from "@/lib/auth/internal";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/service";
 import { templates } from "@/lib/email/templates";
+import {
+  buildProspectOutreachData,
+  detectProspectLang,
+  type Prospect,
+} from "@/lib/agent/prospects";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +21,7 @@ const DEFAULT_LEAD_EMAIL = "amorosijp@gmail.com";
 const bodySchema = z.object({
   to: z.string().email().default(DEFAULT_ADMIN_EMAIL),
   leadEmail: z.string().email().default(DEFAULT_LEAD_EMAIL),
-  mode: z.enum(["admin_only", "full_lead_cycle", "scout_outreach"]).default("scout_outreach"),
+  mode: z.enum(["admin_only", "full_lead_cycle", "scout_outreach", "showcase"]).default("scout_outreach"),
 });
 
 function buildLeadReceivedData(input: z.infer<typeof bodySchema>) {
@@ -61,7 +66,85 @@ function buildScoutOutreachData(input: z.infer<typeof bodySchema>) {
     nextAction:
       "Responder con un flujo operativo concreto para auditar: intake de leads, scoring, CRM o follow-up.",
     visualUrl: new URL("/og.jpg", siteUrl).toString(),
+    avatarUrl: "https://media.jpamorosi.dev/uploads/1783349431385-56e26a95-6456-4eac-b8cd-9b02609793a5-1.png",
+    lang: "es" as const,
   };
+}
+
+// Showcase leads — built as real Prospect objects so the SAME path that processes
+// autonomous scout leads (detectProspectLang → buildProspectOutreachData) decides
+// the language. This proves the coherence principle: the stored signals drive the
+// email language, not a hardcoded flag.
+function buildShowcaseLeads(): Prospect[] {
+  const base = {
+    stage: "contact" as const,
+    source: "scout",
+    score: 80,
+    email: null,
+    contactName: null,
+    url: null,
+    raw: {},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  return [
+    {
+      ...base,
+      id: 1,
+      title: "Buscamos AI Engineer para automatizar clasificacion de leads",
+      company: "Dataflow Labs",
+      snippet:
+        "B2B SaaS con CRM manual. Publicaron busqueda para AI Operations Engineer. El pipeline comercial no tiene scoring ni priorizacion automatica.",
+      enrichment:
+        "El producto tiene onboarding manual y clasificacion de leads hecha a mano. El equipo ya tiene datos de clientes pero no los usa para priorizar.",
+      fitReason:
+        "Strong overlap: construi sistemas de scoring de leads y automatizacion de CRM que quedan operando en produccion.",
+      nextAction:
+        "Mirar un flujo concreto de clasificacion o scoring y devolver una propuesta corta.",
+    },
+    {
+      ...base,
+      id: 2,
+      title: "Startup de media local necesita editorial automation con LLMs",
+      company: "Diario Sur",
+      snippet:
+        "Plataforma de medios locales. Publican contenido editorial manualmente. Buscan reducir costo editorial con IA para clasificar y priorizar noticias.",
+      enrichment:
+        "El sitio publica contenido sin ranking ni priorizacion automatica. Tienen volumen editorial diario que consume horas de clasificacion manual.",
+      fitReason:
+        "Adjacent experience: construi agent workflows para editorial automation y ranking de contenido con costo bajo por articulo.",
+      nextAction:
+        "Revisar un caso de contenido concreto y mostrar como un agent workflow podria clasificar y priorizar.",
+    },
+    {
+      ...base,
+      id: 3,
+      title: "Fintech busca ingeniero para sistema de trading con LLM y risk management",
+      company: "AlphaSignal Capital",
+      snippet:
+        "Fondo cuantitativo. Tienen datos de mercado pero falta pipeline de backtesting. Quieren una estrategia LLM gobernada por un risk manager estricto.",
+      enrichment:
+        "El equipo tiene experiencia en finanzas pero no en IA. Necesitan dataset enrichment y backtesting modular con risk gates.",
+      fitReason:
+        "Useful analogy: tengo R&D en LLM strategy con risk gates y dataset enrichment, pero no es un sistema en produccion — es exploracion.",
+      nextAction:
+        "Hablar del caso de R&D en trading y ver si el enfoque de risk gates aplica a su flujo.",
+    },
+    {
+      ...base,
+      id: 4,
+      title: "Looking for a full-stack AI engineer to build production WhatsApp agents",
+      company: "Greenfield Commerce",
+      snippet:
+        "Commerce platform looking to build WhatsApp-first storefronts with AI agents that handle catalog, orders and customer support.",
+      enrichment:
+        "The team wants a tool-first architecture where the LLM routes intent to deterministic tools. They have a product but no AI infrastructure.",
+      fitReason:
+        "Direct match: I built a production WhatsApp commerce agent with tool-first architecture that handles catalog and orders.",
+      nextAction:
+        "Look at a concrete flow from their product and show how a tool-first agent would handle it.",
+    },
+  ];
 }
 
 export async function POST(request: Request) {
@@ -84,6 +167,47 @@ export async function POST(request: Request) {
   }
 
   const leadData = buildLeadReceivedData(parsed.data);
+
+  if (parsed.data.mode === "showcase") {
+    const leads = buildShowcaseLeads();
+    const siteUrl = env.NEXT_PUBLIC_SITE_URL;
+    const deliveries = [];
+
+    for (const lead of leads) {
+      const lang = detectProspectLang(lead);
+      const outreach = buildProspectOutreachData(lead, siteUrl);
+      const rendered = templates.prospect_outreach(outreach);
+      const result = await sendEmail({
+        template: "prospect_outreach",
+        to: parsed.data.leadEmail,
+        data: outreach,
+        tracking: { campaign: "email_smoke_showcase" },
+        smokeTestBypassOutboundGate: true,
+      });
+      deliveries.push({
+        template: "prospect_outreach",
+        to: parsed.data.leadEmail,
+        ok: result.ok,
+        skipped: result.skipped ?? false,
+        error: result.error,
+        providerId: result.id,
+        subject: rendered.subject,
+        detectedLang: lang,
+        company: lead.company ?? undefined,
+        seed: lead.id,
+        htmlHasJsonArtifacts: hasJsonArtifacts(rendered),
+        textPreview: rendered.text.slice(0, 600),
+      });
+    }
+
+    return NextResponse.json({
+      ok: deliveries.every((d) => d.ok),
+      mode: "showcase",
+      leadEmail: parsed.data.leadEmail,
+      deliveries,
+    });
+  }
+
   if (parsed.data.mode === "scout_outreach") {
     const outreachData = buildScoutOutreachData(parsed.data);
     const rendered = templates.prospect_outreach(outreachData);

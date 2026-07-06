@@ -22,6 +22,7 @@ import {
   processPipelineBatch,
   prospectStats,
   setProspectStage,
+  buildProspectOutreachData,
   type Prospect,
 } from "@/lib/agent/prospects";
 
@@ -67,35 +68,6 @@ function toCsv(rows: Prospect[]): string {
 
 function toJsonl(rows: Prospect[]): string {
   return rows.map((p) => JSON.stringify(p)).join("\n");
-}
-
-function defaultOutreachBody(p: Prospect): string {
-  const company = p.company ?? "tu equipo";
-  const signal = p.fitReason ?? p.snippet ?? p.enrichment ?? p.title ?? "";
-  const angle = signal
-    ? `Vi esta señal y me pareció buen punto de entrada: ${signal.slice(0, 240)}`
-    : `Estoy mirando equipos donde un sistema de IA bien integrado pueda sacar trabajo operativo del medio.`;
-  return [
-    angle,
-    "",
-    `Soy Juan Pablo Amorosi. Construyo sistemas de IA productivos sobre Next.js, TypeScript, Postgres y agentes reales: automatizaciones, asistentes comerciales, backoffices y flujos de captura que quedan operando, no solo prototipados.`,
-    "",
-    `Si tiene sentido para ${company}, puedo mirar un caso concreto y proponerte una arquitectura chica, medible y rápida de validar.`,
-    "",
-    "Juan",
-  ].join("\n");
-}
-
-function prospectSignals(p: Prospect): string[] {
-  return [
-    p.fitReason,
-    p.snippet,
-    p.enrichment,
-    p.nextAction,
-  ]
-    .map((s) => s?.replace(/\s+/g, " ").trim())
-    .filter((s): s is string => Boolean(s))
-    .map((s) => s.slice(0, 220));
 }
 
 export async function GET(request: Request) {
@@ -178,19 +150,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "missing_email" }, { status: 409 });
     }
 
+    // Single coherent generator — language, subject, body and chrome all derive
+    // from the same stored signals, so manual and autonomous paths never drift.
+    const outreach = buildProspectOutreachData(prospect, env.NEXT_PUBLIC_SITE_URL);
     const sent = await sendEmail({
       template: "prospect_outreach",
       to: prospect.email,
       data: {
-        company: prospect.company ?? undefined,
-        contactName: prospect.contactName ?? undefined,
-        body: body.body?.trim() || defaultOutreachBody(prospect),
-        siteUrl: env.NEXT_PUBLIC_SITE_URL,
-        sourceUrl: prospect.url ?? undefined,
-        signals: prospectSignals(prospect),
-        fitReason: prospect.fitReason ?? undefined,
-        nextAction: prospect.nextAction ?? undefined,
-        visualUrl: new URL("/og.jpg", env.NEXT_PUBLIC_SITE_URL).toString(),
+        ...outreach,
+        body: body.body?.trim() || outreach.body,
       },
       tracking: {
         prospectId: prospect.id,

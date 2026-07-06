@@ -464,6 +464,231 @@ export function relevanceScore(p: Pick<Prospect, "title" | "snippet">): number {
   return RELEVANT.filter((k) => hay.includes(k)).length;
 }
 
+export type ProspectLang = "es" | "en";
+
+const ES_MARKERS = [
+  "que", "con", "para", "por", "una", "del", "los", "las", "está", "como",
+  "más", "pero", "su", "se", "al", "lo", "le", "sin", "sobre", "entre",
+  "desde", "hasta", "también", "años", "experiencia", "buscamos", "equipo",
+  "trabajo", "desarrollo", "empresa", "proyecto", "plataforma", "solución",
+];
+const EN_MARKERS = [
+  "the", "and", "for", "with", "that", "this", "from", "they", "are", "was",
+  "is", "in", "on", "at", "to", "of", "we", "you", "our", "your", "looking",
+  "team", "work", "development", "company", "project", "platform", "solution",
+  "years", "experience", "seeking", "join", "build",
+];
+const ES_CHARS = /[áéíóúñü¿¡]/i;
+
+/** Detect prospect language from publication text — 0 tokens, keyword + accent analysis.
+ *  Falls back to "es" (the system's default outreach language). */
+export function detectProspectLang(
+  p: Pick<Prospect, "title" | "snippet" | "enrichment" | "url">,
+): ProspectLang {
+  const text = `${p.title ?? ""} ${p.snippet ?? ""} ${p.enrichment ?? ""}`.toLowerCase();
+  if (!text.trim()) return "es";
+
+  let es = 0;
+  let en = 0;
+
+  if (ES_CHARS.test(text)) es += 3;
+
+  for (const w of ES_MARKERS) {
+    if (new RegExp(`\\b${w}\\b`, "i").test(text)) es += 1;
+  }
+  for (const w of EN_MARKERS) {
+    if (new RegExp(`\\b${w}\\b`, "i").test(text)) en += 1;
+  }
+
+  if (p.url) {
+    const tld = p.url.match(/\.(\w{2,4})(?:\/|$)/)?.[1];
+    if (tld && ["es", "ar", "mx", "cl", "pe", "uy", "co", "ve", "ec"].includes(tld)) es += 2;
+    if (tld && ["uk", "au", "nz", "ie"].includes(tld)) en += 2;
+  }
+
+  return en > es + 1 ? "en" : "es";
+}
+
+// ---- outreach generation (single source of truth) --------------------------
+// Every outreach email — manual OR autonomously produced by the scout — flows
+// through buildProspectOutreachData(). Language is derived once from the
+// prospect's STORED signals (title/snippet/enrichment/url), so the same lead
+// always yields the same coherent es/en email: subject, body and chrome never
+// drift apart. 0 tokens, 0 extra cost, no schema change.
+
+// Profile avatar — the exact Cloudflare R2 asset the Home page consumes via
+// siteSettings.profileImage. Hardcoded here because settings.json is a runtime
+// volume the email path can't read during generation. If the Home asset changes,
+// update this constant to match.
+const PROFILE_AVATAR_URL =
+  "https://media.jpamorosi.dev/uploads/1783349431385-56e26a95-6456-4eac-b8cd-9b02609793a5-1.png";
+
+// 5 "what I've built" variants — rotated deterministically by prospect.id.
+// No tech-stack name-dropping unless causally relevant; these describe outcomes.
+const BUILT_VARIANTS_ES = [
+  "He construido cosas parecidas — agent workflows y automatizaciones que quedan corriendo en producción.",
+  "Trabajo en sistemas similares — pipelines de IA y backoffices que no son prototipos, sino herramientas que se usan.",
+  "Tengo experiencia directa acá — agent workflows de bajo costo e integraciones que quedan operando.",
+  "Construí sistemas en esta zona — multi-model orchestration y flujos de captura que aguantan uso real.",
+  "He shippeado cosas en este espacio — automatizaciones con IA y asistentes que siguen corriendo.",
+];
+const BUILT_VARIANTS_EN = [
+  "I've built similar things — agent workflows and automations that stay running in production.",
+  "I work on similar systems — AI pipelines and backoffices that aren't prototypes, but tools people use.",
+  "I have direct experience here — low-cost agent workflows and integrations that stay operational.",
+  "I've built systems in this space — multi-model orchestration and capture flows that hold up under real use.",
+  "I've shipped things in this area — AI automations and assistants that keep running.",
+];
+
+export function defaultOutreachBody(p: Prospect, lang: ProspectLang): string {
+  const built = (lang === "en" ? BUILT_VARIANTS_EN : BUILT_VARIANTS_ES)[
+    p.id % BUILT_VARIANTS_ES.length
+  ];
+  if (lang === "en") {
+    const company = p.company ?? "your team";
+    return [
+      `I saw what ${company} is doing and it looked like a zone where a well-placed AI system can take operational work off the table.`,
+      "",
+      built,
+      "",
+      "If it makes sense, I can look at a concrete case and send you something small and measurable.",
+      "",
+      "Juan",
+    ].join("\n");
+  }
+  const company = p.company ?? "tu equipo";
+  return [
+    `Vi lo que están haciendo en ${company} y me pareció una zona donde un sistema de IA bien puesto puede sacar trabajo operativo del medio.`,
+    "",
+    built,
+    "",
+    "Si tiene sentido, puedo mirar un caso concreto y mandarte algo chico y medible.",
+    "",
+    "Juan",
+  ].join("\n");
+}
+
+export function prospectSignals(p: Prospect): string[] {
+  // Only raw observations — fitReason and nextAction have their own cards.
+  // This prevents repetition between body, signals, overlap and next step.
+  return [p.snippet, p.enrichment]
+    .map((s) => s?.replace(/\s+/g, " ").trim())
+    .filter((s): s is string => Boolean(s))
+    .map((s) => s.slice(0, 220));
+}
+
+export type ProspectOutreachData = {
+  company?: string;
+  contactName?: string;
+  subjectSignal?: string;
+  subjectReason?: string;
+  body: string;
+  siteUrl: string;
+  sourceUrl?: string;
+  signals?: string[];
+  fitReason?: string;
+  nextAction?: string;
+  visualUrl?: string;
+  avatarUrl?: string;
+  lang: ProspectLang;
+  seed: number;
+};
+
+function includesAny(text: string, words: string[]): boolean {
+  return words.some((word) => text.includes(word));
+}
+
+function subjectParts(p: Prospect, lang: ProspectLang): { signal: string; reason: string } {
+  const company = p.company ?? (lang === "en" ? "your team" : "tu equipo");
+  const text = `${p.title ?? ""} ${p.snippet ?? ""} ${p.enrichment ?? ""}`.toLowerCase();
+  const isEn = lang === "en";
+
+  if (includesAny(text, ["editorial", "contenido", "content", "news", "noticias", "ranking"])) {
+    return isEn
+      ? { signal: `Editorial sorting at ${company}`, reason: "low-cost agent workflows fit the job" }
+      : { signal: `Clasificación editorial en ${company}`, reason: "un agent workflow de bajo costo encaja" };
+  }
+  if (includesAny(text, ["whatsapp", "commerce", "catalog", "catalogo", "orders", "ordenes", "e-commerce", "ecommerce", "storefront"])) {
+    return isEn
+      ? { signal: `WhatsApp commerce at ${company}`, reason: "tool-first agents are the useful layer" }
+      : { signal: `Comercio por WhatsApp en ${company}`, reason: "un agente con herramientas es la capa útil" };
+  }
+  if (includesAny(text, ["trading", "risk", "backtesting", "market", "mercado", "fintech", "quant", "dataset"])) {
+    return isEn
+      ? { signal: `Risk-gated AI work at ${company}`, reason: "my closest overlap is modular R&D" }
+      : { signal: `IA con control de riesgo en ${company}`, reason: "mi overlap más cercano es R&D modular" };
+  }
+  if (includesAny(text, ["lead", "leads", "scoring", "crm", "qualification", "calificacion", "clasificacion", "priorizacion", "pipeline comercial"])) {
+    return isEn
+      ? { signal: `Lead prioritization at ${company}`, reason: "an agent can sort the pipeline" }
+      : { signal: `Leads sin priorización en ${company}`, reason: "un agente puede ordenar el pipeline" };
+  }
+  if (includesAny(text, ["onboarding", "manual", "operativo", "operations", "ops"])) {
+    return isEn
+      ? { signal: `Manual operations at ${company}`, reason: "a small system can remove the busywork" }
+      : { signal: `Operación manual en ${company}`, reason: "un sistema chico puede sacar trabajo repetido" };
+  }
+
+  return isEn
+    ? { signal: `Operational signals at ${company}`, reason: "a focused AI system may fit" }
+    : { signal: `Señales operativas en ${company}`, reason: "un sistema de IA enfocado puede encajar" };
+}
+
+function cleanPublicText(text: string): string {
+  return text
+    .replace(/^(direct match|strong overlap|adjacent experience|useful analogy)\s*:\s*/i, "")
+    .replace(/\bJuan\s+(Pablo\s+Amorosi\s+)?(built|has|tiene|ya construy[oó]|construy[oó])\b/gi, "construí")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function looksInternal(text: string): boolean {
+  return /(reach out|outreach|presenting|presentar|escribir a|contactar|send you|who to contact|next action|scratchpad|strategy)/i.test(text);
+}
+
+function publicOverlap(p: Prospect, lang: ProspectLang): string | undefined {
+  const raw = p.fitReason ? cleanPublicText(p.fitReason) : "";
+  if (raw && !looksInternal(raw)) return raw.slice(0, 300);
+  const company = p.company ?? (lang === "en" ? "your team" : "tu equipo");
+  return lang === "en"
+    ? `The overlap is the operational layer around ${company}: signals, workflows, and the small systems that turn manual work into repeatable process.`
+    : `El overlap está en la capa operativa de ${company}: señales, flujos y sistemas chicos que convierten trabajo manual en proceso repetible.`;
+}
+
+function publicNextStep(lang: ProspectLang): string {
+  return lang === "en"
+    ? "Reply with one workflow that still takes too much manual time; I can map a small first system around it."
+    : "Respondeme con un flujo que todavía consuma demasiado trabajo manual; puedo mapear un primer sistema chico alrededor de eso.";
+}
+
+/** The single coherent outreach payload for a prospect. Derives language from
+ *  stored signals and threads it (plus a deterministic seed) into every field,
+ *  so subject + body + chrome always agree. Autonomous and manual paths share
+ *  this exact function. */
+export function buildProspectOutreachData(
+  p: Prospect,
+  siteUrl: string,
+): ProspectOutreachData {
+  const lang = detectProspectLang(p);
+  const subject = subjectParts(p, lang);
+  return {
+    company: p.company ?? undefined,
+    contactName: p.contactName ?? undefined,
+    subjectSignal: subject.signal,
+    subjectReason: subject.reason,
+    body: defaultOutreachBody(p, lang),
+    siteUrl,
+    sourceUrl: p.url ?? undefined,
+    signals: prospectSignals(p),
+    fitReason: publicOverlap(p, lang),
+    nextAction: publicNextStep(lang),
+    visualUrl: new URL("/og.jpg", siteUrl).toString(),
+    avatarUrl: PROFILE_AVATAR_URL,
+    lang,
+    seed: p.id,
+  };
+}
+
 export function nextStageFromIngest(
   p: Pick<Prospect, "url" | "title" | "snippet" | "source">,
 ): ProspectStage {
