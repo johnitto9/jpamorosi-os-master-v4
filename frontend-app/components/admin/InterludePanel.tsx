@@ -50,7 +50,7 @@ export function InterludePanel({ initial }: { initial: Record<string, string> })
             onChange={(url) => void save(f.key, url)}
             hint={f.kind === "video"
               ? "MP4/WebM optimizado · R2 si está configurado, si no local"
-              : "PNG/JPG/WebP · sube a R2 si está configurado, si no local"}
+              : "PNG/JPG/WebP · imágenes pesadas se convierten a WebP liviano"}
           />
           {saved === f.key && <p className="mt-1 text-[11px] text-emerald-300">Guardado ✓</p>}
           {error === f.key && <p className="mt-1 text-[11px] text-red-300">No se pudo guardar</p>}

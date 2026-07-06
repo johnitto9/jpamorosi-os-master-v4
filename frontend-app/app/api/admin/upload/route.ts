@@ -9,6 +9,7 @@ import path from "node:path";
 import { guardAdmin } from "@/lib/auth/guard";
 import { getProjectRepository } from "@/lib/projects/repository";
 import { storeFile } from "@/lib/media/storage";
+import { optimizeUploadedImage } from "@/lib/media/image-optimizer";
 import { recordEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
@@ -100,14 +101,26 @@ export async function POST(request: Request) {
     );
   }
 
+  const output = isImage ? await optimizeUploadedImage({ buffer: buf, ext }) : {
+    buffer: buf,
+    ext,
+    optimized: false,
+    originalBytes: buf.length,
+    outputBytes: buf.length,
+    reason: "unsupported" as const,
+  };
+
   // storageService: R2 when configured (R2_* env), durable local volume
   // otherwise — same URL contract either way (docs/storage-r2.md).
-  const key = `uploads/${Date.now()}-${base}${ext}`;
-  const stored = await storeFile(key, buf);
+  const key = `uploads/${Date.now()}-${base}${output.ext}`;
+  const stored = await storeFile(key, output.buffer);
   await recordEvent("media.uploaded", {
     key: stored.key,
     storage: stored.storage,
     bytes: stored.bytes,
+    originalBytes: output.originalBytes,
+    optimized: output.optimized,
+    optimizeReason: output.reason,
   });
 
   return NextResponse.json({
@@ -116,5 +129,9 @@ export async function POST(request: Request) {
     storage: stored.storage,
     kind: isVideo ? "video" : "image",
     bytes: file.size,
+    storedBytes: stored.bytes,
+    optimized: output.optimized,
+    originalBytes: output.originalBytes,
+    optimizeReason: output.reason,
   });
 }

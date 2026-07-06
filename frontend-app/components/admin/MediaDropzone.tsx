@@ -120,7 +120,7 @@ export function MediaDropzone({
 
   const accept = kind === "video" ? "video/mp4,video/webm" : "image/*";
   const defaultHint =
-    kind === "video" ? "mp4 / webm — up to 250 MB" : "png / jpg / webp / avif — up to 15 MB";
+    kind === "video" ? "mp4 / webm — up to 250 MB" : "png / jpg / webp / avif — heavy files optimize to WebP";
 
   return (
     <div>
