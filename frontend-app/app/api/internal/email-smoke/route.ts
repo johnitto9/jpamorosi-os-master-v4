@@ -10,11 +10,13 @@ import { templates } from "@/lib/email/templates";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEFAULT_TEST_EMAIL = "jpamorosi14@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "jpamorosi14@gmail.com";
+const DEFAULT_LEAD_EMAIL = "amorosijp@gmail.com";
 
 const bodySchema = z.object({
-  to: z.string().email().default(DEFAULT_TEST_EMAIL),
-  leadEmail: z.string().email().default(DEFAULT_TEST_EMAIL),
+  to: z.string().email().default(DEFAULT_ADMIN_EMAIL),
+  leadEmail: z.string().email().default(DEFAULT_LEAD_EMAIL),
+  mode: z.enum(["admin_only", "full_lead_cycle"]).default("full_lead_cycle"),
 });
 
 function buildLeadReceivedData(input: z.infer<typeof bodySchema>) {
@@ -58,24 +60,56 @@ export async function POST(request: Request) {
     );
   }
 
-  const data = buildLeadReceivedData(parsed.data);
-  const rendered = templates.lead_received(data);
-  const result = await sendEmail({
+  const leadData = buildLeadReceivedData(parsed.data);
+  const adminRendered = templates.lead_received(leadData);
+  const adminResult = await sendEmail({
     template: "lead_received",
     to: parsed.data.to,
-    data,
+    data: leadData,
   });
+  const deliveries = [
+    {
+      template: "lead_received",
+      to: parsed.data.to,
+      ok: adminResult.ok,
+      skipped: adminResult.skipped ?? false,
+      error: adminResult.error,
+      providerId: adminResult.id,
+      subject: adminRendered.subject,
+      htmlHasJsonArtifacts: hasJsonArtifacts(adminRendered),
+      textPreview: adminRendered.text.slice(0, 700),
+    },
+  ];
+
+  if (parsed.data.mode === "full_lead_cycle") {
+    const confirmationData = { name: leadData.name };
+    const confirmationRendered = templates.contact_confirmation(confirmationData);
+    const confirmationResult = await sendEmail({
+      template: "contact_confirmation",
+      to: parsed.data.leadEmail,
+      data: confirmationData,
+    });
+    deliveries.push({
+      template: "contact_confirmation",
+      to: parsed.data.leadEmail,
+      ok: confirmationResult.ok,
+      skipped: confirmationResult.skipped ?? false,
+      error: confirmationResult.error,
+      providerId: confirmationResult.id,
+      subject: confirmationRendered.subject,
+      htmlHasJsonArtifacts: hasJsonArtifacts(confirmationRendered),
+      textPreview: confirmationRendered.text.slice(0, 700),
+    });
+  }
+
+  const ok = deliveries.every((delivery) => delivery.ok);
 
   return NextResponse.json({
-    ok: result.ok,
-    skipped: result.skipped ?? false,
-    error: result.error,
-    providerId: result.id,
-    template: "lead_received",
-    to: parsed.data.to,
+    ok,
+    mode: parsed.data.mode,
+    adminTo: parsed.data.to,
     leadEmail: parsed.data.leadEmail,
-    subject: rendered.subject,
-    textPreview: rendered.text.slice(0, 700),
-    htmlHasJsonArtifacts: hasJsonArtifacts(rendered),
+    deliveries,
+    htmlHasJsonArtifacts: deliveries.some((delivery) => delivery.htmlHasJsonArtifacts),
   });
 }

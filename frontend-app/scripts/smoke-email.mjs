@@ -16,6 +16,7 @@ function readArg(name, fallback) {
 const baseUrl = readArg("url", process.env.SMOKE_EMAIL_BASE_URL ?? DEFAULT_URL).replace(/\/$/, "");
 const to = readArg("to", process.env.SMOKE_EMAIL_TO ?? DEFAULT_ADMIN_EMAIL);
 const leadEmail = readArg("lead-email", process.env.SMOKE_LEAD_EMAIL ?? DEFAULT_LEAD_EMAIL);
+const mode = readArg("mode", process.env.SMOKE_EMAIL_MODE ?? "full_lead_cycle");
 const token = readArg("token", process.env.INTERNAL_API_TOKEN ?? process.env.SERVICE_API_TOKEN);
 
 if (!token) {
@@ -31,7 +32,7 @@ const response = await fetch(`${baseUrl}/api/internal/email-smoke`, {
     authorization: `Bearer ${token}`,
     "content-type": "application/json",
   },
-  body: JSON.stringify({ to, leadEmail }),
+  body: JSON.stringify({ to, leadEmail, mode }),
 });
 
 const body = await response.json().catch(() => ({}));
@@ -42,15 +43,12 @@ console.log(
       status: response.status,
       ok: response.ok && body.ok === true,
       sent: body.ok === true,
-      skipped: body.skipped === true,
+      mode: body.mode,
       error: body.error,
-      template: body.template,
-      to: body.to,
+      adminTo: body.adminTo,
       leadEmail: body.leadEmail,
-      subject: body.subject,
       htmlHasJsonArtifacts: body.htmlHasJsonArtifacts,
-      textPreview: body.textPreview,
-      providerId: body.providerId,
+      deliveries: body.deliveries,
     },
     null,
     2,

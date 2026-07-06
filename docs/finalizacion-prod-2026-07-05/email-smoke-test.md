@@ -6,14 +6,16 @@ compuerta de outreach hacia leads.
 ## Qué prueba
 
 - Ruta interna protegida: `POST /api/internal/email-smoke`.
-- Template real: `lead_received`.
+- Templates reales: `lead_received` para admin y `contact_confirmation` para
+  el lead simulado.
 - Servicio real: `sendEmail()` + Resend + `email_logs` + `email.sent`.
 - Payload realista de una empresa interesada.
 - Validación rápida de que el render no sale como JSON crudo:
   `htmlHasJsonArtifacts` debe ser `false`.
 
 Este smoke no usa `prospect_outreach` ni `lead_followup`, por lo tanto no
-requiere `OUTBOUND_LEAD_EMAILS_ENABLED=true`.
+requiere `OUTBOUND_LEAD_EMAILS_ENABLED=true`. El segundo email es sólo la
+confirmación normal de contacto a un lead que dejó sus datos.
 
 ## Ejecución local con Docker
 
@@ -30,10 +32,14 @@ Resultado esperado:
   "status": 200,
   "ok": true,
   "sent": true,
-  "template": "lead_received",
-  "to": "jpamorosi14@gmail.com",
+  "mode": "full_lead_cycle",
+  "adminTo": "jpamorosi14@gmail.com",
   "leadEmail": "amorosijp@gmail.com",
-  "htmlHasJsonArtifacts": false
+  "htmlHasJsonArtifacts": false,
+  "deliveries": [
+    { "template": "lead_received", "to": "jpamorosi14@gmail.com", "ok": true },
+    { "template": "contact_confirmation", "to": "amorosijp@gmail.com", "ok": true }
+  ]
 }
 ```
 
