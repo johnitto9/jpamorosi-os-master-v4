@@ -13,7 +13,8 @@
     "optimize:og": "node scripts/optimize-og.mjs",
     "favicon:simple": "node scripts/simple-favicon.mjs",
     "check:whatsapp": "node scripts/check-whatsapp.mjs",
-    "check:google": "node scripts/check-google-seo.mjs"
+    "check:google": "node scripts/check-google-seo.mjs",
+    "smoke:email": "node scripts/smoke-email.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1078.0",
