@@ -98,11 +98,25 @@ function loadEnv(): AppEnv {
   const parsed = schema.safeParse(process.env);
   if (parsed.success) return parsed.data;
 
-  // Never throw at import time. Log once and fall back to safe defaults so the
-  // public site keeps working even if admin vars are malformed.
+  // PER-FIELD RECOVERY (prod incident 2026-07-09): one malformed OPTIONAL var
+  // (an empty UPSTASH_REDIS_REST_URL) used to collapse the ENTIRE config to
+  // defaults — storageDriver fell back to static, email/R2/search reported
+  // dead while process.env held perfectly valid values. Now only the invalid
+  // fields are dropped (logged by NAME only — never values) and everything
+  // else survives.
+  const invalid = Object.keys(parsed.error.flatten().fieldErrors);
   console.warn(
-    "[env] Invalid environment configuration, using safe defaults:",
-    parsed.error.flatten().fieldErrors,
+    `[env] dropping ${invalid.length} invalid var(s), keeping the rest: ${invalid.join(", ")}`,
+  );
+  const cleaned: Record<string, string | undefined> = { ...process.env };
+  for (const key of invalid) delete cleaned[key];
+  const second = schema.safeParse(cleaned);
+  if (second.success) return second.data;
+
+  // Truly unrecoverable (should be unreachable): full safe defaults.
+  console.warn(
+    "[env] still invalid after dropping bad fields, using safe defaults:",
+    Object.keys(second.error.flatten().fieldErrors).join(", "),
   );
   return schema.parse({});
 }

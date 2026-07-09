@@ -52,8 +52,38 @@ const securityHeaders = [
 // strict checking stays ON). See docs/DOCKER_READINESS.md.
 const isDockerBuild = process.env.DOCKER_BUILD === '1';
 
+// PRODUCTION TOPOLOGY (2026-07-09): Vercel serves the static/public front;
+// the DYNAMIC surface (assistant, sessions, media, admin, preview) lives in
+// the Dokploy backend. When BACKEND_PUBLIC_ORIGIN is set (Vercel env, at
+// BUILD time — rewrites are compiled), those paths are proxied same-origin:
+//
+//   browser → jpamorosi.dev/api/… → Vercel beforeFiles rewrite →
+//   $BACKEND_PUBLIC_ORIGIN/api/… → amorosi-backend:3000
+//
+// beforeFiles is REQUIRED: this repo also contains the route handlers, and
+// default (afterFiles) rewrites lose to local routes — the request would run
+// on Vercel (env-less) and never reach the backend. Cookies (al_sid, admin)
+// flow through untouched: same-origin for the browser, Set-Cookie forwarded.
+// Local dev / Docker / Dokploy leave the var UNSET → zero rewrites → each
+// runtime serves its own routes exactly as before.
+const backendOrigin = (process.env.BACKEND_PUBLIC_ORIGIN || '').replace(/\/+$/, '');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    if (!backendOrigin) return { beforeFiles: [] };
+    const to = (path) => `${backendOrigin}${path}`;
+    return {
+      beforeFiles: [
+        { source: '/api/:path*', destination: to('/api/:path*') },
+        { source: '/admin', destination: to('/admin') },
+        { source: '/admin/:path*', destination: to('/admin/:path*') },
+        { source: '/preview', destination: to('/preview') },
+        { source: '/preview/:path*', destination: to('/preview/:path*') },
+      ],
+    };
+  },
+
   // Produce a self-contained server bundle in `.next/standalone` for a minimal
   // Docker image. This only changes build OUTPUT; `next dev` is unaffected and
   // Vercel ignores it (uses its own output). Safe to enable. See
