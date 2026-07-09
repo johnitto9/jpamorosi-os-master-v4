@@ -107,6 +107,18 @@ services:
     labels:
       - autoheal=true # the autoheal service force-restarts us when unhealthy
     restart: unless-stopped
+    # PROD OUTAGE ROOT CAUSE (2026-07-09): when a Domain is attached in
+    # Dokploy, it appends "dokploy-network" to this service's network list —
+    # and a service with ANY explicit `networks:` is no longer attached to
+    # the compose `default` network. Deployed without this line, the backend
+    # ended up ONLY on dokploy-network: postgres/searxng stopped resolving,
+    # every query died in a 4s connection timeout, and graceful degradation
+    # masked it all (only visible symptom: pgvector:false). Declaring
+    # `default` explicitly keeps DB/search reachable; Dokploy still appends
+    # its network for Traefik. Verified against Dokploy's injection code
+    # (array push, no replace).
+    networks:
+      - default
 
   # --- Postgres: agent memory, leads, optional project store -----------------
   # Runs only with the backend profile — the public `web` image stays static
