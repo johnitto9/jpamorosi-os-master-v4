@@ -27,7 +27,7 @@ export function LabArchiveGrid({
   if (items.length === 0) return null;
 
   return (
-    <section id="lab-archive" className="relative scroll-mt-20 overflow-hidden py-16">
+    <section id="lab-archive" className="relative flex min-h-screen w-full scroll-mt-20 items-center overflow-hidden py-14 md:py-16">
       {/* micro-universe: "cold storage shelf" — violet ambient + faint vertical
           shelf lines, edges faded so it blends into the neighbouring scenes */}
       <div
@@ -54,29 +54,30 @@ export function LabArchiveGrid({
       {/* dark edge-fade strips removed — they drew seam lines over the aurora
           (only the Hall of Fame keeps its dark-room background) */}
 
-      <div className="relative mx-auto max-w-6xl px-6">
-      <SectionHeader
-        eyebrow={header?.eyebrow ?? "Lab Fragments"}
-        title={header?.title ?? "Experiments, prototypes and useful obsessions."}
-        description={
-          header?.description ??
-          "Prototypes, tools and research fragments. Evidence, not headline acts."
-        }
-        accent="#8b5cf6"
-      />
-
-      {/* same image-dominant holographic cards as Hall/Featured, riding the
-          same infinite Embla ring — compact format preserved */}
-      <div className="mt-8">
-        <CardCarousel
-          ariaLabel="Lab archive carousel"
+      <div className="relative mx-auto w-full max-w-6xl px-6">
+        <SectionHeader
+          className="mx-auto text-center [&>p]:justify-center"
+          eyebrow={header?.eyebrow ?? "Lab Fragments"}
+          title={header?.title ?? "Experiments, prototypes and useful obsessions."}
+          description={
+            header?.description ??
+            "Prototypes, tools and research fragments. Evidence, not headline acts."
+          }
           accent="#8b5cf6"
-          items={items.map((p) => ({ id: p.id, title: p.title }))}
-          slides={items.map((p) => (
-            <HallOfFameCard key={p.id} project={p} enterLabel={enterLabel} />
-          ))}
         />
-      </div>
+
+        {/* same image-dominant holographic cards as Hall/Featured, riding the
+            same infinite Embla ring — compact format preserved */}
+        <div className="mx-auto mt-8 w-full">
+          <CardCarousel
+            ariaLabel="Lab archive carousel"
+            accent="#8b5cf6"
+            items={items.map((p) => ({ id: p.id, title: p.title }))}
+            slides={items.map((p) => (
+              <HallOfFameCard key={p.id} project={p} enterLabel={enterLabel} />
+            ))}
+          />
+        </div>
       </div>
     </section>
   );

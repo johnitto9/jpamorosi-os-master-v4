@@ -22,9 +22,25 @@ import { env } from "@/lib/env";
 import { ensureMediaDir } from "@/lib/media/store";
 import { recordEvent } from "@/lib/events";
 import { anySearchProviderEnabled, search } from "@/lib/search/router";
+import { rateLimitShared } from "@/lib/rate-limit";
 import { isLlmConfigured } from "./llm";
 
 const MOCKUPS_PER_SESSION = 3;
+
+// ---- global image-generation guardrails (anti-abuse) ---------------------------
+// Enforced INSIDE generateImageToSession — the single choke point every
+// Seedream call goes through (chat mockups, branding wizard, map/home/screens).
+// The per-project ASSET_ROLE_CAPS bound each surface, but a visitor could mint
+// unlimited projects; these are the hard per-VISITOR (session) ceilings:
+//   total  — lifetime generated images per session, across everything
+//   minute — Seedream burst control (each render costs real money + ~60s)
+//   day    — daily budget per session
+export const SESSION_IMAGE_TOTAL_CAP = 20;
+const IMAGES_PER_MINUTE = 2;
+const IMAGES_PER_DAY = 12;
+
+/** Denied generation: `limit` = permanent cap hit, `rate` = try again later. */
+export type GenerationDenied = { error: "limit" | "rate"; retryAfterSec?: number };
 // Under the routes' maxDuration=90. Wide 2K renders (16:9 reference/home) can
 // take 60–85s; a 60s ceiling was aborting them and surfacing as "No salió".
 const IMAGE_TIMEOUT_MS = 85_000;
@@ -97,6 +113,19 @@ async function sessionMockupDir(sessionId: string): Promise<string> {
 
 export async function countSessionMockups(sessionId: string): Promise<number> {
   return (await listSessionMockups(sessionId)).length;
+}
+
+/** ALL generated images of a session (chat `mockup-*` + wizard `asset-*`),
+ *  excluding visitor uploads — the basis for the global session cap. */
+async function countSessionGeneratedImages(sessionId: string): Promise<number> {
+  try {
+    const dir = await sessionMockupDir(sessionId);
+    return (await fs.readdir(dir)).filter(
+      (f) => f.startsWith("mockup-") || f.startsWith("asset-"),
+    ).length;
+  } catch {
+    return 0;
+  }
 }
 
 /** Public /api/media URLs of every mockup this session generated (dossier). */
@@ -207,8 +236,24 @@ export async function generateImageToSession(
   sessionId: string,
   prompt: string,
   opts?: MockupOpts & { filePrefix?: string },
-): Promise<{ url: string } | null> {
+): Promise<{ url: string } | GenerationDenied | null> {
   if (!mockupsEnabled() || !prompt.trim()) return null;
+
+  // guardrails BEFORE spending: hard session ceiling, then burst/day budgets
+  if ((await countSessionGeneratedImages(sessionId)) >= SESSION_IMAGE_TOTAL_CAP) {
+    await recordEvent("ai.tool.failed", { tool: "generate_mockup", error: "session_total_cap" });
+    return { error: "limit" };
+  }
+  const minute = await rateLimitShared(`imggen:m:${sessionId}`, IMAGES_PER_MINUTE, 60_000);
+  const day = minute.ok
+    ? await rateLimitShared(`imggen:d:${sessionId}`, IMAGES_PER_DAY, 24 * 60 * 60_000)
+    : minute;
+  if (!minute.ok || !day.ok) {
+    const deny = !minute.ok ? minute : day;
+    await recordEvent("ai.tool.failed", { tool: "generate_mockup", error: "rate_limited" });
+    return { error: "rate", retryAfterSec: deny.retryAfterSec };
+  }
+
   await recordEvent("ai.tool.called", { tool: "generate_mockup" });
 
   const controller = new AbortController();
@@ -266,7 +311,7 @@ export async function runGenerateMockup(
   sessionId: string,
   description: string,
   opts?: MockupOpts,
-): Promise<{ url: string } | { error: "limit" } | null> {
+): Promise<{ url: string } | GenerationDenied | null> {
   if (!mockupsEnabled() || !description.trim()) return null;
   if ((await countSessionMockups(sessionId)) >= MOCKUPS_PER_SESSION) {
     return { error: "limit" };

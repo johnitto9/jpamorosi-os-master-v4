@@ -26,6 +26,7 @@ import { DEFAULT_LANG, type Lang } from "@/lib/i18n/dictionaries";
 
 const SKIP_LABEL: Record<Lang, string> = {
   en: "Skip", es: "Saltar", pt: "Pular", fr: "Passer", ru: "Пропустить", zh: "跳过", ar: "تخطّي",
+  he: "דילוג", ja: "スキップ", ko: "건너뛰기", hi: "छोड़ें",
 };
 
 function readLang(): Lang {

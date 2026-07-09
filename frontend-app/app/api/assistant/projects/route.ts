@@ -16,11 +16,17 @@ import { touchSession } from "@/lib/agent/memory";
 import { recordEvent } from "@/lib/events";
 import { notifyAdmin } from "@/lib/email/service";
 import { env } from "@/lib/env";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Per-session project ceiling. Without it every other cap multiplies: each
+// project unlocks its own ASSET_ROLE_CAPS budget, so unlimited projects meant
+// unlimited paid generations. 5 is generous for a genuine visitor.
+const PROJECTS_PER_SESSION = 5;
 
 function sid(request: Request): string | null {
   const m = (request.headers.get("cookie") ?? "").match(/(?:^|;\s*)al_sid=([^;]+)/)?.[1];
@@ -34,9 +40,20 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // per-IP burst guard (project creation fans out emails + DB writes)
+  const limited = await rateLimited(request, "assistant-projects", 6, 10 * 60_000);
+  if (limited) return limited;
+
   // creating a project can be the FIRST interaction — mint the session
   const existing = sid(request);
   const sessionId = existing ?? randomUUID();
+
+  if ((await listSessionProjects(sessionId)).length >= PROJECTS_PER_SESSION) {
+    return NextResponse.json(
+      { error: "project_limit", cap: PROJECTS_PER_SESSION },
+      { status: 409 },
+    );
+  }
 
   const parsed = projectPatchSchema
     .extend({

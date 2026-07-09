@@ -8,6 +8,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { ensureMediaDir } from "@/lib/media/store";
 import { recordEvent } from "@/lib/events";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,10 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_PER_SESSION = 5;
 
 export async function POST(request: Request) {
+  // per-IP burst guard on the public intake
+  const limited = await rateLimited(request, "assistant-upload", 10, 10 * 60_000);
+  if (limited) return limited;
+
   const cookie = request.headers.get("cookie") ?? "";
   const existing = cookie.match(/(?:^|;\s*)al_sid=([^;]+)/)?.[1];
   // an image can be the visitor's FIRST interaction — mint the session here

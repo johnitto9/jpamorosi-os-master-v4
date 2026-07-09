@@ -10,6 +10,7 @@ import {
 import { isAuthenticated } from "@/lib/auth/admin";
 import { getProjectRepository } from "@/lib/projects/repository";
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import { TierReorder, type TierRow } from "@/components/admin/TierReorder";
 import type { Project } from "@/content/projects";
 
 export const dynamic = "force-dynamic";
@@ -50,54 +51,6 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
   );
 }
 
-function TierGroup({ title, items, accent }: { title: string; items: Project[]; accent: string }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="mt-8">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider" style={{ color: accent }}>
-        {title}
-        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60">{items.length}</span>
-      </h2>
-      <div className="overflow-hidden rounded-xl border border-white/10">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-white/[0.03] text-[10px] uppercase tracking-wider text-white/50">
-            <tr>
-              <th className="px-4 py-2">Title</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Order</th>
-              <th className="px-4 py-2">Stack</th>
-              <th className="px-4 py-2">Pub</th>
-              <th className="px-4 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {items.map((p) => (
-              <tr key={p.slug} className="hover:bg-white/[0.02]">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-white">{p.title}</div>
-                  <div className="text-xs text-white/40">{p.slug}</div>
-                </td>
-                <td className="px-4 py-3 text-white/70">{p.status}</td>
-                <td className="px-4 py-3 text-white/70">{p.sortOrder}</td>
-                <td className="px-4 py-3 text-white/50">{p.stack.length}</td>
-                <td className="px-4 py-3">
-                  {p.published ? <span className="text-emerald-400">yes</span> : <span className="text-white/40">no</span>}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex justify-end gap-3">
-                    <Link href={`/admin/projects/${p.slug}`} className="text-cyan-300 hover:underline">Edit</Link>
-                    <Link href={`/preview/projects/${p.slug}`} className="text-amber-300 hover:underline" target="_blank">Preview</Link>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 export default async function AdminHome() {
   if (!isAdminEnabled() || !isAdminConfigured()) return <SetupNotice />;
   if (!(await isAuthenticated())) redirect("/admin/login");
@@ -107,6 +60,16 @@ export default async function AdminHome() {
   const driver = getStorageDriver();
   const publicMode = getPublicContentMode();
 
+  const byOrder = (a: Project, b: Project) => (a.sortOrder ?? 100) - (b.sortOrder ?? 100) || a.title.localeCompare(b.title);
+  const rows = (list: Project[]): TierRow[] =>
+    [...list].sort(byOrder).map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      status: p.status,
+      sortOrder: p.sortOrder ?? 100,
+      stackCount: p.stack.length,
+      published: p.published !== false,
+    }));
   const hall = projects.filter((p) => p.tier === "hall_of_fame");
   const featured = projects.filter((p) => p.tier === "featured");
   const archive = projects.filter((p) => p.tier === "archive");
@@ -160,9 +123,9 @@ export default async function AdminHome() {
         <StatCard label="Published" value={published.length} accent="#00ff88" />
       </div>
 
-      <TierGroup title="Hall of Fame" items={hall} accent="#f0a500" />
-      <TierGroup title="Featured Systems" items={featured} accent="#00e0a4" />
-      <TierGroup title="Lab Archive" items={archive} accent="#8b5cf6" />
+      <TierReorder title="Hall of Fame" items={rows(hall)} accent="#f0a500" />
+      <TierReorder title="Featured Systems" items={rows(featured)} accent="#00e0a4" />
+      <TierReorder title="Lab Archive" items={rows(archive)} accent="#8b5cf6" />
 
       {projects.length === 0 && (
         <p className="mt-8 text-center text-white/50">No projects yet. Create your first one.</p>

@@ -68,13 +68,13 @@ const FALLBACK_PALETTE = ["#00e5ff", "#8b5cf6", "#0a0a14"];
 // concrete stack decisions later; the visitor never has to name a technology.
 // Each chip maps to a stable id (used in the brief the agent reads).
 const BUSINESS_NEEDS: Array<{ id: string; icon: string; labels: Record<Lang, string> }> = [
-  { id: "traffic",     icon: "🚦", labels: { en: "Handle heavy traffic",          es: "Bancar mucho tráfico",          pt: "Aguentar muito tráfego",      fr: "Encaisser beaucoup de trafic",    ru: "Выдерживать высокий трафик",     zh: "承载高流量",            ar: "تحمّل حركة مرور كثيفة" } },
-  { id: "visuals",     icon: "✨", labels: { en: "Smooth visuals / animations",  es: "Visuales fluidas / animaciones", pt: "Visuais fluidos / animações",  fr: "Visuels fluides / animations",   ru: "Плавные визуалы / анимации",     zh: "流畅视觉 / 动效",          ar: "مرئيات سلسة / حركات" } },
-  { id: "edge",        icon: "🌍", labels: { en: "Fast worldwide (edge)",        es: "Rápido en todo el mundo",       pt: "Rápido no mundo todo (edge)", fr: "Rapide partout (edge)",           ru: "Быстро по всему миру (edge)",  zh: "全球加速 (edge)",        ar: "سريع في كل العالم (edge)" } },
-  { id: "sovereignty", icon: "🔐", labels: { en: "Data sovereignty",             es: "Soberanía de la data",          pt: "Soberania dos dados",         fr: "Souveraineté des données",       ru: "Суверенитет данных",             zh: "数据主权",               ar: "سيادة البيانات" } },
-  { id: "payments",    icon: "💳", labels: { en: "Online payments",              es: "Pagos online",                  pt: "Pagamentos online",            fr: "Paiements en ligne",             ru: "Онлайн-платежи",                 zh: "在线支付",               ar: "مدفوعات أونلاين" } },
-  { id: "i18n",        icon: "🌐", labels: { en: "Multi-language",               es: "Multi-idioma",                  pt: "Multi-idioma",                 fr: "Multilingue",                    ru: "Мультиязычность",                zh: "多语言",                 ar: "متعدد اللغات" } },
-  { id: "mobile",      icon: "📱", labels: { en: "Mobile app (iOS/Android)",     es: "App móvil (iOS/Android)",       pt: "App móvel (iOS/Android)",      fr: "App mobile (iOS/Android)",       ru: "Мобильное приложение (iOS/Android)", zh: "移动端 App (iOS/Android)", ar: "تطبيق جوال (iOS/Android)" } },
+  { id: "traffic",     icon: "🚦", labels: { en: "Handle heavy traffic",          es: "Bancar mucho tráfico",          pt: "Aguentar muito tráfego",      fr: "Encaisser beaucoup de trafic",    ru: "Выдерживать высокий трафик",     zh: "承载高流量",            ar: "تحمّل حركة مرور كثيفة", he: "לעמוד בעומס גבוה", ja: "高トラフィック対応", ko: "대량 트래픽 감당", hi: "भारी ट्रैफ़िक सँभालना" } },
+  { id: "visuals",     icon: "✨", labels: { en: "Smooth visuals / animations",  es: "Visuales fluidas / animaciones", pt: "Visuais fluidos / animações",  fr: "Visuels fluides / animations",   ru: "Плавные визуалы / анимации",     zh: "流畅视觉 / 动效",          ar: "مرئيات سلسة / حركات", he: "ויזואלים חלקים / אנימציות", ja: "滑らかなビジュアル / アニメ", ko: "부드러운 비주얼 / 애니메이션", hi: "स्मूद विज़ुअल / एनिमेशन" } },
+  { id: "edge",        icon: "🌍", labels: { en: "Fast worldwide (edge)",        es: "Rápido en todo el mundo",       pt: "Rápido no mundo todo (edge)", fr: "Rapide partout (edge)",           ru: "Быстро по всему миру (edge)",  zh: "全球加速 (edge)",        ar: "سريع في كل العالم (edge)", he: "מהיר בכל העולם (edge)", ja: "世界中で高速 (edge)", ko: "전 세계 빠르게 (edge)", hi: "दुनिया भर में तेज़ (edge)" } },
+  { id: "sovereignty", icon: "🔐", labels: { en: "Data sovereignty",             es: "Soberanía de la data",          pt: "Soberania dos dados",         fr: "Souveraineté des données",       ru: "Суверенитет данных",             zh: "数据主权",               ar: "سيادة البيانات", he: "ריבונות נתונים", ja: "データ主権", ko: "데이터 주권", hi: "डेटा संप्रभुता" } },
+  { id: "payments",    icon: "💳", labels: { en: "Online payments",              es: "Pagos online",                  pt: "Pagamentos online",            fr: "Paiements en ligne",             ru: "Онлайн-платежи",                 zh: "在线支付",               ar: "مدفوعات أونلاين", he: "תשלומים אונליין", ja: "オンライン決済", ko: "온라인 결제", hi: "ऑनलाइन पेमेंट" } },
+  { id: "i18n",        icon: "🌐", labels: { en: "Multi-language",               es: "Multi-idioma",                  pt: "Multi-idioma",                 fr: "Multilingue",                    ru: "Мультиязычность",                zh: "多语言",                 ar: "متعدد اللغات", he: "רב-לשוני", ja: "多言語対応", ko: "다국어", hi: "बहुभाषी" } },
+  { id: "mobile",      icon: "📱", labels: { en: "Mobile app (iOS/Android)",     es: "App móvil (iOS/Android)",       pt: "App móvel (iOS/Android)",      fr: "App mobile (iOS/Android)",       ru: "Мобильное приложение (iOS/Android)", zh: "移动端 App (iOS/Android)", ar: "تطبيق جوال (iOS/Android)", he: "אפליקציה (iOS/Android)", ja: "モバイルアプリ (iOS/Android)", ko: "모바일 앱 (iOS/Android)", hi: "मोबाइल ऐप (iOS/Android)" } },
 ];
 
 // Tokenize the free-form dev textbox into a stack[] (split on commas, new
@@ -647,6 +647,10 @@ const KIND_META_LABELS: Record<Lang, Record<string, string>> = {
   ru: { app: "Приложение", web: "Веб", ecommerce: "E-commerce", agent: "ИИ-агент", saas: "SaaS", brand: "Бренд" },
   zh: { app: "移动应用", web: "网站", ecommerce: "电商", agent: "AI 智能体", saas: "SaaS", brand: "品牌" },
   ar: { app: "تطبيق جوال", web: "ويب", ecommerce: "تجارة إلكترونية", agent: "وكيل ذكاء اصطناعي", saas: "SaaS", brand: "علامة" },
+  he: { app: "אפליקציה", web: "ווב", ecommerce: "איקומרס", agent: "סוכן AI", saas: "SaaS", brand: "מותג" },
+  ja: { app: "モバイルアプリ", web: "ウェブ", ecommerce: "EC", agent: "AIエージェント", saas: "SaaS", brand: "ブランド" },
+  ko: { app: "모바일 앱", web: "웹", ecommerce: "이커머스", agent: "AI 에이전트", saas: "SaaS", brand: "브랜드" },
+  hi: { app: "मोबाइल ऐप", web: "वेब", ecommerce: "ई-कॉमर्स", agent: "AI एजेंट", saas: "SaaS", brand: "ब्रांड" },
 };
 
 // ---- branding board ------------------------------------------------------------
@@ -673,6 +677,10 @@ export function BrandingBoard({
       ru: `Сгенерируй визуальный mood-концепт для «${name}» на основе его палитры и концепции`,
       zh: `用它的调色板和概念，为「${name}」生成一个视觉情绪概念`,
       ar: `ولّد مفهوماً بصرياً للمزاج لـ «${name}» باستخدام لوحة ألوانه ومفهومه`,
+      he: `צרו קונספט ויזואלי של mood עבור "${name}" על בסיס הפלטה והקונספט שלו`,
+      ja: `「${name}」のパレットとコンセプトを使ってビジュアルのムードコンセプトを生成して`,
+      ko: `"${name}"의 팔레트와 컨셉을 사용해 비주얼 무드 컨셉을 생성해줘`,
+      hi: `"${name}" के पैलेट और कॉन्सेप्ट का उपयोग करके एक विज़ुअल मूड कॉन्सेप्ट बनाओ`,
     };
     return prompts[lang] ?? prompts.en;
   };

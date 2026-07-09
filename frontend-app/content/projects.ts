@@ -72,6 +72,9 @@ export type Project = {
     playstore?: string;
     appstore?: string;
     website?: string;
+    /** Social presence (optional, shown as pills in the room). */
+    instagram?: string;
+    facebook?: string;
   };
 
   createdAt?: string;

@@ -22,7 +22,7 @@ const DEFAULT_LEAD_EMAIL = "amorosijp@gmail.com";
 const bodySchema = z.object({
   to: z.string().email().default(DEFAULT_ADMIN_EMAIL),
   leadEmail: z.string().email().default(DEFAULT_LEAD_EMAIL),
-  mode: z.enum(["admin_only", "full_lead_cycle", "scout_outreach", "showcase"]).default("scout_outreach"),
+  mode: z.enum(["admin_only", "full_lead_cycle", "scout_outreach", "showcase", "showcase_one"]).default("scout_outreach"),
 });
 
 function buildLeadReceivedData(input: z.infer<typeof bodySchema>) {
@@ -56,7 +56,7 @@ async function emailMediaUrls(): Promise<{ visualUrl: string; avatarUrl?: string
 }
 
 async function buildScoutOutreachData(input: z.infer<typeof bodySchema>) {
-  const siteUrl = env.NEXT_PUBLIC_SITE_URL;
+  const siteUrl = "https://jpamorosi.dev";
   const media = await emailMediaUrls();
   return {
     company: "Northstar AI Operations",
@@ -178,8 +178,9 @@ export async function POST(request: Request) {
 
   const leadData = buildLeadReceivedData(parsed.data);
 
-  if (parsed.data.mode === "showcase") {
-    const leads = buildShowcaseLeads();
+  if (parsed.data.mode === "showcase" || parsed.data.mode === "showcase_one") {
+    const leads = parsed.data.mode === "showcase_one" ? buildShowcaseLeads().slice(3, 4) : buildShowcaseLeads();
+    const smokeTag = `smoke ${new Date().toISOString().slice(11, 19)}`;
     const siteUrl = env.NEXT_PUBLIC_SITE_URL;
     const media = await emailMediaUrls();
     const deliveries = [];
@@ -187,11 +188,15 @@ export async function POST(request: Request) {
     for (const lead of leads) {
       const lang = detectProspectLang(lead);
       const outreach = buildProspectOutreachData(lead, siteUrl, media);
-      const rendered = templates.prospect_outreach(outreach);
+      const smokeOutreach = {
+        ...outreach,
+        subjectReason: `${outreach.subjectReason} · ${smokeTag} · ${lead.id}`,
+      };
+      const rendered = templates.prospect_outreach(smokeOutreach);
       const result = await sendEmail({
         template: "prospect_outreach",
         to: parsed.data.leadEmail,
-        data: outreach,
+        data: smokeOutreach,
         tracking: { campaign: "email_smoke_showcase" },
         smokeTestBypassOutboundGate: true,
       });
@@ -205,8 +210,8 @@ export async function POST(request: Request) {
         subject: rendered.subject,
         detectedLang: lang,
         company: lead.company ?? undefined,
-        avatarUrl: outreach.avatarUrl,
-        visualUrl: outreach.visualUrl,
+        avatarUrl: smokeOutreach.avatarUrl,
+        visualUrl: smokeOutreach.visualUrl,
         seed: lead.id,
         htmlHasJsonArtifacts: hasJsonArtifacts(rendered),
         textPreview: rendered.text.slice(0, 600),
@@ -215,7 +220,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: deliveries.every((d) => d.ok),
-      mode: "showcase",
+      mode: parsed.data.mode,
       leadEmail: parsed.data.leadEmail,
       deliveries,
     });

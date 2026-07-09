@@ -30,6 +30,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ScrollContainerContext } from "@/components/ui/scroll-stage";
 import { cn } from "@/lib/utils";
+import { SwipeCue } from "./SwipeCue";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -57,7 +58,8 @@ type IlDebug = {
   wrapperInfo: () => { scrollTop: number; scrollHeight: number; clientHeight: number; hasOverflow: string; hasLenis: boolean; viewportHeight: number };
   reducedMotion: () => boolean;
 };
-if (typeof window !== "undefined") {
+// Dev-only: never expose scroll-pipeline internals on the production window.
+if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
   (window as unknown as { __IL_DEBUG__?: IlDebug }).__IL_DEBUG__ = {
     snapshot: () =>
       ScrollTrigger.getAll()
@@ -111,10 +113,43 @@ if (typeof window !== "undefined") {
 // debug indicator can prove it without the console. Increments a per-scene
 // counter each time the mobile branch fires (should be 1 per scene once).
 function markMobileBuildRan(scene: string, section: HTMLElement, scroller: HTMLElement | null) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || process.env.NODE_ENV === "production") return;
   const w = window as unknown as { __IL_MOBILE_RAN__?: Record<string, number> };
   w.__IL_MOBILE_RAN__ = w.__IL_MOBILE_RAN__ ?? {};
   w.__IL_MOBILE_RAN__[scene] = (w.__IL_MOBILE_RAN__[scene] ?? 0) + 1;
+}
+
+// Reveals a mobile scene's narrative (eyebrow / heading / body) with a ONE-SHOT
+// tween that fires as the scene begins to ENTER the viewport — decoupled from
+// the scrubbed card timeline (which only reveals it once the scene fully pins).
+// This removes the perceived "empty gap" between the hero and the first animated
+// screen: the title/heading are there as soon as the scene peeks in from below.
+// The elements keep their SSR `opacity-0` (no flash); this fades them up on enter
+// and reverses if you scroll back above the scene.
+function revealNarrativeOnEnter(
+  q: (s: string) => Element[],
+  section: HTMLElement,
+  scroller: HTMLElement | null,
+) {
+  const targets = q(".il-eyebrow, .il-head, .il-body");
+  if (!targets.length) return;
+  gsap.fromTo(
+    targets,
+    { autoAlpha: 0, y: 20 },
+    {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.5,
+      stagger: 0.09,
+      ease: "power2.out",
+      scrollTrigger: {
+        trigger: section,
+        scroller: scroller ?? undefined,
+        start: "top 88%", // as the scene's top rises past 88% of the viewport
+        toggleActions: "play none none reverse",
+      },
+    },
+  );
 }
 
 // --- Shared copy contract (page.tsx depends on this) -------------------------
@@ -170,24 +205,29 @@ const ACCENT: Record<Accent, { text: string; dot: string; border: string; glow: 
   },
 };
 
+// NB: blobs must stay INSIDE the scene (no negative offsets): the sections
+// don't clip (overflow-hidden would break their sticky stages), so a blurred
+// blob hanging past the edge bleeds into neighbouring sections — on mobile it
+// read as a stray teal glow under the hero, tinting even the Orbe launcher
+// through its backdrop-blur.
 const GLOW: Record<Tone, Array<{ color: string; cls: string }>> = {
   mixed: [
-    { color: "rgba(240,165,0,0.16)", cls: "-left-24 -top-16 h-[26rem] w-[26rem]" },
-    { color: "rgba(0,242,255,0.15)", cls: "-right-16 bottom-[-6rem] h-[30rem] w-[30rem]" },
+    { color: "rgba(240,165,0,0.16)", cls: "-left-24 top-0 h-[26rem] w-[26rem]" },
+    { color: "rgba(0,242,255,0.15)", cls: "-right-16 bottom-0 h-[30rem] w-[30rem]" },
   ],
   cyan: [
-    { color: "rgba(0,242,255,0.16)", cls: "-left-24 -top-16 h-[26rem] w-[26rem]" },
-    { color: "rgba(30,103,198,0.16)", cls: "-right-16 bottom-[-6rem] h-[30rem] w-[30rem]" },
+    { color: "rgba(0,242,255,0.16)", cls: "-left-24 top-0 h-[26rem] w-[26rem]" },
+    { color: "rgba(30,103,198,0.16)", cls: "-right-16 bottom-0 h-[30rem] w-[30rem]" },
   ],
   violet: [
-    { color: "rgba(139,92,246,0.18)", cls: "left-1/4 -top-16 h-[26rem] w-[26rem]" },
-    { color: "rgba(168,85,247,0.12)", cls: "right-1/4 bottom-[-6rem] h-[28rem] w-[28rem]" },
+    { color: "rgba(139,92,246,0.18)", cls: "left-1/4 top-0 h-[26rem] w-[26rem]" },
+    { color: "rgba(168,85,247,0.12)", cls: "right-1/4 bottom-0 h-[28rem] w-[28rem]" },
   ],
 };
 
 function SceneGlow({ tone }: { tone: Tone }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0">
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {GLOW[tone].map((b, i) => (
         <div key={i} className={cn("absolute rounded-full blur-3xl", b.cls)}
           style={{ background: `radial-gradient(closest-side, ${b.color}, transparent 70%)` }} />
@@ -217,6 +257,29 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
   const finalSrc = resolveMediaUrl((key && overrides?.[key]) || src) ?? src;
   const isVideo = /\.(mp4|webm)(?:$|\?)/i.test(finalSrc);
   useEffect(() => setFailed(false), [finalSrc]);
+
+  // Lazy + visibility-gated playback for video backdrops (Living Layer loop):
+  // nothing downloads until the scene approaches the viewport (preload="none",
+  // play() triggers the fetch), and it PAUSES the moment you scroll past — no
+  // background decode, no bandwidth burn while reading other sections.
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !isVideo || failed) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          const p = v.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        } else {
+          v.pause();
+        }
+      },
+      { rootMargin: "25% 0px" },
+    );
+    io.observe(v);
+    return () => io.disconnect();
+  }, [finalSrc, isVideo, failed]);
   return (
     <div aria-hidden className={cn("relative overflow-hidden rounded-2xl border bg-white/[0.03]", a.border, className)} style={{ boxShadow: a.glow }}>
       {failed ? (
@@ -225,12 +288,12 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
         </div>
       ) : isVideo ? (
         <video
+          ref={videoRef}
           src={finalSrc}
           muted
           loop
           playsInline
-          autoPlay
-          preload="metadata"
+          preload="none"
           className="h-full w-full object-cover"
           onError={() => setFailed(true)}
         />
@@ -266,6 +329,13 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
 function useSceneChoreography(
   build: (tl: gsap.core.Timeline, q: (s: string) => Element[]) => void,
   mobile?: (q: (s: string) => Element[], ctx: { scroller: HTMLElement | null; section: HTMLElement }) => void,
+  // Copy revision key (heading + items). CRITICAL for the language switch:
+  // router.refresh() re-renders the scene with NEW word spans (their React
+  // keys are the words themselves), while the old timeline keeps animating
+  // the DETACHED nodes — the fresh spans render at their CSS resting state,
+  // all stacked on top of each other. Including the revision in the deps
+  // makes useGSAP revert the old context and rebuild against the new DOM.
+  revision?: string,
 ): RefObject<HTMLDivElement> {
   const container = useContext(ScrollContainerContext);
   const root = useRef<HTMLDivElement>(null);
@@ -338,11 +408,14 @@ function useSceneChoreography(
       const id = window.setTimeout(() => ScrollTrigger.refresh(), 500);
       return () => window.clearTimeout(id);
     },
-    { scope: root, dependencies: [container] },
+    { scope: root, dependencies: [container, revision] },
   );
 
   return root;
 }
+
+/** Stable per-language key for a scene's animated copy. */
+const copyRevision = (t: InterludeCopy) => `${t.heading}|${t.items.join("·")}`;
 
 // --- Mobile static block (reduced-motion / no-JS fallback — always readable) -
 // Hidden by default on motion-safe devices; MobileScene* takes over. Both render
@@ -381,36 +454,41 @@ function MobileStatic({ t, accent, image, emoji }: { t: InterludeCopy; accent: A
 function MobileScene1({ t }: { t: InterludeCopy }) {
   const words = t.items;
   return (
-    <div data-scene-mobile className="relative block min-h-[300vh] lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[260vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="mixed" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-7 pt-4">
-        {/* narrative at top — compact, line-clamp keeps body from overflowing */}
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-5 pt-2">
+        {/* narrative at top — compact, line-clamp keeps body from overflowing.
+            opacity-0: hidden at first paint so it only appears WITH the GSAP
+            reveal (no SSR flash → no visible→gone→back glitch). */}
         <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
           <span className="il-thread absolute left-1/2 top-12 h-16 w-px -translate-x-1/2"
             aria-hidden
             style={{ background: "linear-gradient(to bottom, rgba(240,165,0,0.8), rgba(0,242,255,0.7))" }} />
-          <div className="il-eyebrow flex justify-center"><EyebrowPill accent="amber">{t.eyebrow}</EyebrowPill></div>
-          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
-          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 sm:text-sm line-clamp-3">{t.body}</p>
+          <div className="il-eyebrow flex justify-center opacity-0"><EyebrowPill accent="amber">{t.eyebrow}</EyebrowPill></div>
+          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white opacity-0 sm:text-3xl">{t.heading}</h2>
+          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 opacity-0 line-clamp-3 sm:text-sm">{t.body}</p>
         </div>
 
-        {/* print slot — flex-1 fills the middle, cards absolutely positioned
-            inside so GSAP can translate them freely (enters from below, exits up) */}
-        <div className="il-print-slot relative flex w-full flex-1 items-end justify-center pb-8">
+        {/* print slot — flex-1 fills the middle, cards absolutely centered so GSAP
+            can translate them freely (enter from below, exit up). Cards stay in
+            the centre; the milestone words sit just BELOW the cards. */}
+        <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
           <div className="il-card-a absolute h-40 w-64 sm:h-44 sm:w-72">
             <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="h-full w-full" />
           </div>
           <div className="il-card-b absolute h-36 w-56 sm:h-40 sm:w-64">
             <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="h-full w-full" />
           </div>
+          {/* milestone words — anchored just under the cards (one visible at a time) */}
+          <div className="il-words-band pointer-events-none absolute left-1/2 top-1/2 mt-[5.5rem] h-12 w-full max-w-md -translate-x-1/2">
+            {words.map((m) => (
+              <span key={m} className="il-word absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-bold text-amber-200 opacity-0 sm:text-2xl">{m}</span>
+            ))}
+          </div>
         </div>
 
-        {/* milestone words band — fixed bottom slot, one word visible at a time */}
-        <div className="il-words-band pointer-events-none relative mb-7 h-12 w-full max-w-md shrink-0">
-          {words.map((m) => (
-            <span key={m} className="il-word absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-bold text-amber-200 opacity-0 sm:text-2xl">{m}</span>
-          ))}
-        </div>
+        {/* swipe-down hint at the foot of the scene */}
+        <SwipeCue className="shrink-0" label="" tone="amber" />
       </div>
     </div>
   );
@@ -424,13 +502,14 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
 // line-clamp keep the narrative from pushing the screen into the stack.
 function MobileScene2({ t }: { t: InterludeCopy }) {
   return (
-    <div data-scene-mobile className="relative block min-h-[285vh] lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[250vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="cyan" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-6 pt-4">
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-5 pt-4">
+        {/* opacity-0: narrative appears only WITH the GSAP reveal (no SSR flash) */}
         <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
-          <div className="il-eyebrow flex justify-center"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
-          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
-          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 sm:text-sm line-clamp-3">{t.body}</p>
+          <div className="il-eyebrow flex justify-center opacity-0"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
+          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white opacity-0 sm:text-3xl">{t.heading}</h2>
+          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 opacity-0 line-clamp-3 sm:text-sm">{t.body}</p>
         </div>
 
         {/* screen slot — middle, screen floats up + holds; layer cards assemble
@@ -438,12 +517,12 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
             slot so GSAP can translate it (yPercent 130 → 0 → -14) without
             affecting the layer stack below. */}
         <div className="il-print-slot relative flex w-full flex-1 items-center justify-center">
-          <div className="il-screen absolute top-[12%] h-40 w-64 sm:h-44 sm:w-72">
+          <div className="il-screen absolute top-[22%] h-40 w-64 sm:h-44 sm:w-72">
             <InterludeImage src={IMG.proof1} accent="cyan" emoji="🖥️" className="h-full w-full" />
           </div>
 
-          {/* layer stack — overlaps the screen instead of sitting too low */}
-          <div className="il-layers absolute bottom-[10%] z-20 w-full max-w-md space-y-1.5">
+          {/* layer stack — sits a touch higher (closer under the screen) */}
+          <div className="il-layers absolute bottom-[32%] z-20 w-full max-w-md space-y-1.5">
             {t.items.map((l) => (
               <div key={l} className="il-layer flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-black/45 px-3 py-1.5 backdrop-blur-md"
                 style={{ boxShadow: "0 0 24px -10px rgba(0,242,255,0.3)" }}>
@@ -453,6 +532,9 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
             ))}
           </div>
         </div>
+
+        {/* swipe-down hint at the foot of the scene */}
+        <SwipeCue className="shrink-0" label="" tone="cyan" />
       </div>
     </div>
   );
@@ -466,13 +548,14 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
 function MobileScene3({ t }: { t: InterludeCopy }) {
   const words = t.items;
   return (
-    <div data-scene-mobile className="relative block min-h-[320vh] lg:hidden motion-reduce:hidden">
+    <div data-scene-mobile className="relative block min-h-[280vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="violet" />
-      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 py-6">
+      <div className="sticky top-0 flex h-screen flex-col items-center overflow-hidden px-6 pb-5 pt-6">
+        {/* opacity-0: narrative appears only WITH the GSAP reveal (no SSR flash) */}
         <div className="il-narrative relative z-10 w-full max-w-md shrink-0 text-center">
-          <div className="il-eyebrow flex justify-center"><EyebrowPill accent="violet">{t.eyebrow}</EyebrowPill></div>
-          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white sm:text-3xl">{t.heading}</h2>
-          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 sm:text-sm line-clamp-3">{t.body}</p>
+          <div className="il-eyebrow flex justify-center opacity-0"><EyebrowPill accent="violet">{t.eyebrow}</EyebrowPill></div>
+          <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white opacity-0 sm:text-3xl">{t.heading}</h2>
+          <p className="il-body mt-2 text-xs leading-relaxed text-white/65 opacity-0 line-clamp-3 sm:text-sm">{t.body}</p>
         </div>
 
         {/* stage slot — backdrop + stacked flow words pulse one at a time */}
@@ -500,6 +583,9 @@ function MobileScene3({ t }: { t: InterludeCopy }) {
             {words.map((w) => (<span key={w} className="il-dot h-1 w-1 rounded-full bg-violet-300 sm:h-1.5 sm:w-1.5" aria-hidden />))}
           </div>
         </div>
+
+        {/* swipe-down hint at the foot of the scene */}
+        <SwipeCue className="mt-4 shrink-0" label="" tone="violet" />
       </div>
     </div>
   );
@@ -515,11 +601,13 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
   const words = t.items;
   const root = useSceneChoreography(
     (tl, q) => {
-      // narrative core: VISIBLE at 0, only settles (fail-safe)
+      // narrative core: VISIBLE at 0, only settles (fail-safe). The head
+      // straightens up on enter and STAYS PUT — the old slow upward drift
+      // (y:-26 over the whole scene) read as "keeps rising" and collided
+      // with the dancing words on short viewports.
       tl.from(q(".il-eyebrow"), { y: 26, duration: 0.5, ease: "power2.out" }, 0)
         .from(q(".il-head"), { y: 44, rotate: -2, duration: 0.7, ease: "power3.out" }, 0.05)
         .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
-        .to(q(".il-head"), { y: -26, duration: 5, ease: "none" }, 0.9) // drifts, stays visible
         // thread grows through the whole scene (secondary motion)
         .fromTo(q(".il-thread"), { scaleY: 0 }, { scaleY: 1, duration: 5, ease: "none", transformOrigin: "top center" }, 0.4)
         // print A: enters deep-right, crosses, then recedes (still faintly there)
@@ -530,11 +618,14 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
         .fromTo(q(".il-card-b"), { yPercent: 130, xPercent: 24, autoAlpha: 0, rotate: 7, scale: 0.82 },
           { yPercent: 0, xPercent: 0, autoAlpha: 1, rotate: 3, scale: 1, duration: 1.6, ease: "power3.out" }, 2.1)
         .to(q(".il-card-b"), { xPercent: -140, autoAlpha: 0, rotate: 1, duration: 1.6, ease: "power1.in" }, 4.3);
-      // milestone words dance up, handing off (last stays lit)
+      // milestone words dance up, handing off (last stays lit). Spacing is
+      // wider than the exit so consecutive words never coexist at high
+      // opacity — the old 0.62 spacing / 0.72 exit had both words fully lit
+      // at once, reading as garbled overlap mid-scroll.
       q(".il-word").forEach((w, i) => {
-        const at = 1.2 + i * 0.62;
+        const at = 1.2 + i * 0.95;
         tl.fromTo(w, { autoAlpha: 0, yPercent: 90, rotate: i % 2 ? 5 : -5 }, { autoAlpha: 1, yPercent: 0, rotate: 0, duration: 0.5, ease: "back.out(1.7)" }, at);
-        if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.5, ease: "power1.in" }, at + 0.72);
+        if (i < words.length - 1) tl.to(w, { autoAlpha: 0, yPercent: -80, duration: 0.4, ease: "power1.in" }, at + 0.55);
       });
     },
     // MOBILE BUILD (FINALPROD S9) — single scrubbed timeline per scene. The
@@ -574,19 +665,14 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
         },
       });
 
-      // ---- Initial states (all at t=0) ---------------------------------
-      tl.set(q(".il-eyebrow"), { y: 24, autoAlpha: 0 }, 0)
-        .set(q(".il-head"), { y: 40, rotate: -3, autoAlpha: 0 }, 0)
-        .set(q(".il-body"), { y: 24, autoAlpha: 0 }, 0)
-        .set(q(".il-card-a"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: -8 }, 0)
+      // ---- Narrative: revealed EARLY (one-shot on enter, not the scrub) --
+      revealNarrativeOnEnter(q, section, scroller);
+
+      // ---- Initial states of the travelling elements (all at t=0) ------
+      tl.set(q(".il-card-a"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: -8 }, 0)
         .set(q(".il-card-b"), { yPercent: 200, autoAlpha: 0, scale: 0.5, rotate: 8 }, 0)
         .set(q(".il-thread"), { scaleY: 0, transformOrigin: "top center" }, 0)
         .set(q(".il-word"), { autoAlpha: 0, yPercent: 90, scale: 0.75, rotate: 0 }, 0);
-
-      // ---- Narrative: settle in early --------------------------------
-      tl.to(q(".il-eyebrow"), { y: 0, autoAlpha: 1, duration: 0.08 }, 0.02)
-        .to(q(".il-head"), { y: 0, rotate: 0, autoAlpha: 1, duration: 0.12, ease: "power3.out" }, 0.06)
-        .to(q(".il-body"), { y: 0, autoAlpha: 1, duration: 0.10 }, 0.12);
 
       // ---- Card-a: enter from below, hold, then exit up --------------
       tl.to(q(".il-card-a"),
@@ -630,13 +716,16 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
         }
       });
     },
+    copyRevision(t),
   );
 
   return (
     <section ref={root} id="before-the-systems" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="amber" image={IMG.before1} emoji="🏪" />
       <MobileScene1 t={t} />
-      <div data-scene className="relative hidden min-h-[340vh] lg:block">
+      {/* taller stage = slower scrub (the whole partitura, words included,
+          spreads over more scroll — "un toque más lento", desktop only) */}
+      <div data-scene className="relative hidden min-h-[350vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="mixed" />
           <div className="relative mx-auto flex w-full max-w-6xl items-center px-6">
@@ -649,17 +738,19 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
               <p className="il-body mt-4 max-w-md text-sm leading-relaxed text-white/60 sm:text-base">{t.body}</p>
             </div>
             {/* travelling prints */}
-            <div className="il-card-a absolute right-6 top-1/2 h-60 w-80 -translate-y-1/2">
+            <div className="il-card-a absolute right-6 top-[44%] h-60 w-80 -translate-y-1/2">
               <InterludeImage src={IMG.before1} accent="amber" emoji="🏪" className="h-full w-full" />
             </div>
-            <div className="il-card-b absolute right-16 top-1/2 h-56 w-72 -translate-y-1/3">
+            <div className="il-card-b absolute right-16 top-[44%] h-56 w-72 -translate-y-1/3">
               <InterludeImage src={IMG.before2} accent="amber" emoji="🧰" className="h-full w-full" />
             </div>
-            {/* dancing milestone words (shared centred slot, lower band) */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-24 flex h-16 justify-center">
+            {/* dancing milestone words (shared centred slot, LOW band — on short
+                viewports bottom-32 collided with the heading, so the words sit
+                near the very bottom of the stage now) */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-8 flex h-16 justify-center">
               <div className="relative w-full">
                 {words.map((m) => (
-                  <span key={m} className="il-word absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap text-2xl font-bold text-amber-200 sm:text-3xl">{m}</span>
+                  <span key={m} className="il-word absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap text-2xl font-bold text-amber-200 opacity-0 sm:text-3xl">{m}</span>
                 ))}
               </div>
             </div>
@@ -675,12 +766,20 @@ export function BeforeTheSystems({ t }: { t: InterludeCopy }) {
 // The running-system screenshot flies in from depth and holds (subtle float);
 // the stack layers assemble bottom-up and STAY (the system builds before you).
 // =============================================================================
-export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
+export function PortfolioSystemInterlude({ t, stack }: { t: InterludeCopy; stack?: ReactNode }) {
   const root = useSceneChoreography(
     (tl, q) => {
       tl.from(q(".il-eyebrow"), { x: -32, duration: 0.5, ease: "power2.out" }, 0)
         .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
-        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35)
+        .from(q(".il-body"), { y: 22, duration: 0.6, ease: "power2.out" }, 0.35);
+      // this CV's own stack chips (server-rendered TechStack passed as a slot)
+      // cascade in under the body — part of the same partitura
+      const chips = q(".il-stack > div > *");
+      if (chips.length) {
+        tl.fromTo(chips, { autoAlpha: 0, y: 16 },
+          { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.07, ease: "power2.out" }, 0.6);
+      }
+      tl
         // the running system arrives from depth and holds
         .fromTo(q(".il-screen"), { autoAlpha: 0, xPercent: 46, scale: 0.8, rotateY: 14, transformPerspective: 1000 },
           { autoAlpha: 1, xPercent: 0, scale: 1, rotateY: 0, duration: 1.5, ease: "power3.out" }, 0.5)
@@ -711,16 +810,11 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
         },
       });
 
-      tl.set(q(".il-eyebrow"), { x: -32, autoAlpha: 0 }, 0)
-        .set(q(".il-head"), { y: 40, autoAlpha: 0 }, 0)
-        .set(q(".il-body"), { y: 22, autoAlpha: 0 }, 0)
-        .set(q(".il-screen"), { xPercent: 46, autoAlpha: 0, scale: 0.8, rotateY: 14, transformPerspective: 1000 }, 0)
-        .set(q(".il-layer"), { autoAlpha: 0, y: 64, xPercent: -10 }, 0);
+      // Narrative: revealed EARLY (one-shot on enter, not the scrub)
+      revealNarrativeOnEnter(q, section, scroller);
 
-      // Narrative
-      tl.to(q(".il-eyebrow"), { x: 0, autoAlpha: 1, duration: 0.08, ease: "power2.out" }, 0.02)
-        .to(q(".il-head"), { y: 0, autoAlpha: 1, duration: 0.12, ease: "power3.out" }, 0.06)
-        .to(q(".il-body"), { y: 0, autoAlpha: 1, duration: 0.10, ease: "power2.out" }, 0.14);
+      tl.set(q(".il-screen"), { xPercent: 46, autoAlpha: 0, scale: 0.8, rotateY: 14, transformPerspective: 1000 }, 0)
+        .set(q(".il-layer"), { autoAlpha: 0, y: 64, xPercent: -10 }, 0);
 
       // System screen: arrives from depth, holds
       tl.to(q(".il-screen"),
@@ -738,13 +832,15 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
           at);
       });
     },
+    copyRevision(t),
   );
 
   return (
     <section ref={root} id="inside-the-proof" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="cyan" image={IMG.proof1} emoji="🖥️" />
       <MobileScene2 t={t} />
-      <div data-scene className="relative hidden min-h-[320vh] lg:block">
+      {/* taller stage = slower scrub (see scene 1 note) */}
+      <div data-scene className="relative hidden min-h-[325vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="cyan" />
           <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:grid-cols-2">
@@ -752,6 +848,8 @@ export function PortfolioSystemInterlude({ t }: { t: InterludeCopy }) {
               <div className="il-eyebrow"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
               <h2 className="il-head mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">{t.heading}</h2>
               <p className="il-body mt-4 max-w-md text-sm leading-relaxed text-white/60 sm:text-base">{t.body}</p>
+              {/* this portfolio's real stack — proof chips under the claim */}
+              {stack ? <div className="il-stack mt-6 max-w-md">{stack}</div> : null}
             </div>
             <div className="relative h-[68vh]">
               <div className="il-screen absolute right-0 top-6 h-52 w-full max-w-md sm:h-60">
@@ -788,18 +886,19 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
       tl.from(q(".il-eyebrow"), { y: 24, duration: 0.5, ease: "power2.out" }, 0)
         .from(q(".il-head"), { y: 40, duration: 0.7, ease: "power3.out" }, 0.05)
         .from(q(".il-body"), { y: 20, duration: 0.6, ease: "power2.out" }, 0.35)
-        .fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -12, scale: 1, duration: 6, ease: "none" }, 0)
-        .fromTo(q(".il-rail"), { scaleX: 0 }, { scaleX: 1, duration: 5.4, ease: "none", transformOrigin: "left center" }, 0.6);
-      // flow words crossfade centre-stage with a scale dance (last stays)
+        .fromTo(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, { yPercent: -12, scale: 1, duration: 7.6, ease: "none" }, 0)
+        .fromTo(q(".il-rail"), { scaleX: 0 }, { scaleX: 1, duration: 7.0, ease: "none", transformOrigin: "left center" }, 0.6);
+      // flow words crossfade centre-stage (last stays). Wider spacing than the
+      // exit so two beats never coexist at high opacity (8 beats now).
       const dots = q(".il-dot");
       q(".il-flow").forEach((w, i) => {
-        const at = 0.9 + i * 0.66;
+        const at = 0.9 + i * 0.85;
         tl.fromTo(w, { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" },
-          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, at);
-        if (dots[i]) tl.fromTo(dots[i], { scale: 1, autoAlpha: 0.3 }, { scale: 1.5, autoAlpha: 1, duration: 0.5 }, at);
+          { autoAlpha: 1, yPercent: 0, scale: 1, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, at);
+        if (dots[i]) tl.fromTo(dots[i], { scale: 1, autoAlpha: 0.3 }, { scale: 1.5, autoAlpha: 1, duration: 0.45 }, at);
         if (i < words.length - 1) {
-          tl.to(w, { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.5, ease: "power1.in" }, at + 0.7);
-          if (dots[i]) tl.to(dots[i], { scale: 1, autoAlpha: 0.5, duration: 0.5 }, at + 0.7);
+          tl.to(w, { autoAlpha: 0, yPercent: -60, scale: 0.85, filter: "blur(6px)", duration: 0.35, ease: "power1.in" }, at + 0.5);
+          if (dots[i]) tl.to(dots[i], { scale: 1, autoAlpha: 0.5, duration: 0.35 }, at + 0.5);
         }
       });
     },
@@ -826,18 +925,13 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
         },
       });
 
-      tl.set(q(".il-eyebrow"), { y: 24, autoAlpha: 0 }, 0)
-        .set(q(".il-head"), { y: 40, autoAlpha: 0 }, 0)
-        .set(q(".il-body"), { y: 20, autoAlpha: 0 }, 0)
-        .set(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, 0)
+      // Narrative: revealed EARLY (one-shot on enter, not the scrub)
+      revealNarrativeOnEnter(q, section, scroller);
+
+      tl.set(q(".il-backdrop"), { yPercent: 12, scale: 1.08 }, 0)
         .set(q(".il-flow"), { autoAlpha: 0, yPercent: 60, scale: 0.7, filter: "blur(6px)" }, 0)
         .set(q(".il-rail"), { scaleX: 0, transformOrigin: "left center" }, 0)
         .set(q(".il-dot"), { autoAlpha: 0.3, scale: 1 }, 0);
-
-      // Narrative
-      tl.to(q(".il-eyebrow"), { y: 0, autoAlpha: 1, duration: 0.08, ease: "power2.out" }, 0.02)
-        .to(q(".il-head"), { y: 0, autoAlpha: 1, duration: 0.12, ease: "power3.out" }, 0.06)
-        .to(q(".il-body"), { y: 0, autoAlpha: 1, duration: 0.10, ease: "power2.out" }, 0.14);
 
       // Backdrop: scrubbed drift
       tl.to(q(".il-backdrop"),
@@ -876,13 +970,16 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
         }
       });
     },
+    copyRevision(t),
   );
 
   return (
     <section ref={root} id="living-layer" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="violet" image={IMG.living1} emoji="🌀" />
       <MobileScene3 t={t} />
-      <div data-scene className="relative hidden min-h-[360vh] lg:block">
+      {/* taller stage = slower scrub; scene 3 now carries 8 beats, so it gets
+          the most extra runway of the three */}
+      <div data-scene className="relative hidden min-h-[375vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
           <SceneGlow tone="violet" />
           <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center gap-10 px-6 text-center">
@@ -896,7 +993,10 @@ export function LivingLayerInterlude({ t }: { t: InterludeCopy }) {
               </div>
               <div className="relative w-full">
                 {words.map((w) => (
-                  <span key={w} className="il-flow absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-3xl font-bold text-white sm:text-5xl"
+                  // opacity-0: defensive resting state — new spans minted by a
+                  // language switch must never render all stacked before the
+                  // rebuilt timeline takes ownership
+                  <span key={w} className="il-flow absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-3xl font-bold text-white opacity-0 sm:text-5xl"
                     style={{ textShadow: "0 0 34px rgba(139,92,246,0.5)" }}>{w}</span>
                 ))}
               </div>

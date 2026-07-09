@@ -27,7 +27,7 @@ export function FeaturedSystemsGrid({
   if (items.length === 0) return null;
 
   return (
-    <section id="featured" className="relative scroll-mt-20 overflow-hidden py-16">
+    <section id="featured" className="relative flex min-h-screen w-full scroll-mt-20 items-center overflow-hidden py-14 md:py-16">
       {/* micro-universe: "systems blueprint" — cool blue ambient + faint grid,
           edges faded so it blends into the neighbouring scenes */}
       <div
@@ -56,8 +56,9 @@ export function FeaturedSystemsGrid({
           Fame keeps its dark-room treatment; everything else sits directly on
           the global background like the hero. */}
 
-      <div className="relative mx-auto max-w-6xl px-6">
+      <div className="relative mx-auto w-full max-w-6xl px-6">
         <SectionHeader
+          className="mx-auto text-center [&>p]:justify-center"
           eyebrow={header?.eyebrow ?? "Systems in Orbit"}
           title={header?.title ?? "Systems that support the thesis"}
           description={
@@ -69,7 +70,7 @@ export function FeaturedSystemsGrid({
 
         {/* infinite Embla ring (like the Hall room) — cards keep their own
             compact format; 1/2/3 per view responsive */}
-        <div className="mt-8">
+        <div className="mx-auto mt-8 w-full">
           <CardCarousel
             ariaLabel="Featured systems carousel"
             accent="#0070f3"

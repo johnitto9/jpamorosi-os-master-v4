@@ -41,6 +41,30 @@ type ProspectStats = {
   rawIngest: number;
 };
 
+type ManualLeadForm = {
+  leadType: "company" | "person" | "recruiter" | "founder" | "agency" | "other";
+  company: string;
+  contactName: string;
+  email: string;
+  url: string;
+  title: string;
+  need: string;
+  source: string;
+  notes: string;
+};
+
+const EMPTY_MANUAL_LEAD: ManualLeadForm = {
+  leadType: "company",
+  company: "",
+  contactName: "",
+  email: "",
+  url: "",
+  title: "",
+  need: "",
+  source: "",
+  notes: "",
+};
+
 const COLUMNS: Array<{ stage: string; label: string; hint: string; color: string }> = [
   { stage: "ingest", label: "Ingesta", hint: "preview acotado", color: "rgba(255,255,255,0.4)" },
   { stage: "filter", label: "Filtrado", hint: "pasó la red", color: "#f0a500" },
@@ -468,6 +492,7 @@ export function ProspectBoard() {
   const [stats, setStats] = useState<ProspectStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [dropText, setDropText] = useState("");
+  const [manualLead, setManualLead] = useState<ManualLeadForm>(EMPTY_MANUAL_LEAD);
   const [dragOver, setDragOver] = useState(false);
   const [lastReport, setLastReport] = useState<string | null>(null);
   const [selected, setSelected] = useState<Prospect | null>(null);
@@ -506,6 +531,7 @@ export function ProspectBoard() {
       }
       if (body.action === "ingest" && data?.ok) {
         setDropText("");
+        setManualLead(EMPTY_MANUAL_LEAD);
         setLastReport("Lead ingestado en la red 🕸");
       }
       if (body.action === "stage" && data?.ok) {
@@ -597,6 +623,33 @@ export function ProspectBoard() {
     void act({ action: "ingest", text: text.slice(0, 20000) }, "ingest");
   }
 
+  function updateManualLead<K extends keyof ManualLeadForm>(key: K, value: ManualLeadForm[K]) {
+    setManualLead((cur) => ({ ...cur, [key]: value }));
+  }
+
+  function manualLeadText() {
+    return [
+      "Manual prospect intake",
+      `Lead type: ${manualLead.leadType}`,
+      manualLead.company ? `Company: ${manualLead.company}` : "",
+      manualLead.contactName ? `Contact name: ${manualLead.contactName}` : "",
+      manualLead.email ? `Email: ${manualLead.email}` : "",
+      manualLead.url ? `URL: ${manualLead.url}` : "",
+      manualLead.title ? `Title: ${manualLead.title}` : "",
+      manualLead.need ? `Need: ${manualLead.need}` : "",
+      manualLead.source ? `Source: ${manualLead.source}` : "",
+      manualLead.notes ? `Notes: ${manualLead.notes}` : "",
+      dropText.trim() ? `Raw extra:\n${dropText.trim()}` : "",
+    ].filter(Boolean).join("\n");
+  }
+
+  const canIngestManual =
+    manualLead.email.trim().length > 4 ||
+    manualLead.company.trim().length > 1 ||
+    manualLead.contactName.trim().length > 1 ||
+    manualLead.need.trim().length > 8 ||
+    dropText.trim().length >= 10;
+
   const discarded = prospects.filter((p) => p.stage === "discarded").length;
 
   return (
@@ -617,23 +670,78 @@ export function ProspectBoard() {
           dragOver ? "border-emerald-400/70 bg-emerald-400/10" : "border-white/10 bg-white/[0.02]"
         }`}
       >
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="min-w-[260px] flex-1">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+          <div className="min-w-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
-              📩 Dropear un lead — pegá un email o arrastrá un .eml/.txt
+              📩 Dropear un lead — intake estructurado o .eml/.txt
             </p>
-            <textarea
-              value={dropText}
-              onChange={(e) => setDropText(e.target.value)}
-              rows={3}
-              placeholder="Pegá acá el email o los datos del lead… el sistema lo parsea y lo tira a la misma red que el scout."
-              className="mt-2 w-full resize-none rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs leading-relaxed text-white outline-none focus:border-emerald-400/60"
-            />
+            <div className="mt-3 grid gap-3 md:grid-cols-4">
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+                Tipo
+                <select
+                  value={manualLead.leadType}
+                  onChange={(e) => updateManualLead("leadType", e.target.value as ManualLeadForm["leadType"])}
+                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60"
+                >
+                  <option value="company">Empresa</option>
+                  <option value="person">Persona</option>
+                  <option value="recruiter">Recruiter</option>
+                  <option value="founder">Founder</option>
+                  <option value="agency">Agencia</option>
+                  <option value="other">Otro</option>
+                </select>
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                Empresa / organización
+                <input value={manualLead.company} onChange={(e) => updateManualLead("company", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="Acme AI" />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35">
+                Nombre
+                <input value={manualLead.contactName} onChange={(e) => updateManualLead("contactName", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="Jane Doe" />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                Email
+                <input value={manualLead.email} onChange={(e) => updateManualLead("email", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="hello@company.com" />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                URL / fuente
+                <input value={manualLead.url} onChange={(e) => updateManualLead("url", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="https://company.com/careers" />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                Título / señal
+                <input value={manualLead.title} onChange={(e) => updateManualLead("title", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="AI Ops role, founder intro, automation need..." />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                Necesidad / oportunidad
+                <input value={manualLead.need} onChange={(e) => updateManualLead("need", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="CRM manual, WhatsApp commerce, LLM workflow..." />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                Fuente
+                <input value={manualLead.source} onChange={(e) => updateManualLead("source", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="Scout, referral, LinkedIn, inbound..." />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-2">
+                Notas internas
+                <input value={manualLead.notes} onChange={(e) => updateManualLead("notes", e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-emerald-400/60" placeholder="Por qué vale la pena, contexto personal, riesgo..." />
+              </label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/35 md:col-span-4">
+                Data extra / email pegado
+                <textarea
+                  value={dropText}
+                  onChange={(e) => setDropText(e.target.value)}
+                  rows={3}
+                  placeholder="Pegá acá un email, snippet, job post, LinkedIn copy o cualquier contexto adicional."
+                  className="mt-1 w-full resize-none rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs normal-case leading-relaxed tracking-normal text-white outline-none focus:border-emerald-400/60"
+                />
+              </label>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-white/35">
+              Estos campos se serializan como texto estructurado y entran por el mismo pipeline que el scout.
+            </p>
           </div>
-          <div className="flex flex-col gap-2 pt-5">
+          <div className="flex flex-col gap-2 lg:w-44 lg:pt-5">
             <button
-              onClick={() => dropText.trim().length >= 10 && act({ action: "ingest", text: dropText }, "ingest")}
-              disabled={!!busy || dropText.trim().length < 10}
+              onClick={() => canIngestManual && act({ action: "ingest", text: manualLeadText() }, "ingest")}
+              disabled={!!busy || !canIngestManual}
               className="rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-300 disabled:opacity-40"
             >
               {busy === "ingest" ? "Ingestando…" : "🕸 Ingestar lead"}

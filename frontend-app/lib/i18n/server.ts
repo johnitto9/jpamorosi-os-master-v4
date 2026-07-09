@@ -34,6 +34,11 @@ const COUNTRY_TO_LANG: Record<string, Lang> = {
   AE: "ar", BH: "ar", DZ: "ar", EG: "ar", IQ: "ar", JO: "ar", KW: "ar",
   LB: "ar", LY: "ar", MA: "ar", MR: "ar", OM: "ar", PS: "ar", QA: "ar",
   SA: "ar", SD: "ar", SY: "ar", TN: "ar", YE: "ar",
+  // Hebrew / Japanese / Korean / Hindi
+  IL: "he",
+  JP: "ja",
+  KR: "ko",
+  IN: "hi",
 };
 
 export async function getLang(): Promise<Lang> {

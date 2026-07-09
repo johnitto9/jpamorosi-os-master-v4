@@ -45,3 +45,9 @@ Thumbs.db
 # Local data volumes (docker fallback storage)
 frontend-app/data/
 commit-msg.tmp
+
+# reference repos dropped in for project-content review (not part of this app)
+RecApp-Premium-master/
+RunPod-IA-lab-master/
+Trading-bot-master/
+datasetcreator-v1-master/

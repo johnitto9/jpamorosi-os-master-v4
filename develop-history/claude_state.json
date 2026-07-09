@@ -1,5 +1,6 @@
 {
-  "phase": "REFAC_FINAL_EXPRESS_EXEC16",
+  "phase": "REFAC_CIERRE_PROD_2026-07-07",
+  "phaseDoneRefacCierreProd": "Refac final pre-prod 2026-07-07 (Fable 5). Ver develop-history/REFAC_CIERRE_PROD_2026-07-07/. F1 pausa mobile grids (sticky+minh solo lg). F2 copy nuevo escenas GSAP il1/il2/il3 (Before the Systems / Inside the Proof / The Living Layer) en 11 idiomas. F3 i18n +he/ja/ko/hi en 6 diccionarios + tours + country map. F4 caption visual outreach (CV+Orbe). F5 consola: meta httpEquiv fuera, removeConsole prod, __IL_DEBUG__ gateado. F6 migracion datos Dokploy: scripts/dump-for-dokploy.sh + MIGRACION_DOKPLOY.md. F7 scout estrategia: lib/agent/scout-strategy.ts (memoria de rendimiento por query + planner LLM + floor deterministico + volumen adaptativo), daily-scout usa plan, heartbeat outreach autonomo doble-gateado (AGENT_PROSPECT_OUTREACH_ENABLED). tsc 0, next build OK.",
   "phaseDoneRefacExec16": "REFAC exec 16 2026-07-05. Ver EXEC_LOG_16.md. R2 browser/Next consumption fix: upload a R2 ya funcionaba, pero el navegador bloqueaba video por CSP media-src sin media.jpamorosi.dev y Next Image devolvia 400 porque faltaba images.remotePatterns. frontend-app/next.config.js ahora permite NEXT_PUBLIC_MEDIA_CDN_BASE/fallback https://media.jpamorosi.dev en media-src y agrega remotePatterns https://media.jpamorosi.dev/uploads/**. Verificado: tsc 0, docker build/up OK, health OK, /projects/buenpick status 200 con CSP media-src correcto y ambas URLs R2 en HTML, /_next/image para la imagen R2 devuelve 200 image/png con bytes >0. mediatest sigue sin trackear.",
   "phaseDoneRefacExec15": "REFAC exec 15 2026-07-05. Ver EXEC_LOG_15.md. R2 media prod active: Docker backend no tenia R2_* runtime; se sincronizaron R2_* a frontend-app/.env.docker.local (gitignored, sin commit de secrets) y se recreo backend. Verificado end-to-end con mediatest/buenpicktestimg.png + mediatest/videobuenpick.mp4: POST /api/admin/upload -> storage r2 + URLs https://media.jpamorosi.dev; CDN HEAD 200 image/png y video/mp4 con bytes correctos; DB events storage.r2.uploaded/media.uploaded storage=r2; BuenPick actualizado via API admin assets.heroImage/heroVideo; /api/projects/buenpick, /projects/buenpick y / contienen ambas URLs R2. mediatest queda sin trackear. Nota: AWS SDK warning Node 20 vs futuras versiones >=22, upload actual OK.",
   "phaseDoneRefacExec13": "REFAC exec 13 2026-07-05. Ver EXEC_LOG_13.md. Mobile jitter pass: AuroraScene desactiva scroll-reactive layer en max-width:1023px y pointer:coarse para no sumar movimiento fijo debajo de interludios sticky/scrubbeados; Interludes mobile timelines pasan de scrub:0.6 a scrub:true para evitar doble smoothing Lenis+ScrollTrigger. Verificado: tsc 0, docker build/up OK, :3001 health OK. Pendiente: usuario verifica visualmente temblor en YOU'RE INSIDE THE PROOF y THE LIVING LAYER mobile/emulacion mobile.",
@@ -164,7 +165,13 @@
     },
     "handoff_mobile": {
       "doc": "develop-history/HANDOFF_FINALPROD_MOBILE_2026-07-04.md",
-      "debug_hooks": ["__IL_DEBUG__.snapshot", "__IL_DEBUG__.play", "__IL_DEBUG__.scrollTop", "__IL_DEBUG__.wrapperInfo", "__IL_DEBUG__.reducedMotion"],
+      "debug_hooks": [
+        "__IL_DEBUG__.snapshot",
+        "__IL_DEBUG__.play",
+        "__IL_DEBUG__.scrollTop",
+        "__IL_DEBUG__.wrapperInfo",
+        "__IL_DEBUG__.reducedMotion"
+      ],
       "next_step": "RESUELTO en S10: el problema NUNCA fue Lenis.scrollTop. Era el selector — querySelector('[data-scene-mobile]') agarraba MobileStatic (display:none, sin .il-*) en vez de MobileScene*. Fix: MobileStatic ahora es data-scene-mobile-static. Verificar en phone."
     },
     "i18n": {
@@ -172,7 +179,13 @@
       "langs": 7,
       "switch_event": "al_lang_change",
       "scope": "chrome+assistant+agent",
-      "dicts": ["DICTS", "ROOM", "ASSISTANT", "WIZARD", "COOKIE"],
+      "dicts": [
+        "DICTS",
+        "ROOM",
+        "ASSISTANT",
+        "WIZARD",
+        "COOKIE"
+      ],
       "ip_coverage": "60+"
     }
   },

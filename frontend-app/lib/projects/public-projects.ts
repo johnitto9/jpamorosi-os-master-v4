@@ -24,6 +24,21 @@ export type { Project, ProjectTier } from "@/content/projects";
 // Seed records may predate the `published` field — treat missing as published.
 const isPublished = (p: Project): boolean => p.published !== false;
 
+// Admin-entered links often come without a scheme ("lumenscript.jpamorosi.dev"),
+// which the browser resolves as a RELATIVE path (→ jpamorosi.dev/lumenscript…).
+// Normalize every external link once, at the read layer, so all consumers
+// (room pills, hero, flip cards) get a real absolute URL.
+const normalizeUrl = (u: string): string =>
+  /^(https?:|mailto:|tel:|\/)/i.test(u.trim()) ? u.trim() : `https://${u.trim()}`;
+
+const normalizeLinks = (p: Project): Project => {
+  if (!p.links) return p;
+  const links = Object.fromEntries(
+    Object.entries(p.links).map(([k, v]) => [k, typeof v === "string" ? normalizeUrl(v) : v]),
+  ) as Project["links"];
+  return { ...p, links };
+};
+
 // Sort by explicit order (sortOrder) first, then title as a stable tiebreaker.
 const byOrderThenTitle = (a: Project, b: Project): number => {
   const ao = a.sortOrder ?? 100;
@@ -33,7 +48,7 @@ const byOrderThenTitle = (a: Project, b: Project): number => {
 };
 
 export function getPublicProjects(): Project[] {
-  return seed.filter(isPublished).sort(byOrderThenTitle);
+  return seed.filter(isPublished).map(normalizeLinks).sort(byOrderThenTitle);
 }
 
 function byTier(tier: ProjectTier): Project[] {
@@ -67,7 +82,7 @@ async function repoPublished(): Promise<Project[]> {
   const { getProjectRepository } = await import("./repository");
   const repo = getProjectRepository();
   const all = await repo.listProjects();
-  return all.filter(isPublished).sort(byOrderThenTitle);
+  return all.filter(isPublished).map(normalizeLinks).sort(byOrderThenTitle);
 }
 
 export async function getLivePublicProjects(): Promise<Project[]> {

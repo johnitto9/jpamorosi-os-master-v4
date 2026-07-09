@@ -9,6 +9,7 @@ import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { SceneSetter } from "@/components/visual/SceneController";
 import { ScrollStage } from "@/components/ui/scroll-stage";
 import { getLang } from "@/lib/i18n/server";
+import { LanguageSwitch } from "@/components/ui/language-switch";
 import { localizeProjects } from "@/lib/i18n/translate";
 
 // SAME content source as the home (auto: live repo in Docker/dev, static seed
@@ -74,6 +75,7 @@ export default async function ProjectRoomPage({
   return (
     <ScrollStage className="no-scrollbar h-full w-full scroll-smooth overflow-y-auto overflow-x-hidden text-primary-text antialiased">
       <SceneSetter palette={palette} />
+      <LanguageSwitch />
       <ProjectRoom project={project} related={related} />
       <AssistantWidget />
     </ScrollStage>

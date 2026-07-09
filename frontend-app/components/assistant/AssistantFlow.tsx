@@ -328,11 +328,12 @@ const DECISION_PRESETS: Array<{
     question: {
       en: "What do we prioritize first?", es: "¿Qué priorizamos primero?", pt: "O que priorizamos primeiro?",
       fr: "Que priorise-t-on d'abord ?", ru: "Что приоритетнее сначала?", zh: "我们先优先什么？", ar: "ما الذي نضعه أولاً؟",
+      he: "מה מתעדפים קודם?", ja: "まず何を優先する？", ko: "무엇을 먼저 우선할까요?", hi: "पहले किसे प्राथमिकता दें?",
     },
     options: [
-      { id: "mvp", label: { en: "Launch fast (MVP)", es: "Lanzar rápido (MVP)", pt: "Lançar rápido (MVP)", fr: "Lancer vite (MVP)", ru: "Быстрый запуск (MVP)", zh: "快速上线 (MVP)", ar: "إطلاق سريع (MVP)" } },
-      { id: "polish", label: { en: "Polished experience", es: "Experiencia pulida", pt: "Experiência polida", fr: "Expérience soignée", ru: "Отточенный опыт", zh: "打磨体验", ar: "تجربة مصقولة" } },
-      { id: "scale", label: { en: "Scale from day 1", es: "Escalar desde el día 1", pt: "Escalar desde o dia 1", fr: "Scaler dès le jour 1", ru: "Масштаб с первого дня", zh: "从第一天就可扩展", ar: "توسّع من اليوم الأول" } },
+      { id: "mvp", label: { en: "Launch fast (MVP)", es: "Lanzar rápido (MVP)", pt: "Lançar rápido (MVP)", fr: "Lancer vite (MVP)", ru: "Быстрый запуск (MVP)", zh: "快速上线 (MVP)", ar: "إطلاق سريع (MVP)", he: "להשיק מהר (MVP)", ja: "早くローンチ (MVP)", ko: "빠른 출시 (MVP)", hi: "जल्दी लॉन्च (MVP)" } },
+      { id: "polish", label: { en: "Polished experience", es: "Experiencia pulida", pt: "Experiência polida", fr: "Expérience soignée", ru: "Отточенный опыт", zh: "打磨体验", ar: "تجربة مصقولة", he: "חוויה מלוטשת", ja: "磨かれた体験", ko: "다듬어진 경험", hi: "निखरा अनुभव" } },
+      { id: "scale", label: { en: "Scale from day 1", es: "Escalar desde el día 1", pt: "Escalar desde o dia 1", fr: "Scaler dès le jour 1", ru: "Масштаб с первого дня", zh: "从第一天就可扩展", ar: "توسّع من اليوم الأول", he: "סקייל מהיום הראשון", ja: "初日からスケール", ko: "첫날부터 확장", hi: "पहले दिन से स्केल" } },
     ],
   },
   {
@@ -340,11 +341,12 @@ const DECISION_PRESETS: Array<{
     question: {
       en: "Where does it live?", es: "¿Dónde vive el producto?", pt: "Onde o produto vive?",
       fr: "Où vit le produit ?", ru: "Где живёт продукт?", zh: "产品在哪里运行？", ar: "أين يعيش المنتج؟",
+      he: "איפה המוצר חי?", ja: "どこで動く？", ko: "어디에서 사나요?", hi: "प्रोडक्ट कहाँ रहेगा?",
     },
     options: [
-      { id: "web", label: { en: "Web", es: "Web", pt: "Web", fr: "Web", ru: "Веб", zh: "网页", ar: "ويب" } },
-      { id: "mobile", label: { en: "Mobile app", es: "App móvil", pt: "App móvel", fr: "App mobile", ru: "Мобильное приложение", zh: "移动 App", ar: "تطبيق جوال" } },
-      { id: "both", label: { en: "Both", es: "Ambos", pt: "Ambos", fr: "Les deux", ru: "Оба", zh: "两者", ar: "كلاهما" } },
+      { id: "web", label: { en: "Web", es: "Web", pt: "Web", fr: "Web", ru: "Веб", zh: "网页", ar: "ويب", he: "ווב", ja: "ウェブ", ko: "웹", hi: "वेब" } },
+      { id: "mobile", label: { en: "Mobile app", es: "App móvil", pt: "App móvel", fr: "App mobile", ru: "Мобильное приложение", zh: "移动 App", ar: "تطبيق جوال", he: "אפליקציית מובייל", ja: "モバイルアプリ", ko: "모바일 앱", hi: "मोबाइल ऐप" } },
+      { id: "both", label: { en: "Both", es: "Ambos", pt: "Ambos", fr: "Les deux", ru: "Оба", zh: "两者", ar: "كلاهما", he: "שניהם", ja: "両方", ko: "둘 다", hi: "दोनों" } },
     ],
   },
   {
@@ -352,11 +354,12 @@ const DECISION_PRESETS: Array<{
     question: {
       en: "What's the critical connection?", es: "¿Cuál es la conexión crítica?", pt: "Qual é a conexão crítica?",
       fr: "Quelle est la connexion critique ?", ru: "Какая интеграция критична?", zh: "关键的对接是什么？", ar: "ما هو الربط الحاسم؟",
+      he: "מה החיבור הקריטי?", ja: "重要な連携は？", ko: "핵심 연결은 무엇인가요?", hi: "सबसे अहम कनेक्शन क्या है?",
     },
     options: [
-      { id: "payments", label: { en: "Payments", es: "Pagos", pt: "Pagamentos", fr: "Paiements", ru: "Платежи", zh: "支付", ar: "مدفوعات" } },
-      { id: "messaging", label: { en: "Email / notifications", es: "Email / notificaciones", pt: "Email / notificações", fr: "Email / notifications", ru: "Email / уведомления", zh: "邮件 / 通知", ar: "بريد / إشعارات" } },
-      { id: "ai", label: { en: "AI / automation", es: "IA / automatización", pt: "IA / automação", fr: "IA / automatisation", ru: "ИИ / автоматизация", zh: "AI / 自动化", ar: "ذكاء اصطناعي / أتمتة" } },
+      { id: "payments", label: { en: "Payments", es: "Pagos", pt: "Pagamentos", fr: "Paiements", ru: "Платежи", zh: "支付", ar: "مدفوعات", he: "תשלומים", ja: "決済", ko: "결제", hi: "पेमेंट" } },
+      { id: "messaging", label: { en: "Email / notifications", es: "Email / notificaciones", pt: "Email / notificações", fr: "Email / notifications", ru: "Email / уведомления", zh: "邮件 / 通知", ar: "بريد / إشعارات", he: "אימייל / התראות", ja: "メール / 通知", ko: "이메일 / 알림", hi: "ईमेल / नोटिफ़िकेशन" } },
+      { id: "ai", label: { en: "AI / automation", es: "IA / automatización", pt: "IA / automação", fr: "IA / automatisation", ru: "ИИ / автоматизация", zh: "AI / 自动化", ar: "ذكاء اصطناعي / أتمتة", he: "AI / אוטומציה", ja: "AI / 自動化", ko: "AI / 자동화", hi: "AI / ऑटोमेशन" } },
     ],
   },
 ];

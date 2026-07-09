@@ -18,6 +18,7 @@ import { AlertTriangle, CheckCircle2, Mail, Save } from "lucide-react";
 import type { AssistantResponse, DecisionProposal } from "@/lib/assistant/types";
 import { OMNI_TOUR, matchesTourTrigger } from "@/lib/assistant/omni-tour";
 import { personalizationAllowed } from "@/lib/consent";
+import { cn } from "@/lib/utils";
 import { getDeviceId } from "@/lib/identity";
 import {
   ASSISTANT,
@@ -216,6 +217,10 @@ const TOUR_CTA: Record<Lang, string> = {
   ru: "Пройти 2-мин тур",
   zh: "开始 2 分钟导览",
   ar: "خذ جولة الدقيقتين",
+  he: "סיור של 2 דקות",
+  ja: "2分ツアーに参加",
+  ko: "2분 투어 하기",
+  hi: "2 मिनट का टूर लें",
 };
 
 function loadTurns(thread: number): ChatTurn[] {
@@ -768,7 +773,7 @@ export function AssistantWidget() {
             // it falls back to bottom-24 (the launcher's resting position).
             // The CSS transition smooths the shift as the banner resizes,
             // scrolls, or disappears.
-            className="fixed inset-x-3 z-[120] mx-auto w-full max-w-xl rounded-2xl border border-white/20 bg-white/[0.08] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_24px_80px_-16px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition-[bottom] duration-300 ease-out sm:left-auto sm:right-5 sm:w-[min(92vw,420px)]"
+            className="fixed inset-x-3 z-[120] max-w-xl rounded-2xl border border-white/20 bg-white/[0.08] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_24px_80px_-16px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition-[bottom] duration-300 ease-out sm:left-auto sm:right-5 sm:w-[min(92vw,420px)]"
             style={{
               bottom: needsConsentTopUp && cookieBannerOffset > 0
                 ? `${cookieBannerOffset}px`
@@ -829,15 +834,15 @@ export function AssistantWidget() {
                     <AssistantAvatar size={48} waving />
                   </div>
                   <p className="pr-4 pt-1 text-sm leading-relaxed text-white/80">
-                    {attention.nudge.text}
+                    {(ASSISTANT[lang].nudges.find((n) => n.id === attention.nudge.id) ?? attention.nudge).text}
                   </p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
-                    onClick={() => sendAndOpen(attention.nudge.prompt)}
+                    onClick={() => sendAndOpen((ASSISTANT[lang].nudges.find((n) => n.id === attention.nudge.id) ?? attention.nudge).prompt)}
                     className="rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-black hover:bg-cyan-300"
                   >
-                    {attention.nudge.cta}
+                    {(ASSISTANT[lang].nudges.find((n) => n.id === attention.nudge.id) ?? attention.nudge).cta}
                   </button>
                   <button
                     onClick={dismissAttention}
@@ -861,7 +866,7 @@ export function AssistantWidget() {
         onClick={() => (open ? setOpen(false) : openPanel())}
         aria-label={open ? ASSISTANT[lang].panel.launcherClose : ASSISTANT[lang].panel.launcherOpen}
         aria-expanded={open}
-        className="ui-interactive group fixed bottom-5 right-5 z-[122] flex h-16 w-16 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_12px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-2xl transition-all hover:scale-[1.06] hover:border-white/35 hover:bg-white/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+        className={cn("ui-interactive group fixed bottom-5 right-5 z-[122] h-16 w-16 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_12px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-2xl transition-all hover:scale-[1.06] hover:border-white/35 hover:bg-white/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400", open ? "hidden sm:flex" : "flex")}
       >
         {!interacted && !reduce && (
           <span

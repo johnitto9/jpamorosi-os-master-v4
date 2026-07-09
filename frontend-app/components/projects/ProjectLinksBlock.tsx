@@ -18,7 +18,8 @@ export async function ProjectLinksBlock({ project }: { project: Project }) {
   const { r } = await getDict();
   const links = project.links ?? {};
   const hasStore = !!(links.playstore || links.appstore);
-  const hasAny = hasStore || !!(links.website || links.demo || links.github);
+  const hasSocial = !!(links.instagram || links.facebook);
+  const hasAny = hasStore || hasSocial || !!(links.website || links.demo || links.github);
   if (!hasAny) return null;
 
   const { accent, glow } = project.theme;
@@ -64,7 +65,7 @@ export async function ProjectLinksBlock({ project }: { project: Project }) {
       )}
 
       {/* web / demo / source pills */}
-      {(links.website || links.demo || links.github) && (
+      {(links.website || links.demo || links.github || hasSocial) && (
         <div className="mt-6 flex flex-wrap gap-3">
           {links.website && (
             <LinkPill href={links.website} label={r.linkWebsite} kind="website" accent={accent} primary />
@@ -74,6 +75,13 @@ export async function ProjectLinksBlock({ project }: { project: Project }) {
           )}
           {links.github && (
             <LinkPill href={links.github} label={r.linkSource} kind="github" accent={accent} />
+          )}
+          {/* social presence — brand names need no translation */}
+          {links.instagram && (
+            <LinkPill href={links.instagram} label="Instagram" kind="instagram" accent={accent} />
+          )}
+          {links.facebook && (
+            <LinkPill href={links.facebook} label="Facebook" kind="facebook" accent={accent} />
           )}
         </div>
       )}

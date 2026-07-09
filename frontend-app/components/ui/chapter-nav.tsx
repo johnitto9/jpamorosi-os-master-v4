@@ -90,20 +90,28 @@ export function ChapterNav({
     const scroller = document.querySelector<HTMLElement>("main");
     if (!scroller) return;
     let frame = 0;
-    const segmentIds = CHAPTERS.map((c) => c.segmentAfter).filter(
-      (id): id is string => typeof id === "string",
-    );
     const update = () => {
       frame = 0;
       const viewport = scroller.getBoundingClientRect();
+      const vc = viewport.top + viewport.height / 2; // viewport centre line
       const next: Record<string, number> = {};
-      for (const id of segmentIds) {
-        const el = document.getElementById(id);
-        if (!el) continue;
-        const rect = el.getBoundingClientRect();
-        const total = Math.max(1, rect.height - viewport.height);
-        const progress = (viewport.top - rect.top) / total;
-        next[id] = Math.max(0, Math.min(1, progress));
+      // A connector fills as you travel from one chapter node to the NEXT,
+      // reaching exactly 100% when the next node's centre reaches the viewport
+      // centre — the same point the IntersectionObserver lights that node. So
+      // the bar and the dot arrive together: no dead travel, exact completion
+      // (the old formula tracked the interlude's own height and finished early).
+      // Keyed by the CURRENT chapter id (the connector rendered under it).
+      for (let i = 0; i < CHAPTERS.length - 1; i++) {
+        const a = document.getElementById(CHAPTERS[i].id);
+        const b = document.getElementById(CHAPTERS[i + 1].id);
+        if (!a || !b) continue;
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+        const centerA = ra.top + ra.height / 2;
+        const centerB = rb.top + rb.height / 2;
+        const span = centerB - centerA; // A→B distance, constant while scrolling
+        const progress = span > 0 ? (vc - centerA) / span : 0;
+        next[CHAPTERS[i].id] = Math.max(0, Math.min(1, progress));
       }
       setSegmentProgress(next);
     };
@@ -129,7 +137,10 @@ export function ChapterNav({
   return (
     <nav
       aria-label="Sections"
-      className="ui-interactive fixed right-7 top-1/2 z-[90] hidden -translate-y-1/2 md:block"
+      // Visible on mobile too now (compact dots-only rail). pointer-events-none
+      // on the container so the thin right strip never blocks touch-scroll; only
+      // the knob buttons re-enable pointer events.
+      className="ui-interactive pointer-events-none fixed right-2.5 top-1/2 z-[80] -translate-y-1/2 md:right-7"
     >
       <div className="relative flex flex-col items-center gap-3">
         {/* energy rail behind the nodes */}
@@ -149,14 +160,16 @@ export function ChapterNav({
                 onClick={() => go(c.id)}
                 aria-label={c.label}
                 aria-current={on}
-                className="group relative flex h-5 w-5 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                className="group pointer-events-auto relative flex h-5 w-5 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
               >
-                {/* label — slides in for the active node, hover for the rest */}
+                {/* label (section title) — shown for the active node on every
+                    viewport; on desktop the rest reveal on hover. On mobile
+                    there's no hover, so only the active title appears. */}
                 <span
-                  className={`pointer-events-none absolute right-7 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.25em] transition-all duration-300 ${
+                  className={`pointer-events-none absolute right-7 whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.25em] transition-all duration-300 md:text-[10px] ${
                     on
                       ? "translate-x-0 text-cyan-300 opacity-100"
-                      : "translate-x-1 text-white/40 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+                      : "translate-x-1 text-white/40 opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100"
                   }`}
                 >
                   {c.label}
@@ -212,21 +225,25 @@ export function ChapterNav({
                   type="button"
                   onClick={() => go(c.segmentAfter!)}
                   aria-label={labels?.[c.segmentAfter] ?? DEFAULT_SEGMENTS[c.segmentAfter]}
-                  className="group relative my-1 flex h-12 w-5 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                  // connectors (loading bars) now show on mobile too — a compact
+                  // rail between the dots that fills as you scroll the segment.
+                  className="group pointer-events-auto relative my-1 flex h-8 w-5 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:h-12"
                 >
                   <span className="relative h-full w-px overflow-hidden rounded-full bg-white/10">
                     <motion.span
                       aria-hidden
                       className="absolute left-0 top-0 w-px rounded-full"
                       style={{
-                        height: `${Math.round((segmentProgress[c.segmentAfter] ?? 0) * 100)}%`,
+                        height: `${Math.round((segmentProgress[c.id] ?? 0) * 100)}%`,
                         background: "linear-gradient(180deg, rgba(0,242,255,0.9), rgba(139,92,246,0.8))",
                       }}
                     />
                   </span>
+                  {/* segment (interlude) name — shown on ALL viewports (was
+                      rail clean; the section titles come from the knob labels. */}
                   <span
-                    className={`pointer-events-none absolute right-7 whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.24em] transition-all duration-300 ${
-                      (segmentProgress[c.segmentAfter] ?? 0) > 0 && (segmentProgress[c.segmentAfter] ?? 0) < 1
+                    className={`pointer-events-none absolute right-7 block max-w-[42vw] truncate whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.24em] transition-all duration-300 md:max-w-none ${
+                      (segmentProgress[c.id] ?? 0) > 0 && (segmentProgress[c.id] ?? 0) < 1
                         ? "translate-x-0 text-violet-200 opacity-100"
                         : "translate-x-1 text-white/35 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
                     }`}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { nextStageFromIngest, nextStageFromQualify, relevanceScore } from "@/lib/agent/prospects";
+import {
+  nextStageFromIngest,
+  nextStageFromQualify,
+  parseDroppedLeadText,
+  relevanceScore,
+} from "@/lib/agent/prospects";
 
 describe("prospect pipeline decisions", () => {
   it("scores market relevance from title and snippet", () => {
@@ -42,6 +47,28 @@ describe("prospect pipeline decisions", () => {
         snippet: "Personal referral",
       }),
     ).toBe("filter");
+  });
+
+  it("parses structured admin lead intake into the same prospect fields", () => {
+    const parsed = parseDroppedLeadText([
+      "Manual prospect intake",
+      "Lead type: company",
+      "Company: Greenfield Commerce",
+      "Contact name: Maya Chen",
+      "Email: ops@greenfield.example",
+      "URL: https://greenfield.example/careers",
+      "Title: WhatsApp commerce automation",
+      "Need: Tool-first AI agent for catalog and orders",
+      "Source: manual QA",
+      "Notes: Strong fit with Delibot",
+    ].join("\n"));
+
+    expect(parsed.company).toBe("Greenfield Commerce");
+    expect(parsed.contactName).toBe("Maya Chen");
+    expect(parsed.email).toBe("ops@greenfield.example");
+    expect(parsed.url).toBe("https://greenfield.example/careers");
+    expect(parsed.title).toBe("WhatsApp commerce automation");
+    expect(parsed.snippet).toContain("Tool-first AI agent");
   });
 
   it("moves only qualified scores to contact", () => {

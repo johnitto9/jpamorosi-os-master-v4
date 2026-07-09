@@ -242,23 +242,65 @@ export async function harvestContactFromUrls(
   return best;
 }
 
+export function parseDroppedLeadText(text: string): {
+  clean: string;
+  email: string | null;
+  url: string | null;
+  contactName: string | null;
+  company: string | null;
+  title: string;
+  snippet: string;
+} {
+  const clean = text.trim().slice(0, 6000);
+  const field = (labels: string[]) => {
+    for (const label of labels) {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = clean.match(new RegExp(`^\\s*(?:${escaped})\\s*:\\s*(.+)$`, "im"));
+      const value = match?.[1]?.trim();
+      if (value) return value.slice(0, 500);
+    }
+    return null;
+  };
+
+  // deterministic floor: whatever the LLM does, these signals are real
+  const email = (field(["Email", "Mail", "Correo"]) ?? clean.match(EMAIL_RE)?.[0])?.toLowerCase() ?? null;
+  const url = field(["URL", "Website", "Site", "LinkedIn", "Source"]) ?? clean.match(URL_RE)?.[0]?.slice(0, 500) ?? null;
+  // "From: Name <mail>" is how forwarded emails carry the sender
+  const fromLine = clean.match(/^\s*(?:from|de)\s*:\s*(.+)$/im)?.[1]?.trim();
+  let contactName = field(["Contact name", "Nombre", "Persona", "Lead name"]) ??
+    (fromLine ? fromLine.replace(/<[^>]*>/, "").trim().slice(0, 120) || null : null);
+  let company = field(["Company", "Empresa", "Organization", "Organizacion"]) ??
+    (email ? (email.split("@")[1]?.split(".")[0] ?? null) : null);
+  const leadType = field(["Lead type", "Tipo"]);
+  const need = field(["Need", "Dolor", "Use case", "Opportunity", "Oportunidad"]);
+  const source = field(["Source", "Fuente"]);
+  let title = field(["Title", "Titulo", "Resumen"]) ??
+    (company && need ? `${company} — ${need}` : null) ??
+    clean.split(/\r?\n/).find((l) => l.trim().length > 8)?.trim().slice(0, 200) ??
+    "Dropped lead";
+  let snippet = [leadType ? `Tipo: ${leadType}` : null, need, source ? `Fuente: ${source}` : null]
+    .filter(Boolean)
+    .join(" · ") || clean.slice(0, 400);
+
+  return { clean, email, url, contactName, company, title, snippet };
+}
+
 /** Admin-dropped email/text about a lead. LLM parses when available; the
  *  regex fallback still produces a workable card. Never returns silence. */
 export async function ingestDroppedText(
   text: string,
 ): Promise<Prospect | null> {
-  const clean = text.trim().slice(0, 6000);
+  const parsedFloor = parseDroppedLeadText(text);
+  const { clean } = parsedFloor;
   if (!clean || !(await dbReady())) return null;
-
-  // deterministic floor: whatever the LLM does, these signals are real
-  const email = clean.match(EMAIL_RE)?.[0]?.toLowerCase() ?? null;
-  const url = clean.match(URL_RE)?.[0]?.slice(0, 500) ?? null;
-  // "From: Name <mail>" is how forwarded emails carry the sender
-  const fromLine = clean.match(/^\s*(?:from|de)\s*:\s*(.+)$/im)?.[1]?.trim();
-  let contactName = fromLine ? fromLine.replace(/<[^>]*>/, "").trim().slice(0, 120) || null : null;
-  let company = email ? (email.split("@")[1]?.split(".")[0] ?? null) : null;
-  let title = clean.split(/\r?\n/).find((l) => l.trim().length > 8)?.trim().slice(0, 200) ?? "Dropped lead";
-  let snippet = clean.slice(0, 400);
+  let {
+    email,
+    url,
+    contactName,
+    company,
+    title,
+    snippet,
+  } = parsedFloor;
 
   if (isLlmConfigured()) {
     const parsed = await chatCompletion([
@@ -411,6 +453,40 @@ export async function listMailingCandidates(): Promise<Prospect[]> {
      ORDER BY score DESC, updated_at DESC`,
   );
   return res?.rows ?? [];
+}
+
+/** Autonomous outreach surface: contact-stage prospects with a discovered
+ *  email, best fit first, oldest-touched first among equals — the heartbeat
+ *  drains this a couple per cycle (double-gated by env flags).
+ *
+ *  EMAIL-level dedup (URL dedup alone is not enough here): the same company
+ *  can enter the dragnet through several different URLs, all reaching
+ *  `contact` with the same address. One email address gets AT MOST one
+ *  autonomous outreach ever — one card per address is picked (best score),
+ *  and any address that already has a `contacted` card anywhere in the
+ *  funnel is excluded entirely. */
+export async function listOutreachReady(limit = 2): Promise<Prospect[]> {
+  if (!(await dbReady())) return [];
+  // over-fetch: cards stored BEFORE the plausible-TLD filter existed can carry
+  // junk addresses (e.g. "n@app.route"); cleanEmail() re-validates below
+  const res = await tryQuery<Prospect>(
+    `SELECT * FROM (
+       SELECT DISTINCT ON (p.email) ${SELECT}
+       FROM prospects p
+       WHERE p.stage = 'contact' AND p.email IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM prospects q
+           WHERE q.email = p.email AND q.stage = 'contacted'
+         )
+       ORDER BY p.email, p.score DESC, p.updated_at ASC
+     ) best
+     ORDER BY score DESC, "updatedAt" ASC
+     LIMIT $1`,
+    [limit * 3],
+  );
+  return (res?.rows ?? [])
+    .filter((p) => cleanEmail(p.email) !== null)
+    .slice(0, limit);
 }
 
 /** Admin manual move (mark contacted / discard). Whitelisted stages only. */
@@ -665,19 +741,20 @@ export function buildProspectOutreachData(
 ): ProspectOutreachData {
   const lang = detectProspectLang(p);
   const subject = subjectParts(p, lang);
+  const publicSiteUrl = "https://jpamorosi.dev";
   return {
     company: p.company ?? undefined,
     contactName: p.contactName ?? undefined,
     subjectSignal: subject.signal,
     subjectReason: subject.reason,
     body: defaultOutreachBody(p, lang),
-    siteUrl,
+    siteUrl: publicSiteUrl,
     sourceUrl: p.url ?? undefined,
     signals: prospectSignals(p),
     fitReason: publicOverlap(p, lang),
     nextAction: publicNextStep(lang),
-    visualUrl: options.visualUrl ?? new URL("/og.jpg", siteUrl).toString(),
-    avatarUrl: options.avatarUrl ?? new URL("/imgs/img-profile-jpa.jpg", siteUrl).toString(),
+    visualUrl: options.visualUrl ?? new URL("/og.jpg", publicSiteUrl).toString(),
+    avatarUrl: options.avatarUrl ?? new URL("/imgs/img-profile-jpa.jpg", publicSiteUrl).toString(),
     lang,
     seed: p.id,
   };

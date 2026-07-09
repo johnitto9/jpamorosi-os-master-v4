@@ -85,6 +85,30 @@ export async function translateBatch(
   }
   if (misses.length === 0 || !isLlmConfigured()) return result;
 
+  // NEVER block the render on the LLM: a language switch used to wait for
+  // every miss to translate in-request (chunks × seconds each = "lentísimo").
+  // Serve the EN floor NOW; translate in the background so the next render
+  // hits the cache. In-flight keys are deduped so concurrent requests don't
+  // double-spend on the same entries.
+  const pending = misses.filter((m) => !inFlight.has(`${lang}:${m.key}`));
+  if (pending.length > 0) {
+    for (const m of pending) inFlight.add(`${lang}:${m.key}`);
+    void translateAndCache(lang, pending, hashes).finally(() => {
+      for (const m of pending) inFlight.delete(`${lang}:${m.key}`);
+    });
+  }
+  return result;
+}
+
+/** Keys currently being translated in the background (per process). */
+const inFlight = new Set<string>();
+
+/** The actual LLM work + cache writes — detached from any request. */
+async function translateAndCache(
+  lang: Lang,
+  misses: Array<{ key: string; fields: Fields }>,
+  hashes: Map<string, string>,
+): Promise<void> {
   // batched completions in small chunks so no reply outgrows its token budget
   // (a whole project translates to ~250 output tokens; 3 per call is safe)
   const language = LANGS[lang].label;
@@ -116,7 +140,6 @@ export async function translateBatch(
       for (const m of chunk) {
         const out = parsed[m.key];
         if (!sameShape(m.fields, out)) continue; // EN floor stays for this one
-        result.set(m.key, out);
         await tryQuery(
           `INSERT INTO content_translations (cache_key, lang, source_hash, payload)
            VALUES ($1, $2, $3, $4::jsonb)
@@ -129,7 +152,6 @@ export async function translateBatch(
       /* bad LLM output -> English floor for this chunk, next request retries */
     }
   }
-  return result;
 }
 
 // ---- domain helpers ---------------------------------------------------------

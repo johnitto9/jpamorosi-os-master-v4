@@ -16,6 +16,7 @@ import { profile } from "@/content/profile";
 import { env } from "@/lib/env";
 import { webSearchEnabled, runWebSearchRaw } from "@/lib/agent/tools-server";
 import { ingestSearchHits, processPipelineBatch, prospectStats, topProspects } from "@/lib/agent/prospects";
+import { planScoutQueries, adaptiveQueryCount, getLastRunIngested } from "@/lib/agent/scout-strategy";
 import { chatCompletion, isLlmConfigured } from "@/lib/agent/llm";
 import { notifyAdmin } from "@/lib/email/service";
 import { recordEvent } from "@/lib/events";
@@ -26,9 +27,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-// Rotating angles so every day of the week scans a different corner of the
-// market (trends shift; the scout adapts by design, not by framework).
-const ANGLES = [
+// Emergency floor if the strategy layer returns nothing (no DB at all): the
+// old weekday-rotated angles. The REAL plan comes from lib/agent/scout-strategy
+// — performance-aware, LLM-written, never repeating the recent window. This
+// is what fixes the decay ("finds emails at first, then dries up"): static
+// queries hit the same SERPs after a week and URL-dedup starves the funnel.
+const STATIC_ANGLES = [
   "AI product engineer remote hiring",
   "startups hiring AI systems architect LATAM",
   "AI agent development freelance contract opportunities",
@@ -69,16 +73,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, skipped: "no_search_provider" });
   }
 
+  // Adaptive volume: when yesterday's net came back empty the scout casts
+  // wider today (up to 5 queries); when it's healthy it stays lean (3).
+  const lastIngested = await getLastRunIngested();
+  const plan = await planScoutQueries(adaptiveQueryCount(lastIngested));
   const day = new Date().getDay();
-  const queries = [ANGLES[day % ANGLES.length], ANGLES[(day + 3) % ANGLES.length]];
+  const queries =
+    plan.queries.length > 0
+      ? plan.queries
+      : [STATIC_ANGLES[day % STATIC_ANGLES.length], STATIC_ANGLES[(day + 3) % STATIC_ANGLES.length]];
   const results: string[] = [];
+  const perQuery: Array<{ query: string; hits: number; ingested: number }> = [];
   let caught = 0;
   for (const q of queries) {
-    const hits = await runWebSearchRaw(q, 6);
-    if (!hits || hits.length === 0) continue;
+    const hits = await runWebSearchRaw(q, 8);
+    if (!hits || hits.length === 0) {
+      perQuery.push({ query: q, hits: 0, ingested: 0 });
+      continue;
+    }
     // every raw catch also lands in the prospects dragnet (URL-deduped) —
     // the kanban's ingest column fills itself from these sweeps
-    caught += await ingestSearchHits(q, hits);
+    const ingested = await ingestSearchHits(q, hits);
+    caught += ingested;
+    perQuery.push({ query: q, hits: hits.length, ingested });
     results.push(
       `## ${q}\n${hits
         .map((h, i) => `${i + 1}. ${h.title ?? ""} — ${h.snippet ?? ""} (${h.link ?? ""})`)
@@ -86,11 +103,21 @@ export async function POST(request: Request) {
     );
   }
   if (results.length === 0) {
-    return NextResponse.json({ ok: false, skipped: "no_results" });
+    // still record the run so today's queries enter the no-repeat window and
+    // tomorrow's plan knows this angle starved (adaptive volume widens)
+    await recordEvent("agent.daily_scout", {
+      date,
+      queries,
+      strategy: plan.strategy,
+      prospectsIngested: 0,
+      prospectsAdvanced: 0,
+    });
+    return NextResponse.json({ ok: false, skipped: "no_results", queries });
   }
 
-  // move yesterday's catches down the funnel while we're here (bounded batch)
-  const pipeline = await processPipelineBatch(8);
+  // move yesterday's catches down the funnel while we're here — batch sized
+  // for the wider adaptive net (a card takes 4 passes to reach contact)
+  const pipeline = await processPipelineBatch(12);
 
   let digest = results.join("\n\n");
   let summary: string | undefined;
@@ -118,7 +145,10 @@ export async function POST(request: Request) {
     withEmail: stats.withEmail,
     readyToContact: stats.readyToContact,
     highScore: stats.highScore,
-    summary: (summary ?? digest).slice(0, 4000),
+    summary: [
+      plan.rationale ? `🧭 Estrategia del día (${plan.strategy}): ${plan.rationale}` : null,
+      (summary ?? digest).slice(0, 4000),
+    ].filter(Boolean).join("\n\n"),
     top,
     adminUrl: `${site}/admin/prospects`,
     exportUrl: `${site}/api/admin/prospects?format=jsonl&scope=all`,
@@ -127,6 +157,9 @@ export async function POST(request: Request) {
   await recordEvent("agent.daily_scout", {
     date,
     queries,
+    strategy: plan.strategy,
+    rationale: plan.rationale,
+    perQuery,
     prospectsIngested: caught,
     prospectsAdvanced: pipeline.processed,
   });
@@ -134,6 +167,7 @@ export async function POST(request: Request) {
     ok: true,
     date,
     queries,
+    strategy: plan.strategy,
     prospects: { ingested: caught, advanced: pipeline.processed },
   });
 }

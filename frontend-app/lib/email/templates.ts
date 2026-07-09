@@ -86,27 +86,29 @@ const bulletList = (items?: string[], label = "Signals I reviewed") => {
 const OUTREACH_LANG = {
   es: {
     greeting: "Hola",
-    role: "AI Product Engineer · construyo sistemas de IA que quedan operando",
+    intro: "Soy Juan",
+    role: "AI Product Engineer · Amorosi Labs",
     signals: "Señales observadas",
     fitLabel: "Overlap con lo que construí",
     actionLabel: "Próximo paso",
     cta: "Ver los sistemas en producción →",
     contextLabel: "Contexto que revisé:",
     replyNote: "Respondé a este email y le llega directamente a Juan.",
-    visualAlt: "Sistemas de IA en producción de Amorosi Labs",
-    visualCaption: "Sistemas reales que ya están corriendo en producción",
+    visualAlt: "Orbe — empezá un proyecto con IA dentro del CV interactivo de Juan",
+    visualCaption: "Pasate por mi CV interactivo y conocé a Orbe — empecemos juntos un nuevo proyecto con IA",
   },
   en: {
     greeting: "Hi",
-    role: "AI Product Engineer · I build AI systems that stay running",
+    intro: "I'm Juan",
+    role: "AI Product Engineer · Amorosi Labs",
     signals: "Signals observed",
     fitLabel: "Overlap with what I've built",
     actionLabel: "Next step",
     cta: "See the systems in production →",
     contextLabel: "Context I reviewed:",
     replyNote: "Reply here and it lands directly with Juan.",
-    visualAlt: "Amorosi Labs AI systems in production",
-    visualCaption: "Real systems already running in production",
+    visualAlt: "Orbe — start an AI project inside Juan's interactive CV",
+    visualCaption: "Drop by my interactive CV and meet Orbe — let's start a new AI project together",
   },
 } as const;
 
@@ -397,19 +399,21 @@ Snapshot: ${d.exportUrl}`,
       ? "a focused AI system may fit"
       : "un sistema de IA enfocado puede encajar";
     const subject = `${d.subjectSignal ?? fallbackSignal} — ${d.subjectReason ?? fallbackReason}`;
-
-    // Sender signature (photo + name + role) — the human face goes UP top so it
-    // reads as a person writing, not a banner. The systems visual lives further
-    // down, so the two images never sit back-to-back.
-    const signature = d.avatarUrl
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>
-           <td style="vertical-align:middle;padding-right:12px"><img src="${esc(d.avatarUrl)}" alt="Juan Pablo Amorosi" width="52" height="52" style="display:block;width:52px;height:52px;border-radius:50%;border:2px solid #262640;object-fit:cover"></td>
-           <td style="vertical-align:middle">
-             <div style="color:#ffffff;font-weight:700;font-size:14px">Juan Pablo Amorosi</div>
-             <div style="color:#9aa3b2;font-size:11px;line-height:1.4">${esc(L.role)}</div>
-           </td>
-         </tr></table>`
-      : "";
+    const greetingTarget =
+      d.contactName ??
+      (d.company ? (lang === "en" ? `${d.company} team` : `equipo de ${d.company}`) : undefined);
+    const introBubble = `<div style="margin:0 0 16px;padding:12px 14px;border:1px solid #262640;border-radius:14px;background:#0c1420;display:flex;align-items:center;gap:14px">
+      ${
+        d.avatarUrl
+          ? `<img src="${esc(d.avatarUrl)}" alt="Juan Pablo Amorosi" width="44" height="44" style="display:block;width:44px;height:44px;border-radius:50%;border:1px solid #2f3a54;object-fit:cover;flex:0 0 auto;margin-right:2px">`
+          : ""
+      }
+      <div style="min-width:0">
+        <div style="color:#00d5e8;font-size:10px;font-weight:700;line-height:1;text-transform:uppercase;letter-spacing:1.6px;margin-bottom:4px">${esc(L.intro)}</div>
+        <div style="color:#ffffff;font-size:14px;font-weight:700;line-height:1.25">Juan Pablo Amorosi</div>
+        <div style="color:#9aa3b2;font-size:11px;line-height:1.35">${esc(L.role)}</div>
+      </div>
+    </div>`;
 
     // Systems visual as proof, right before the CTA, with a caption so it has a
     // clear purpose instead of feeling like decoration.
@@ -423,16 +427,17 @@ Snapshot: ${d.exportUrl}`,
     return {
       subject,
       html: shell(
-        `${L.greeting}${d.contactName ? `, ${d.contactName}` : ""}`,
-        `${signature}
-         <p style="white-space:pre-line">${esc(d.body)}</p>
+        `${L.greeting}${greetingTarget ? `, ${greetingTarget}` : ""}`,
+        `${introBubble}
+         <p style="white-space:pre-line;margin-top:0">${esc(d.body)}</p>
          ${evidence}${fit}${action}
          ${visual}
          ${button(d.siteUrl, L.cta)}
          ${d.sourceUrl ? `<p style="margin-top:14px;color:#565672;font-size:11px">${esc(L.contextLabel)} <a href="${esc(d.sourceUrl)}" style="color:#00b8cc;text-decoration:none">${esc(d.sourceUrl)}</a></p>` : ""}
+         <p style="margin:16px 0 0;color:#c9d4e3;font-size:13px;line-height:1.55">Juan Pablo Amorosi<br><span style="color:#8b93a7">AI Product Engineer · Amorosi Labs</span></p>
          <p style="color:#9aa3b2;font-size:12px">${esc(L.replyNote)}</p>`,
       ),
-      text: `${L.greeting}${d.contactName ? ` ${d.contactName}` : ""},\n\n${d.body}${
+      text: `${L.greeting}${greetingTarget ? ` ${greetingTarget}` : ""},\n\n${d.body}${
         d.signals?.length ? `\n\n${L.signals}:\n${d.signals.slice(0, 4).map((s) => `- ${s}`).join("\n")}` : ""
       }${d.fitReason ? `\n\n${L.fitLabel}:\n${d.fitReason}` : ""}${d.nextAction ? `\n\n${L.actionLabel}:\n${d.nextAction}` : ""}\n\n${d.siteUrl}${d.sourceUrl ? `\n\n${L.contextLabel} ${d.sourceUrl}` : ""}\n\n${L.replyNote}`,
     };

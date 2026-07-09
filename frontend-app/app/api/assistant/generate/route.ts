@@ -15,6 +15,7 @@
 // "ready" (freer conversation).
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { rateLimited } from "@/lib/rate-limit";
 import { listSessionProjects, setProjectPhase } from "@/lib/agent/projects";
 import {
   addAsset,
@@ -86,6 +87,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "generation_disabled" }, { status: 503 });
   }
 
+  // per-IP burst guard (shared window with the branding tab — one budget
+  // for all image-generation endpoints)
+  const limited = await rateLimited(request, "assistant-imggen", 8, 10 * 60_000);
+  if (limited) return limited;
+
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   const { projectId, target, brief, parentAssetId, device } = parsed.data;
@@ -155,6 +161,15 @@ export async function POST(request: Request) {
     filePrefix: `asset-${role}-`,
   });
   if (!image) return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+  if ("error" in image) {
+    // session-level guardrails (global image cap / burst budget)
+    return image.error === "limit"
+      ? NextResponse.json({ error: "limit", scope: "session_total" }, { status: 409 })
+      : NextResponse.json(
+          { error: "rate_limited", retryAfterSec: image.retryAfterSec },
+          { status: 429, headers: { "retry-after": String(image.retryAfterSec ?? 60) } },
+        );
+  }
 
   const asset = await addAsset(projectId, {
     role,

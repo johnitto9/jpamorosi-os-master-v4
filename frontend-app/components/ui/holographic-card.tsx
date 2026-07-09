@@ -105,7 +105,7 @@ export function HolographicCard({
           } as React.CSSProperties
         }
         className={cn(
-          "group/holo relative rounded-2xl [transform-style:preserve-3d] will-change-transform",
+          "group/holo relative rounded-2xl [transform-style:preserve-3d]",
           className,
         )}
       >

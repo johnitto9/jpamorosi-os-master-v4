@@ -20,6 +20,14 @@ import { localizeProjects } from '@/lib/i18n/translate';
 import { LanguageSwitch } from '@/components/ui/language-switch';
 import { Mail } from 'lucide-react';
 import { GitHubMark } from '@/components/ui/store-badges';
+import { TechStack } from '@/components/ui/tech-badge';
+
+// This portfolio's OWN stack — rendered server-side (zero client JS) and
+// slotted into the INSIDE THE PROOF scene as proof chips under the claim.
+const CV_STACK = [
+  'Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'GSAP',
+  'PostgreSQL', 'Cloudflare R2', 'OpenRouter', 'Docker', 'Resend',
+];
 
 // SSR so PROJECT_PUBLIC_CONTENT_MODE=live (Docker) reflects admin/local-json edits
 // on the real Hall. On Vercel (mode=static) this reads the in-memory seed — safe,
@@ -74,6 +82,10 @@ export default async function HomePage() {
           featured: t.navFeatured,
           "lab-archive": t.navArchive,
           contact: t.navContact,
+          // interlude segment names on the rail — follow the visitor's language
+          "before-the-systems": t.il1.eyebrow,
+          "inside-the-proof": t.il2.eyebrow,
+          "living-layer": t.il3.eyebrow,
         }}
       />
       <div className="relative z-10">
@@ -82,26 +94,32 @@ export default async function HomePage() {
           They must NOT sit inside SectionTransition's transform, which creates a
           containing block that breaks the interlude's position:sticky stage. */}
       <InterludeImagesProvider images={ilImages}><BeforeTheSystems t={t.il1} /></InterludeImagesProvider>
-      <div className="relative min-h-[132vh] md:min-h-[138vh]">
-        <div className="sticky top-0 min-h-screen">
+      {/* The extra height (>100vh) + sticky pin is a desktop-only breather
+          between GSAP scenes. On mobile it read as a dead "floor" (a short
+          scroll where nothing moves), so the section flows normally there. */}
+      <div className="relative lg:min-h-[110vh]">
+        <div className="flex min-h-screen flex-col justify-center lg:sticky lg:top-0">
           <HallOfFameGrid
             projects={hall}
             header={{ eyebrow: t.hallEyebrow, title: t.hallTitle, description: t.hallDesc }}
             enterLabel={r.enter}
           />
-          <div className="relative z-30 mx-auto max-w-6xl px-6 pb-12 pt-2 md:pt-0">
+          <div className="absolute inset-x-0 bottom-4 z-30 mx-auto w-full max-w-6xl px-6 text-center md:bottom-10">
             <Link
               href="/projects"
-              className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-black/35 px-4 py-2 text-sm font-medium text-cyan-200 backdrop-blur-md transition-colors hover:border-cyan-300/45 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              className="inline-flex max-w-[92vw] items-center gap-1 rounded-full border border-cyan-300/20 bg-black/35 px-3 py-1.5 text-xs font-medium text-cyan-200 sm:px-4 sm:py-2 sm:text-sm backdrop-blur-md transition-colors hover:border-cyan-300/45 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
-              {t.browseAll}
+              {/* SE-class phones: the full label wrapped to two lines and sat
+                  on top of the carousel controls — short variant under sm */}
+              <span className="sm:hidden">{t.browseAllShort}</span>
+              <span className="hidden sm:inline">{t.browseAll}</span>
             </Link>
           </div>
         </div>
       </div>
-      <InterludeImagesProvider images={ilImages}><PortfolioSystemInterlude t={t.il2} /></InterludeImagesProvider>
-      <div className="relative min-h-[124vh] md:min-h-[130vh]">
-        <div className="sticky top-0 flex min-h-screen w-full items-center">
+      <InterludeImagesProvider images={ilImages}><PortfolioSystemInterlude t={t.il2} stack={<TechStack items={CV_STACK} />} /></InterludeImagesProvider>
+      <div className="relative lg:min-h-[106vh]">
+        <div className="flex min-h-screen w-full items-center justify-center lg:sticky lg:top-0">
           <FeaturedSystemsGrid
             projects={featured}
             header={{ eyebrow: t.featuredEyebrow, title: t.featuredTitle, description: t.featuredDesc }}
@@ -110,8 +128,8 @@ export default async function HomePage() {
         </div>
       </div>
       <InterludeImagesProvider images={ilImages}><LivingLayerInterlude t={t.il3} /></InterludeImagesProvider>
-      <div className="relative min-h-[124vh] md:min-h-[130vh]">
-        <div className="sticky top-0 flex min-h-screen w-full items-center">
+      <div className="relative lg:min-h-[106vh]">
+        <div className="flex min-h-screen w-full items-center justify-center lg:sticky lg:top-0">
           <LabArchiveGrid
             projects={archive}
             header={{ eyebrow: t.archiveEyebrow, title: t.archiveTitle, description: t.archiveDesc }}

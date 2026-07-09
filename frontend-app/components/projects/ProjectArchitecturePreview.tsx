@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Store, LayoutGrid, Package, CreditCard, MonitorSmartphone, Server,
   Database, Cog, Bot, Sparkles, Brain, MessageSquare, Globe, Layers,
+  ArrowLeftRight, Filter, FileJson, Table,
   FileText, Search, Truck, Users, Cpu,
 } from "lucide-react";
 import type { Project } from "@/content/projects";
@@ -23,6 +24,11 @@ const NODE_ICONS: Array<[RegExp, LucideIcon]> = [
   [/console|admin|panel|dashboard/i, MonitorSmartphone],
   [/api|backend|gateway|server/i, Server],
   [/db|database|postgres|storage/i, Database],
+  [/etl|transform|normaliz/i, ArrowLeftRight],
+  [/filter|quality|dedup|clean/i, Filter],
+  [/jsonl?|export|builder/i, FileJson],
+  [/dataset|training|fine-?tun/i, Table],
+  [/raw|ingest|source|market data/i, Database],
   [/worker|queue|job|cron/i, Cog],
   [/bot|whatsapp|agent/i, Bot],
   [/ai|llm|model|inference/i, Sparkles],

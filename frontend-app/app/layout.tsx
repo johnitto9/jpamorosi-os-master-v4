@@ -167,10 +167,9 @@ export default function RootLayout({
         {/* Open Graph / Twitter tags are emitted from the `metadata` export above
             (single source of truth) — no hardcoded, conflicting tags here. */}
 
-        {/* Security Headers */}
-        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
-        <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
+        {/* Security headers live in next.config.js (real HTTP headers). They
+            must NOT be duplicated as <meta http-equiv> — the browser rejects
+            X-Frame-Options in meta and logs a console error on every load. */}
         {/* Performance hints */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

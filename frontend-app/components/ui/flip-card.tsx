@@ -47,9 +47,11 @@ export function FlipCard({
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         className="relative h-full min-h-[92px] cursor-pointer [transform-style:preserve-3d] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
       >
-        {/* front */}
+        {/* front — in NORMAL FLOW so the card's height comes from its content.
+            Both faces used to be absolute, so nothing sized the card and long
+            copy (founder notes, translated highlights) overflowed the border. */}
         <div
-          className="absolute inset-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] [backface-visibility:hidden]"
+          className="relative min-h-[92px] overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] [backface-visibility:hidden]"
           style={{ boxShadow: `0 0 40px -18px ${glow}` }}
         >
           {front}

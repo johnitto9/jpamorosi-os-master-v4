@@ -120,7 +120,7 @@ export function HallOfFameCard({
         {/* top row: logo chip + status, floating over the image */}
         <div className="relative flex items-start justify-between p-4">
           <div
-            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-black/50 backdrop-blur-sm"
+            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-black/70"
             style={{ boxShadow: `0 0 24px ${theme.glow}` }}
           >
             {logo ? (
@@ -146,7 +146,7 @@ export function HallOfFameCard({
 
         {/* bottom aero panel: few words, glass, efficient */}
         <div className="relative mt-auto p-4 sm:p-5">
-          <div className="rounded-xl border border-white/10 bg-black/35 p-4 backdrop-blur-md">
+          <div className="rounded-xl border border-white/10 bg-black/70 p-4">
             <span
               className="font-mono text-[10px] uppercase tracking-[0.3em]"
               style={{ color: theme.accent }}
@@ -171,7 +171,19 @@ export function HallOfFameCard({
             </p>
 
             <div className="mt-3 flex items-end justify-between gap-3">
-              <div className="flex flex-wrap gap-1.5">
+              {/* min-h reserves TWO chip rows on compact cards so siblings in a
+                  carousel keep equal heights whether their labels wrap or not
+                  (short-label stacks used to collapse to one row → shorter card).
+                  content-end keeps a single row anchored to the bottom. */}
+              <div
+                className={cn(
+                  "flex flex-wrap gap-1.5",
+                  !large && "min-h-[46px] content-end",
+                )}
+              >
+                {/* compact cards cap at 3 chips — a 4th with long labels wraps
+                    to a THIRD row and breaks the group's shared height; the
+                    min-h above (not chip count) is what equalizes short stacks */}
                 {project.stack.slice(0, large ? 4 : 3).map((s) => (
                   <span
                     key={s}

@@ -69,6 +69,12 @@ const nextConfig = {
   },
   productionBrowserSourceMaps: false,
 
+  // Strip console.* from production client bundles (legacy /os avatar debug
+  // logs etc.) — errors/warnings stay visible for real diagnostics.
+  compiler: {
+    removeConsole: { exclude: ['error', 'warn'] }
+  },
+
   // Security headers
   async headers() {
     return [

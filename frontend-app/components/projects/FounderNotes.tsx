@@ -33,7 +33,7 @@ export async function FounderNotes({ project }: { project: Project }) {
               : { label: r.flipTalk, href: "/#contact" },
           }}
           front={
-            <p className="p-6 text-base italic leading-relaxed text-white/75">
+            <p className="break-words p-5 text-sm italic leading-relaxed text-white/75 sm:p-6 sm:text-base">
               “{note}”
             </p>
           }

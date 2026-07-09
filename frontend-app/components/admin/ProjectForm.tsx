@@ -123,6 +123,8 @@ export function ProjectForm({
     linkPlaystore: p.links?.playstore ?? "",
     linkAppstore: p.links?.appstore ?? "",
     linkWebsite: p.links?.website ?? "",
+    linkInstagram: p.links?.instagram ?? "",
+    linkFacebook: p.links?.facebook ?? "",
     aiSummary: p.aiSummary ?? "",
   });
 
@@ -196,6 +198,8 @@ export function ProjectForm({
         ...(form.linkPlaystore.trim() ? { playstore: form.linkPlaystore.trim() } : {}),
         ...(form.linkAppstore.trim() ? { appstore: form.linkAppstore.trim() } : {}),
         ...(form.linkWebsite.trim() ? { website: form.linkWebsite.trim() } : {}),
+        ...(form.linkInstagram.trim() ? { instagram: form.linkInstagram.trim() } : {}),
+        ...(form.linkFacebook.trim() ? { facebook: form.linkFacebook.trim() } : {}),
       },
       theme: {
         accent: form.accent.trim(),
@@ -530,6 +534,14 @@ export function ProjectForm({
               <div>
                 <label className={label}>GitHub</label>
                 <input className={input} value={form.linkGithub} onChange={(e) => set("linkGithub", e.target.value)} placeholder="https://github.com/…" />
+              </div>
+              <div>
+                <label className={label}>Instagram</label>
+                <input className={input} value={form.linkInstagram} onChange={(e) => set("linkInstagram", e.target.value)} placeholder="https://instagram.com/…" />
+              </div>
+              <div>
+                <label className={label}>Facebook</label>
+                <input className={input} value={form.linkFacebook} onChange={(e) => set("linkFacebook", e.target.value)} placeholder="https://facebook.com/…" />
               </div>
             </div>
           </Section>

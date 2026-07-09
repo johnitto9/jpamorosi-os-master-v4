@@ -29,8 +29,12 @@ function readSessionId(request: Request): string | null {
 }
 
 export async function POST(request: Request) {
-  // Cost guard: this public endpoint can hit the LLM/tools. Use Upstash in prod.
-  const limited = await rateLimited(request, "assistant", 20, 10 * 60_000);
+  // Cost guards: this public endpoint can hit the LLM/tools. Use Upstash in prod.
+  // Two windows — burst (20 per 10 min) and a daily ceiling so a slow-drip
+  // abuser can't burn ~3k completions/day from one IP.
+  const limited =
+    (await rateLimited(request, "assistant", 20, 10 * 60_000)) ??
+    (await rateLimited(request, "assistant-day", 150, 24 * 60 * 60_000));
   if (limited) return limited;
 
   let body: unknown;

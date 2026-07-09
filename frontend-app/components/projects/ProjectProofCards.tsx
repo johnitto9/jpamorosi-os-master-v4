@@ -51,7 +51,7 @@ export async function ProjectProofCards({ project }: { project: Project }) {
 
       {project.highlights.length > 0 ? (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {project.highlights.map((h, i) => (
+          {project.highlights.slice(0, 4).map((h, i) => (
             // best of both worlds: the holographic rest-tilt (irregular 3D
             // rectangle + sheen on hover) WRAPS the flip interaction
             <HolographicCard key={h} intensity="subtle" restTilt={5} className="h-full">

@@ -6,7 +6,7 @@
 // (accent glow, beams, title watermark) and drops branded confetti on it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
 import { getHallOfFame, type Project } from "@/content/projects";
 import { SectionHeader } from "@/components/design-system/SectionHeader";
@@ -24,14 +24,16 @@ function DichroicBeams({ accent }: { accent: string }) {
         { left: "50%", rot: 6, color: "#00f2ff", o: 0.1 },
         { left: "78%", rot: 20, color: "#8b5cf6", o: 0.12 },
       ].map((b, i) => (
+        // pre-softened gradient beam — same look as the old blur-3xl filter,
+        // without the per-frame GPU filter cost on 160%-tall layers
         <div
           key={i}
-          className="absolute -top-1/3 h-[160%] w-40 blur-3xl"
+          className="absolute -top-1/3 h-[160%] w-72"
           style={{
             left: b.left,
             transform: `translateX(-50%) rotate(${b.rot}deg)`,
             opacity: b.o,
-            background: `linear-gradient(to bottom, ${b.color} 0%, transparent 75%)`,
+            background: `radial-gradient(50% 55% at 50% 22%, ${b.color} 0%, transparent 70%)`,
           }}
         />
       ))}
@@ -95,13 +97,25 @@ export function HallOfFameGrid({
   // project", so we dropped it. Projects without their own video show the
   // premium gradient (BackgroundVideoPanel). URLs go through the media resolver
   // (Cloudflare Stream/R2 ready — see lib/media/resolve.ts).
-  const activeVideo = useMemo(() => {
-    const own = resolveVideoUrl(active?.assets.heroVideo);
-    if (own) {
-      return { mp4: own, poster: resolveMediaUrl(active?.assets.heroVideoPoster) };
-    }
-    return null;
-  }, [active]);
+  // ROOT FIX for the "swipe a lot and it starts glitching" bug: the old code
+  // mounted a NEW <video> per selection change (AnimatePresence keyed by URL)
+  // and unmounted the old one mid-fade. Chromium keeps destroyed media players
+  // alive until GC and caps them per tab — rapid swiping "nested zombies"
+  // until playback/compositing degraded, and re-entering a still-exiting key
+  // also confused AnimatePresence (the weird swipe-back). Instead we mount
+  // ONE persistent <video> per flagship (≤3, page-lifetime stable) and
+  // crossfade with plain CSS opacity; inactive ones pause via `playing`.
+  const flagshipVideos = useMemo(
+    () =>
+      items.map((p) => {
+        const mp4 = resolveVideoUrl(p.assets.heroVideo);
+        return mp4
+          ? { id: p.id, mp4, poster: resolveMediaUrl(p.assets.heroVideoPoster) }
+          : null;
+      }),
+    [items],
+  );
+  const activeHasVideo = !!flagshipVideos[activeIdx];
 
   const scrollTo = useCallback(
     (projectIdx: number) => {
@@ -114,7 +128,14 @@ export function HallOfFameGrid({
   const next = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
   const visualSlots = useMemo(() => {
     if (!items.length) return [];
-    const offsets = coverflow ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
+    // NEVER render more slots than distinct projects: with 3 flagships the
+    // old 5-slot window mapped offsets ±2 and ∓1 to the SAME project →
+    // DUPLICATE React keys in one map. React's behavior is undefined there:
+    // heavy cards were being unmounted/remounted erratically on every swipe
+    // (image decodes, canvases, listeners), which is exactly the "it degrades
+    // after 10-20 swipes" accumulation.
+    const offsets =
+      coverflow && items.length >= 5 ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
     return offsets.map((offset) => {
       const index = (activeIdx + offset + items.length) % items.length;
       return { offset, index, project: items[index] };
@@ -132,7 +153,7 @@ export function HallOfFameGrid({
   return (
     <section
       id="hall-of-fame"
-      className="relative scroll-mt-20 overflow-hidden py-20"
+      className="relative min-h-screen scroll-mt-20 overflow-hidden py-14 md:py-20"
     >
       {/* dark room — edges fade so the micro-universe blends into its neighbors
           (kills the hard "seam" between the aurora hero and the dark room) */}
@@ -147,34 +168,32 @@ export function HallOfFameGrid({
       {/* background footage follows the SELECTED flagship: the active project's
           own loop video (assets.heroVideo) brands the whole room; fallback is
           the site-wide hero video (admin/F2). Crossfaded on carousel change. */}
-      {activeVideo?.mp4 && (
-        <>
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={activeVideo.mp4}
-              className="absolute inset-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.75 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.9, ease: "easeInOut" }}
-            >
-              <BackgroundVideoPanel
-                mp4={activeVideo.mp4}
-                poster={activeVideo.poster}
-                className="absolute inset-0"
-              />
-            </motion.div>
-          </AnimatePresence>
-          {/* readability veil (keeps cards/text legible over the footage) */}
+      {flagshipVideos.map((v, i) =>
+        v ? (
           <div
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(5,6,11,0.55) 0%, rgba(5,6,11,0.35) 45%, rgba(5,6,11,0.75) 100%)",
-            }}
-          />
-        </>
+            key={v.id}
+            className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+            style={{ opacity: i === activeIdx ? 0.75 : 0 }}
+          >
+            <BackgroundVideoPanel
+              mp4={v.mp4}
+              poster={v.poster}
+              playing={i === activeIdx}
+              className="absolute inset-0"
+            />
+          </div>
+        ) : null,
+      )}
+      {/* readability veil (keeps cards/text legible over the footage) */}
+      {activeHasVideo && (
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(5,6,11,0.55) 0%, rgba(5,6,11,0.35) 45%, rgba(5,6,11,0.75) 100%)",
+          }}
+        />
       )}
       <DichroicBeams accent={accent} />
       {/* selected-project branding glow */}
@@ -211,7 +230,7 @@ export function HallOfFameGrid({
           title={header?.title ?? "Flagship proof systems"}
           description={
             header?.description ??
-            "A dark room of trophies. Each flagship proves a major hiring thesis — advanced AI orchestration, production agents, and live startup execution."
+            "A room of trophies. Each flagship proves a major hiring thesis — advanced AI orchestration, production agents, and live startup execution."
           }
           accent={accent}
         />
@@ -254,14 +273,18 @@ export function HallOfFameGrid({
               const x = coverflow ? offset * 35 : offset * 82;
               const rotate = coverflow ? offset * -18 : 0;
               const scale = coverflow ? 1 - Math.min(abs, 2) * 0.12 : 1 - abs * 0.08;
-              const z = coverflow ? -Math.min(abs, 2) * 110 : 0;
-              const opacity = isActive ? 1 : coverflow ? (abs === 1 ? 0.58 : 0.22) : 0.45;
+              const opacity = isActive ? 1 : coverflow ? (abs === 1 ? 0.72 : 0.32) : 0.5;
               const widthClass = coverflow ? "w-[54%]" : "w-[86%] sm:w-[62%]";
               return (
+                // FLAT slots (GPU-corruption fix): permanent will-change +
+                // preserve-3d + animated translateZ across 5 large cards was
+                // the Chromium black-tile recipe — tiles corrupted a bit more
+                // on every swipe. rotateY+scale under the parent perspective
+                // keep the coverflow read; depth via scale, not real Z.
                 <motion.div
                   key={project.id}
                   className={cn(
-                    "absolute top-10 px-3 will-change-transform [backface-visibility:hidden] [transform-style:preserve-3d] sm:px-4 lg:px-5",
+                    "absolute top-10 px-3 sm:px-4 lg:px-5",
                     widthClass,
                     isActive ? "pointer-events-auto" : "pointer-events-none",
                   )}
@@ -272,7 +295,6 @@ export function HallOfFameGrid({
                     zIndex: 100 - abs * 20,
                     rotateY: rotate,
                     scale,
-                    z,
                   }}
                   transition={{
                     type: "spring",
@@ -284,16 +306,28 @@ export function HallOfFameGrid({
                     x: "-50%",
                   }}
                 >
-                  {isActive && (
-                    <Confetti
-                      colors={[project.theme.accent, project.theme.secondary, "#ffffff"]}
-                      className="z-20 opacity-70"
-                    />
-                  )}
                   <HallOfFameCard project={project} large enterLabel={enterLabel} />
                 </motion.div>
               );
             })}
+            {/* ONE persistent confetti canvas over the centre slot — it used
+                to live INSIDE the keyed map ({isActive && <Confetti/>}), so
+                every swipe destroyed and re-created a canvas. It re-seeds
+                itself when the palette changes (colors are an effect dep). */}
+            <div
+              aria-hidden
+              className={cn(
+                // z-[110]: the active slot animates to zIndex 100 — the
+                // confetti must rain OVER it, like when it lived inside the card
+                "pointer-events-none absolute inset-y-10 left-1/2 z-[110] -translate-x-1/2",
+                coverflow ? "w-[54%]" : "w-[86%] sm:w-[62%]",
+              )}
+            >
+              <Confetti
+                colors={[active.theme.accent, active.theme.secondary, "#ffffff"]}
+                className="opacity-70"
+              />
+            </div>
           </div>
         </div>
 

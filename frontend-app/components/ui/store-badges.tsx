@@ -4,6 +4,7 @@
 // Apple mark drawn inline — no remote assets, brand shapes preserved).
 
 import { Globe, Play, ArrowUpRight } from "lucide-react";
+import { siInstagram, siFacebook } from "simple-icons";
 
 const badgeBase =
   "inline-flex items-center gap-3 rounded-xl border border-white/25 bg-black px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400";
@@ -72,12 +73,14 @@ export function LinkPill({
 }: {
   href: string;
   label: string;
-  kind: "website" | "demo" | "github";
+  kind: "website" | "demo" | "github" | "instagram" | "facebook";
   accent: string;
   primary?: boolean;
 }) {
   const Icon =
     kind === "website" ? Globe : kind === "demo" ? Play : GitHubMark;
+  const social =
+    kind === "instagram" ? siInstagram : kind === "facebook" ? siFacebook : null;
   return (
     <a
       href={href}
@@ -90,7 +93,15 @@ export function LinkPill({
           : { borderColor: `${accent}66`, color: accent }
       }
     >
-      {kind === "github" ? <GitHubMark size={16} /> : <Icon size={16} strokeWidth={2.2} aria-hidden />}
+      {social ? (
+        <svg width={16} height={16} viewBox="0 0 24 24" aria-hidden>
+          <path d={social.path} fill="currentColor" />
+        </svg>
+      ) : kind === "github" ? (
+        <GitHubMark size={16} />
+      ) : (
+        <Icon size={16} strokeWidth={2.2} aria-hidden />
+      )}
       {label}
       <ArrowUpRight size={14} className="opacity-60" aria-hidden />
     </a>

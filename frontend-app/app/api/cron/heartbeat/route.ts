@@ -25,7 +25,13 @@ import { guardInternal } from "@/lib/auth/internal";
 import { env } from "@/lib/env";
 import { isDbConfigured, tryQuery } from "@/lib/db/pool";
 import { ensureSchema } from "@/lib/db/bootstrap";
-import { processPipelineBatch } from "@/lib/agent/prospects";
+import {
+  processPipelineBatch,
+  listOutreachReady,
+  buildProspectOutreachData,
+  markProspectOutreachSent,
+} from "@/lib/agent/prospects";
+import { getSiteSettings } from "@/lib/media/store";
 import { chatCompletion, isLlmConfigured } from "@/lib/agent/llm";
 import { listMessages, writeMemory } from "@/lib/agent/memory";
 import { listSessionProjects } from "@/lib/agent/projects";
@@ -39,9 +45,16 @@ export const maxDuration = 180;
 
 const FOLLOWUPS_PER_CYCLE = 3;
 const CLICK_FOLLOWUPS_PER_CYCLE = 2;
+const PROSPECT_OUTREACH_PER_CYCLE = 2;
 
 function followupsEnabled(): boolean {
   return process.env.AGENT_FOLLOWUP_ENABLED === "true";
+}
+
+// Autonomous cold outreach is DOUBLE-gated: this explicit opt-in AND the
+// master OUTBOUND_LEAD_EMAILS_ENABLED gate enforced inside sendEmail().
+function prospectOutreachEnabled(): boolean {
+  return process.env.AGENT_PROSPECT_OUTREACH_ENABLED === "true";
 }
 
 async function dbReady(): Promise<boolean> {
@@ -272,6 +285,43 @@ async function runClickedNoReturnFollowups(): Promise<number> {
   return sent;
 }
 
+// ---- step 2.5: qualified cold prospects get their outreach — autonomously -------
+// This is what closes the circle (REFAC_CIERRE_PROD_2026-07-07): the scout
+// finds → the pipeline qualifies → and now the system also SENDS, instead of
+// waiting for a human to press the button in /admin/prospects. Same generator
+// as the manual path (buildProspectOutreachData) so the emails never drift.
+
+async function runProspectOutreach(): Promise<number> {
+  if (!prospectOutreachEnabled()) return 0;
+  const ready = await listOutreachReady(PROSPECT_OUTREACH_PER_CYCLE);
+  if (ready.length === 0) return 0;
+  const settings = await getSiteSettings();
+  let sent = 0;
+  for (const prospect of ready) {
+    if (!prospect.email) continue;
+    const outreach = buildProspectOutreachData(prospect, env.NEXT_PUBLIC_SITE_URL, {
+      visualUrl: settings.interludes?.proof1,
+      avatarUrl: settings.profileImage,
+    });
+    const result = await sendEmail({
+      template: "prospect_outreach",
+      to: prospect.email,
+      data: outreach,
+      tracking: { prospectId: prospect.id, campaign: "prospect_outreach_auto" },
+    });
+    if (result.ok) {
+      sent += 1;
+      await markProspectOutreachSent(prospect.id, result.id);
+      await recordEvent("prospect.outreach.auto_sent", {
+        id: prospect.id,
+        company: prospect.company,
+        score: prospect.score,
+      });
+    }
+  }
+  return sent;
+}
+
 // ---- step 3: the system reflects on its own day ---------------------------------
 
 type DayStats = {
@@ -349,14 +399,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, skipped: "no_db" });
   }
 
-  // 1. the dragnet advances on its own
-  const pipeline = await processPipelineBatch(8);
+  // 1. the dragnet advances on its own (sized for the adaptive scout's net)
+  const pipeline = await processPipelineBatch(12);
   // 2. warm leads that went quiet hear from us — once, personally
   const followupsSent = await runFollowups();
   const clickedFollowupsSent = await runClickedNoReturnFollowups();
+  // 2.5 qualified cold prospects get their outreach (double-gated opt-in)
+  const prospectOutreachSent = await runProspectOutreach();
   // 3. the system looks at its own day and remembers what it learned
   const stats = await collectDayStats();
-  const totalFollowupsSent = followupsSent + clickedFollowupsSent;
+  const totalFollowupsSent = followupsSent + clickedFollowupsSent + prospectOutreachSent;
   const reflection = await reflect(stats, totalFollowupsSent, pipeline.processed);
   // 4. the admin gets the pulse
   const date = new Date().toISOString().slice(0, 10);
@@ -378,6 +430,7 @@ export async function POST(request: Request) {
     prospectsMoved: pipeline.processed,
     followupsSent: totalFollowupsSent,
     clickedFollowupsSent,
+    prospectOutreachSent,
     reflected: !!reflection,
   });
   return NextResponse.json({
@@ -386,7 +439,9 @@ export async function POST(request: Request) {
     prospectsMoved: pipeline.processed,
     followupsSent: totalFollowupsSent,
     clickedFollowupsSent,
+    prospectOutreachSent,
     followupsEnabled: followupsEnabled(),
+    prospectOutreachEnabled: prospectOutreachEnabled(),
     reflection: reflection ?? null,
   });
 }
