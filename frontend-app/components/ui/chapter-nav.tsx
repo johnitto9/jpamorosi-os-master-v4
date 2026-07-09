@@ -172,7 +172,7 @@ export function ChapterNav({
                     viewport; on desktop the rest reveal on hover. On mobile
                     there's no hover, so only the active title appears. */}
                 <span
-                  className={`pointer-events-none absolute right-7 whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.25em] transition-all duration-300 md:text-[10px] ${
+                  className={`pointer-events-none absolute right-5 max-w-[38vw] truncate whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.2em] transition-all duration-300 md:right-7 md:max-w-none md:text-[10px] md:tracking-[0.25em] ${
                     on
                       ? "translate-x-0 text-cyan-300 opacity-100"
                       : "translate-x-1 text-white/40 opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100"
@@ -248,7 +248,7 @@ export function ChapterNav({
                   {/* segment (interlude) name — shown on ALL viewports (was
                       rail clean; the section titles come from the knob labels. */}
                   <span
-                    className={`pointer-events-none absolute right-7 block max-w-[42vw] truncate whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.24em] transition-all duration-300 md:max-w-none ${
+                    className={`pointer-events-none absolute right-5 block max-w-[38vw] truncate whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.2em] transition-all duration-300 md:right-7 md:max-w-none md:text-[9px] md:tracking-[0.24em] ${
                       (segmentProgress[c.id] ?? 0) > 0 && (segmentProgress[c.id] ?? 0) < 1
                         ? "translate-x-0 text-violet-200 opacity-100"
                         : "translate-x-1 text-white/35 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"

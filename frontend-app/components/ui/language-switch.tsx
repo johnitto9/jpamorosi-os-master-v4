@@ -77,7 +77,7 @@ export function LanguageSwitch() {
           }}
           aria-label="Change language"
           aria-expanded={open}
-          className="flex items-center gap-2 rounded-full border border-white/15 bg-black/50 px-3 py-2 text-xs font-semibold text-white/80 backdrop-blur-md transition-colors hover:border-cyan-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-2.5 py-1.5 text-[10px] font-semibold text-white/80 backdrop-blur-md transition-colors hover:border-cyan-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 sm:gap-2 sm:px-3 sm:py-2 sm:text-xs"
         >
           <span aria-hidden>{LANGS[lang].flag}</span>
           <span className="font-mono uppercase tracking-wider">{lang}</span>

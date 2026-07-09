@@ -164,7 +164,9 @@ export function HallOfFameCard({
             <p
               className={cn(
                 "mt-1 leading-snug text-white/70",
-                large ? "text-sm" : "line-clamp-2 text-xs sm:text-sm",
+                // large: DB one-liners grew post-refactor; unclamped they
+                // overflow the aspect-locked card on narrow phones.
+                large ? "line-clamp-3 text-sm sm:line-clamp-none" : "line-clamp-2 text-xs sm:text-sm",
               )}
             >
               {project.oneLiner}
