@@ -131,7 +131,7 @@ function revealNarrativeOnEnter(
   section: HTMLElement,
   scroller: HTMLElement | null,
 ) {
-  const targets = q(".il-eyebrow, .il-head, .il-body");
+  const targets = q(".il-eyebrow, .il-head, .il-body, .il-stack-m");
   if (!targets.length) return;
   gsap.fromTo(
     targets,
@@ -500,7 +500,7 @@ function MobileScene1({ t }: { t: InterludeCopy }) {
 // contract as desktop, vertical transforms. LAYOUT: flex-col with three
 // slots (narrative / screen / layer stack). Tighter typography and
 // line-clamp keep the narrative from pushing the screen into the stack.
-function MobileScene2({ t }: { t: InterludeCopy }) {
+function MobileScene2({ t, stack }: { t: InterludeCopy; stack?: ReactNode }) {
   return (
     <div data-scene-mobile className="relative block min-h-[250vh] lg:hidden motion-reduce:hidden">
       <SceneGlow tone="cyan" />
@@ -510,6 +510,14 @@ function MobileScene2({ t }: { t: InterludeCopy }) {
           <div className="il-eyebrow flex justify-center opacity-0"><EyebrowPill accent="cyan">{t.eyebrow}</EyebrowPill></div>
           <h2 className="il-head mt-2 text-2xl font-bold leading-tight text-white opacity-0 sm:text-3xl">{t.heading}</h2>
           <p className="il-body mt-2 text-xs leading-relaxed text-white/65 opacity-0 line-clamp-3 sm:text-sm">{t.body}</p>
+          {/* the CV's stack chips (same server-rendered TechStack as desktop),
+              shrunk for phones via child overrides — revealed with the
+              narrative (.il-stack-m rides revealNarrativeOnEnter) */}
+          {stack ? (
+            <div className="il-stack-m mt-2.5 opacity-0 [&>div]:justify-center [&>div]:gap-1 [&_span]:!px-2 [&_span]:!py-0.5 [&_span]:!text-[9px] [&_svg]:!h-2.5 [&_svg]:!w-2.5">
+              {stack}
+            </div>
+          ) : null}
         </div>
 
         {/* screen slot — middle, screen floats up + holds; layer cards assemble
@@ -838,7 +846,7 @@ export function PortfolioSystemInterlude({ t, stack }: { t: InterludeCopy; stack
   return (
     <section ref={root} id="inside-the-proof" className="relative scroll-mt-20">
       <MobileStatic t={t} accent="cyan" image={IMG.proof1} emoji="🖥️" />
-      <MobileScene2 t={t} />
+      <MobileScene2 t={t} stack={stack} />
       {/* taller stage = slower scrub (see scene 1 note) */}
       <div data-scene className="relative hidden min-h-[325vh] lg:block">
         <div className="sticky top-0 flex h-screen items-center overflow-hidden">
