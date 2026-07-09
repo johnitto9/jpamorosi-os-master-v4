@@ -74,6 +74,13 @@ async function completeOnce(
     const text = choice?.message?.content;
     const finish = choice?.finish_reason;
     if (typeof text === "string" && text.trim()) {
+      // A length-cut reply is almost always mid-JSON ("Unterminated string",
+      // prod 2026-07-09 20:31) → unparseable downstream → deterministic
+      // fallback. Surface it as a retryable outcome instead of "success".
+      if (finish === "length") {
+        logOutcome("finish_length_truncated", `max_tokens=${maxTokens}`);
+        return { text: null, outcome: "finish_length_truncated", finish };
+      }
       return { text, outcome: "success", finish };
     }
     // GLM reasoning edge (verified in prod smoke): HTTP 200, finish=length,
@@ -104,7 +111,7 @@ export async function chatCompletion(
 
   // ONE bounded retry only for the reasoning-ate-the-budget case: same call,
   // double the completion budget (capped). No loops, no retry on other errors.
-  if (first.outcome === "finish_length_content_null") {
+  if (first.outcome === "finish_length_content_null" || first.outcome === "finish_length_truncated") {
     const retry = await completeOnce(messages, Math.min(maxTokens * 2, 1600), timeoutMs);
     logOutcome(retry.text ? "retry_length_recovered" : "retry_length_failed");
     return retry.text;
