@@ -1,5 +1,7 @@
 "use client";
 
+import { getDeviceId } from "@/lib/identity";
+
 // components/assistant/AssetVault.tsx
 // The visitor's Brand Foundation vault (T05, spec 13): a collapsible right-side
 // panel showing the persisted workspace of their active pre-project — palette,
@@ -75,7 +77,7 @@ export function AssetVault({
   const pickProject = useCallback(
     async (preferId?: number) => {
       try {
-        const res = await fetch("/api/assistant/projects");
+        const res = await fetch("/api/assistant/projects", { headers: { "x-device-id": getDeviceId() ?? "" } });
         const data = await res.json();
         const list: SessionProjectLite[] = data.projects ?? [];
         if (list.length === 0) {

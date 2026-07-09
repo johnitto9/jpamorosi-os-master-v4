@@ -608,6 +608,26 @@ export async function runAgent(input: {
   }
   if (!response) {
     response = buildResponse({ message: text, history });
+    // The deterministic fallback authors English copy. When the visitor is in
+    // another language (LLM timeout/failure), swap the MESSAGE for a short
+    // localized lead-in — the cards/actions still carry the content. This is
+    // what made Orbe "answer in English out of nowhere" mid-Spanish chat.
+    if (lang && lang !== "en") {
+      const LEADIN: Record<string, string> = {
+        es: "Se me trabó la respuesta larga, pero acá va lo esencial del trabajo de Juan — tocá cualquier card y te la abro:",
+        pt: "A resposta longa travou, mas aqui vai o essencial do trabalho do Juan — toque em qualquer card:",
+        fr: "La réponse longue a échoué, mais voici l'essentiel du travail de Juan — ouvrez une carte :",
+        ru: "Длинный ответ не сложился — вот главное из работ Хуана, откройте любую карточку:",
+        zh: "长回复出了点问题，先给你 Juan 作品的精华——点开任意卡片：",
+        ar: "تعثّر الرد المطوّل — إليك خلاصة أعمال خوان، افتح أي بطاقة:",
+        he: "התשובה הארוכה נתקעה — הנה העיקר מעבודתו של חואן, פתחו כל כרטיס:",
+        ja: "長い回答に失敗しました。まずは Juan の仕事のエッセンスをどうぞ — カードを開いてください:",
+        ko: "긴 답변이 막혔어요. 우선 Juan 작업의 핵심입니다 — 카드를 열어보세요:",
+        hi: "लंबा जवाब अटक गया — फिलहाल Juan के काम का सार, कोई भी कार्ड खोलिए:",
+      };
+      const localized = LEADIN[lang];
+      if (localized) response = { ...response, message: localized };
+    }
   }
 
   // 5. persist lead + sales stage/score (code-computed) + assistant turn

@@ -150,13 +150,61 @@ function InfoCard({
   );
 }
 
-const FIELD_LABEL: Record<LeadField, string> = {
-  name: "Name",
-  email: "Email",
-  company: "Company",
-  need: "What do you need?",
-  budget: "Budget / timing",
+// Localized chrome for the lead card (title/body arrive already localized
+// from the agent; these are the fixed labels/placeholders/states). Falls
+// back to EN for languages without an entry.
+const LEAD_I18N: Record<string, {
+  fields: Record<LeadField, string>;
+  idle: string; error: string; send: string; saving: string;
+  doneTitle: string; doneBody: (email?: string) => string;
+}> = {
+  en: {
+    fields: { name: "Name", email: "Email", company: "Company", need: "What do you need?", budget: "Budget / timing" },
+    idle: "Juan can pick this up from admin.",
+    error: "Could not save. Try again.",
+    send: "Send", saving: "Saving...",
+    doneTitle: "Thanks — it's on its way! 🎉",
+    doneBody: (e) => e
+      ? `Your session is saved and linked to ${e}. Juan reads everything personally and will write back soon.`
+      : "Your session is saved. Juan reads everything personally and will write back soon.",
+  },
+  es: {
+    fields: { name: "Nombre", email: "Email", company: "Empresa", need: "¿Qué necesitás?", budget: "Presupuesto / tiempos" },
+    idle: "Juan lo retoma desde el admin.",
+    error: "No se pudo guardar. Probá de nuevo.",
+    send: "Enviar", saving: "Guardando...",
+    doneTitle: "¡Gracias! Ya se envió 🎉",
+    doneBody: (e) => e
+      ? `Tu sesión quedó guardada y vinculada a ${e}. Juan lee todo personalmente y te escribe pronto.`
+      : "Tu sesión quedó guardada. Juan lee todo personalmente y te escribe pronto.",
+  },
+  pt: {
+    fields: { name: "Nome", email: "Email", company: "Empresa", need: "O que você precisa?", budget: "Orçamento / prazos" },
+    idle: "Juan retoma isso pelo admin.",
+    error: "Não foi possível salvar. Tente de novo.",
+    send: "Enviar", saving: "Salvando...",
+    doneTitle: "Obrigado! Já foi enviado 🎉",
+    doneBody: (e) => e
+      ? `Sua sessão ficou salva e vinculada a ${e}. Juan lê tudo pessoalmente e te escreve em breve.`
+      : "Sua sessão ficou salva. Juan lê tudo pessoalmente e te escreve em breve.",
+  },
+  fr: {
+    fields: { name: "Nom", email: "Email", company: "Entreprise", need: "De quoi avez-vous besoin ?", budget: "Budget / délais" },
+    idle: "Juan reprend ça depuis l'admin.",
+    error: "Impossible d'enregistrer. Réessayez.",
+    send: "Envoyer", saving: "Enregistrement...",
+    doneTitle: "Merci — c'est envoyé ! 🎉",
+    doneBody: (e) => e
+      ? `Votre session est sauvegardée et liée à ${e}. Juan lit tout personnellement et vous répond vite.`
+      : "Votre session est sauvegardée. Juan lit tout personnellement et vous répond vite.",
+  },
 };
+
+function readLeadLang(): string {
+  if (typeof document === "undefined") return "en";
+  const m = document.cookie.match(/(?:^|;\s*)al_lang=([^;]+)/)?.[1];
+  return m && m in LEAD_I18N ? m : "en";
+}
 
 function LeadCaptureCard({
   card,
@@ -166,6 +214,7 @@ function LeadCaptureCard({
   const fields = (card.fields?.length ? card.fields : ["email", "company", "need"]).slice(0, 5);
   const [values, setValues] = useState<Record<string, string>>({});
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const L = LEAD_I18N[readLeadLang()];
 
   async function submit() {
     if (state === "saving" || state === "saved") return;
@@ -186,6 +235,21 @@ function LeadCaptureCard({
     }
   }
 
+  // SUCCESS takes over the card — a real "it landed" moment, not a footnote.
+  if (state === "saved") {
+    return (
+      <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/[0.08] p-5 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-300/40 bg-emerald-400/15 text-2xl">
+          ✓
+        </div>
+        <p className="mt-3 text-base font-bold text-white">{L.doneTitle}</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-emerald-100/75">
+          {L.doneBody(values.email?.trim() || undefined)}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.05] p-3">
       <div className="flex items-start justify-between gap-3">
@@ -200,7 +264,7 @@ function LeadCaptureCard({
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {fields.map((field) => (
           <label key={field} className={field === "need" ? "sm:col-span-2" : ""}>
-            <span className="sr-only">{FIELD_LABEL[field]}</span>
+            <span className="sr-only">{L.fields[field]}</span>
             <input
               type={field === "email" ? "email" : "text"}
               value={values[field] ?? ""}
@@ -208,7 +272,7 @@ function LeadCaptureCard({
               onKeyDown={(e) => {
                 if (e.key === "Enter") void submit();
               }}
-              placeholder={FIELD_LABEL[field]}
+              placeholder={L.fields[field]}
               className="h-9 w-full rounded-xl border border-white/10 bg-black/25 px-3 text-xs text-white outline-none transition-colors placeholder:text-white/35 focus:border-emerald-300/55"
             />
           </label>
@@ -216,15 +280,15 @@ function LeadCaptureCard({
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-[11px] text-white/45">
-          {state === "saved" ? "Saved to the dossier." : state === "error" ? "Could not save. Try again." : "Juan can pick this up from admin."}
+          {state === "error" ? L.error : L.idle}
         </p>
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={state === "saving" || state === "saved"}
+          disabled={state === "saving"}
           className="h-8 rounded-full border border-emerald-300/35 bg-emerald-300/10 px-3 text-xs font-semibold text-emerald-100 transition-colors hover:border-emerald-200/70 disabled:cursor-not-allowed disabled:opacity-55"
         >
-          {state === "saving" ? "Saving..." : state === "saved" ? "Saved" : "Send"}
+          {state === "saving" ? L.saving : L.send}
         </button>
       </div>
     </div>

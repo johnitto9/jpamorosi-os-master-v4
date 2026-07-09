@@ -355,7 +355,7 @@ export function AssistantWidget() {
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/assistant/projects")
+    fetch("/api/assistant/projects", { headers: { "x-device-id": getDeviceId() ?? "" } })
       .then((r) => r.json())
       .then((d) => Array.isArray(d?.projects) && setProjects(d.projects))
       .catch(() => undefined);

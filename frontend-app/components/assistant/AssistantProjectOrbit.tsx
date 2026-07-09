@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { WIZARD, DEFAULT_LANG, LANGS, type Lang } from "@/lib/i18n/dictionaries";
+import { getDeviceId } from "@/lib/identity";
 
 // helper used by callers that don't yet expose `lang` — kept here so the
 // wizard chrome doesn't break while the migration from `es: boolean` rolls
@@ -255,7 +256,7 @@ export function ProjectSetup({
 
     const request = fetch("/api/assistant/projects", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-device-id": getDeviceId() ?? "" },
       body: JSON.stringify({
         name: name.trim(),
         kind,

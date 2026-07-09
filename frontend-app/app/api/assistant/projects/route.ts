@@ -12,7 +12,7 @@ import {
   isProjectPhase,
 } from "@/lib/agent/projects";
 import { getLead, leadPatchSchema, upsertLead } from "@/lib/agent/leads";
-import { touchSession } from "@/lib/agent/memory";
+import { touchSession, findSessionByDevice } from "@/lib/agent/memory";
 import { recordEvent } from "@/lib/events";
 import { notifyAdmin } from "@/lib/email/service";
 import { env } from "@/lib/env";
@@ -33,10 +33,37 @@ function sid(request: Request): string | null {
   return m && UUID_RE.test(m) ? m : null;
 }
 
+function deviceIdOf(request: Request): string | null {
+  const d = request.headers.get("x-device-id");
+  return d && UUID_RE.test(d) ? d : null;
+}
+
+/** (Re)issue the session cookie — the tripod's leg 1. This route used to mint
+ *  session ids WITHOUT setting the cookie, creating "phantom" sessions whose
+ *  projects were only visible in the creating tab's memory. */
+function withSessionCookie(res: NextResponse, sessionId: string): NextResponse {
+  res.cookies.set("al_sid", sessionId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 180,
+    path: "/",
+  });
+  return res;
+}
+
 export async function GET(request: Request) {
-  const sessionId = sid(request);
+  let sessionId = sid(request);
+  let recovered = false;
+  if (!sessionId) {
+    // leg 2: cookie wiped/absent -> rebind by device id (localStorage leg)
+    const device = deviceIdOf(request);
+    sessionId = device ? await findSessionByDevice(device) : null;
+    recovered = !!sessionId;
+  }
   if (!sessionId) return NextResponse.json({ ok: true, projects: [] });
-  return NextResponse.json({ ok: true, projects: await listSessionProjects(sessionId) });
+  const res = NextResponse.json({ ok: true, projects: await listSessionProjects(sessionId) });
+  return recovered ? withSessionCookie(res, sessionId) : res;
 }
 
 export async function POST(request: Request) {
@@ -44,9 +71,12 @@ export async function POST(request: Request) {
   const limited = await rateLimited(request, "assistant-projects", 6, 10 * 60_000);
   if (limited) return limited;
 
-  // creating a project can be the FIRST interaction — mint the session
+  // creating a project can be the FIRST interaction — resolve the session
+  // through the full tripod: cookie -> device rebind -> mint new
   const existing = sid(request);
-  const sessionId = existing ?? randomUUID();
+  const device = deviceIdOf(request);
+  const rebound = !existing && device ? await findSessionByDevice(device) : null;
+  const sessionId = existing ?? rebound ?? randomUUID();
 
   if ((await listSessionProjects(sessionId)).length >= PROJECTS_PER_SESSION) {
     return NextResponse.json(
@@ -65,7 +95,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
-  await touchSession(sessionId, { hasProject: true });
+  await touchSession(sessionId, { hasProject: true, ...(device ? { deviceId: device } : {}) });
   if (parsed.data.lead) {
     await upsertLead(sessionId, parsed.data.lead);
   }
@@ -120,5 +150,5 @@ export async function PATCH(request: Request) {
 
   const project = await setProjectPhase(sessionId, id, body.phase);
   if (!project) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  return NextResponse.json({ ok: true, project });
+  return withSessionCookie(NextResponse.json({ ok: true, project }), sessionId);
 }
