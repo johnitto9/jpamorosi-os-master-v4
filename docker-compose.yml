@@ -61,15 +61,16 @@ services:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
       APP_ENV: local
-      # Writable content on a mounted volume; admin secrets come from env_file.
-      PROJECT_STORAGE_DRIVER: local-json
+      # SOURCE OF TRUTH (2026-07-09): project content lives in Postgres
+      # (`projects` table, migrated from the live JSON — see
+      # scripts/migrate-projects-json-to-postgres.ts). The old JSON at
+      # PROJECTS_JSON_PATH remains on the volume as a frozen backup only.
+      PROJECT_STORAGE_DRIVER: postgres
       PROJECTS_JSON_PATH: /app/data/projects.json
-      # Live public content so /preview reflects local-json edits (Docker only).
+      # Live public content so / and /preview reflect DB edits (Docker only).
       PROJECT_PUBLIC_CONTENT_MODE: live
       # Agent memory + leads live in Postgres. If the DB is down the assistant
       # degrades gracefully to memory-lite (no crash, no silence).
-      # To move project content into Postgres too, flip the driver above to:
-      #   PROJECT_STORAGE_DRIVER: postgres   (table auto-seeds from static content)
       DATABASE_URL: postgres://amorosi:amorosi@postgres:5432/amorosi
       # LLM brain (optional): set OPENROUTER_API_KEY in .env.docker.local to
       # enable GLM 5.2; without it the deterministic assistant still answers.

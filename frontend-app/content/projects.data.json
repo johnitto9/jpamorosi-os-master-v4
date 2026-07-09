@@ -1,0 +1,679 @@
+[
+  {
+    "id": "bbn",
+    "slug": "bbn",
+    "tier": "hall_of_fame",
+    "status": "Live",
+    "published": true,
+    "sortOrder": 10,
+    "title": "BBN",
+    "labTitle": "BBN — AI-Assisted Local Media Platform",
+    "category": "Production AI · Local Media",
+    "oneLiner": "An AI-assisted local media platform — lightweight production agent workflows handling editorial automation and content ranking at low cost.",
+    "proof": "Low-cost applied AI in production: lightweight agent workflows doing real editorial automation and ranking on local media infrastructure — cost and reliability treated as first-class constraints.",
+    "role": [
+      "AI Architect",
+      "Automation",
+      "Ops"
+    ],
+    "stack": [
+      "Agent Workflows",
+      "Editorial Automation",
+      "Content Ranking",
+      "Lightweight LLMs",
+      "Python",
+      "Docker"
+    ],
+    "highlights": [
+      "Lightweight",
+      "cost-efficient agent workflows running in production",
+      "Editorial automation and content ranking for a local media platform",
+      "AI publishing infrastructure with real reliability and cost constraints"
+    ],
+    "architecture": {
+      "nodes": [
+        "Ingest",
+        "Ranking Agent",
+        "Editorial Agent",
+        "Guardrails",
+        "Publish"
+      ],
+      "flow": [
+        "Source",
+        "Rank",
+        "Draft/curate",
+        "Validate",
+        "Publish"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783481815125-583038307-122192059442549407-6540251255770593071-n.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783482129595-f6fa2780-30c3-4788-aa2c-f054ef74c6dd.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783525847389-454ecc52-979f-419a-9aa0-4468e5443957.webp",
+        "https://media.jpamorosi.dev/uploads/1783525848593-68cac7e5-b97e-4d45-8fac-e134e554c5b1.webp",
+        "https://media.jpamorosi.dev/uploads/1783525849833-9ae6d01a-2fbd-4298-a4c4-8592fc6d69c4.webp"
+      ],
+      "heroVideo": "https://media.jpamorosi.dev/uploads/1783548870216-02178354856325200000000000000000000ffffc0a86f2822d165.mp4"
+    },
+    "theme": {
+      "accent": "#4261f1",
+      "secondary": "#b94df9",
+      "glow": "rgba(66,97,241,0.2)",
+      "mood": "media"
+    },
+    "aiSummary": "BBN is an AI-assisted local media platform: lightweight production agents for editorial automation and ranking, proving low-cost applied AI that stays reliable.",
+    "links": {},
+    "updatedAt": "2026-07-09T03:56:51.134Z"
+  },
+  {
+    "id": "buenpick",
+    "slug": "buenpick",
+    "tier": "hall_of_fame",
+    "status": "Live",
+    "published": true,
+    "sortOrder": 20,
+    "title": "BuenPick",
+    "labTitle": "BuenPick — Live Local-Commerce Startup",
+    "category": "Live Startup · Local Commerce",
+    "oneLiner": "A live local-commerce startup — a food-rescue marketplace connecting merchants and buyers, with mobile, admin and product all shipped under real friction.",
+    "proof": "Proof of shipping beyond prototypes: a running marketplace with active merchants, built and operated end-to-end — marketplace, mobile app, admin and the product calls that come with real users.",
+    "role": [
+      "Founder",
+      "Full-Stack",
+      "Product"
+    ],
+    "stack": [
+      "Next.js",
+      "React Native",
+      "PostgreSQL",
+      "Marketplace",
+      "Payments",
+      "Admin"
+    ],
+    "highlights": [
+      "Live food-rescue marketplace with active merchants and real buyers",
+      "Marketplace + mobile app + admin executed and operated end-to-end",
+      "Product decisions forged under real local-commerce friction",
+      "not a demo"
+    ],
+    "architecture": {
+      "nodes": [
+        "Storefront",
+        "Catalog",
+        "Orders",
+        "Merchant Console",
+        "Payments"
+      ],
+      "flow": [
+        "Browse",
+        "Reserve",
+        "Checkout",
+        "Pick up",
+        "Settle"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783481164238-iconmaster-android.png",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783567942085-fc0095c9-66a8-47ab-ade1-35d4c73e843e.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783524945590-51101099-d58c-42cb-afa6-95e8548d946c.webp",
+        "https://media.jpamorosi.dev/uploads/1783524946931-dfda627a-49e3-4dcb-b095-55f566d36d28.webp",
+        "https://media.jpamorosi.dev/uploads/1783524948499-03a6041b-bb62-4f8e-8824-3036d4eb4838.webp"
+      ],
+      "heroVideo": "https://media.jpamorosi.dev/uploads/1783549794225-buenpickvideo1.mp4"
+    },
+    "theme": {
+      "accent": "#00e0a4",
+      "secondary": "#00ff88",
+      "glow": "rgba(0, 224, 164, 0.20)",
+      "mood": "commerce"
+    },
+    "aiSummary": "BuenPick is a live food-rescue local-commerce startup with active merchants — founder-level execution across marketplace, mobile and admin, shipped beyond prototype.",
+    "links": {
+      "playstore": "https://play.google.com/store/apps/details?id=ar.com.buenpick.app",
+      "website": "https://buenpick.com.ar/"
+    },
+    "updatedAt": "2026-07-09T03:56:51.138Z"
+  },
+  {
+    "id": "lumenscript",
+    "slug": "lumenscript",
+    "tier": "hall_of_fame",
+    "status": "Platformizing",
+    "published": true,
+    "sortOrder": 30,
+    "title": "LumenScript",
+    "labTitle": "LumenScript — AI Writing Platform & Orchestration Engine",
+    "category": "AI Systems Architecture",
+    "oneLiner": "An AI-native writing platform and multi-model orchestration engine — routing intent across models with memory, canon and evaluation loops.",
+    "proof": "Not a prompt wrapper. Real AI architecture: multi-model orchestration, project memory and canon, and evaluation loops that judge output before it ships — heading toward BYOK via OpenRouter.",
+    "role": [
+      "AI Architect",
+      "Systems Design",
+      "Full-Stack"
+    ],
+    "stack": [
+      "Multi-model Orchestration",
+      "Memory / Canon",
+      "Evaluation Loops",
+      "OpenRouter / BYOK",
+      "RAG",
+      "Python"
+    ],
+    "highlights": [
+      "Multi-model orchestration routes each task to the right model by capability, cost and latency",
+      "Project memory + canon keep long-form generation consistent instead of drifting",
+      "Evaluation loops score and refine output instead of trusting a single pass",
+      "Platform direction: OpenRouter/BYOK so teams bring their own keys and models"
+    ],
+    "architecture": {
+      "nodes": [
+        "Intent Router",
+        "Model Selector",
+        "Memory / Canon",
+        "Evaluation Loop",
+        "RAG"
+      ],
+      "flow": [
+        "Request",
+        "Route intent",
+        "Select model",
+        "Generate",
+        "Evaluate & refine"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783482890413-3e8743a3-a00c-4105-b690-158e097b6967.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783482720890-0b9ae6c5-6018-4505-b47b-4d2f599e5d9b.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783526824974-49d7fb56-b225-4d60-8a97-66e2f9b3b0c8.webp",
+        "https://media.jpamorosi.dev/uploads/1783526826533-d7891822-09c3-4719-b452-77e15cb52909.webp",
+        "https://media.jpamorosi.dev/uploads/1783526827961-ff9b8fdd-32ae-41b7-ab87-88dd8c264786.webp"
+      ],
+      "heroVideo": "https://media.jpamorosi.dev/uploads/1783549811427-lsvideo2.mp4"
+    },
+    "theme": {
+      "accent": "#f0a500",
+      "secondary": "#14130f",
+      "glow": "rgba(240,165,0,0.2)",
+      "mood": "ai-engine"
+    },
+    "aiSummary": "LumenScript is the flagship: a multi-model orchestration engine with memory, canon and evaluation loops — AI architecture, not a prompt wrapper, built toward a BYOK platform.",
+    "links": {
+      "demo": "https://lumenscript.jpamorosi.dev/"
+    },
+    "updatedAt": "2026-07-09T03:56:51.142Z"
+  },
+  {
+    "id": "trading-ecosystem",
+    "slug": "trading-ecosystem",
+    "tier": "featured",
+    "status": "R&D",
+    "published": true,
+    "sortOrder": 10,
+    "title": "Trading Ecosystem",
+    "labTitle": "Trading Ecosystem — Financial AI R&D",
+    "category": "Trading & Fintech",
+    "oneLiner": "Leviathan: a quant R&D platform fusing market intelligence (whales, news, sentiment), Strategy-Pattern backtesting and rules-based risk management.",
+    "proof": "Honest quant engineering: async FastAPI services, modular strategies, and a strict Risk Manager governing every signal — built to validate edge, not to promise returns.",
+    "role": [
+      "Systems Design",
+      "AI/ML",
+      "Research"
+    ],
+    "stack": [
+      "Python",
+      "FastAPI",
+      "PostgreSQL",
+      "Backtesting",
+      "Risk Management"
+    ],
+    "highlights": [
+      "Market intelligence layer fuses whale activity, news and sentiment signals",
+      "Modular backtesting framework (Strategy Pattern) for pluggable strategies",
+      "Rules-based Risk Manager governs every signal before execution",
+      "Async, decoupled FastAPI architecture designed for testability"
+    ],
+    "architecture": {
+      "nodes": [
+        "Dataset Creator",
+        "Backtest Framework",
+        "LLM Strategy",
+        "Risk Manager"
+      ],
+      "flow": [
+        "Ingest",
+        "Enrich",
+        "Backtest",
+        "Signal",
+        "Risk gate"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783480669526-21b6823b-1724-4fe1-8279-63f1a68bac7a.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783480563061-chatgpt-image-8-jul-2026-12-15-41-a-m.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783532570293-1334b1e6-b2f4-44ef-915a-9f6dfb48f855.webp",
+        "https://media.jpamorosi.dev/uploads/1783532573297-f558955d-0ecb-4fbc-a0c0-645ace965556.webp",
+        "https://media.jpamorosi.dev/uploads/1783532574414-638778dc-7b4b-40b2-90f3-1b37f96f23f7.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#0070f3",
+      "secondary": "#00f2ff",
+      "glow": "rgba(0,112,243,0.2)",
+      "mood": "ai-engine"
+    },
+    "aiSummary": "The Trading Ecosystem shows Juan's depth in financial AI systems design and disciplined R&D pivots.",
+    "links": {
+      "github": "https://github.com/johnitto9/Trading-bot"
+    },
+    "updatedAt": "2026-07-09T03:56:58.777Z"
+  },
+  {
+    "id": "delify",
+    "slug": "delify",
+    "tier": "featured",
+    "status": "Live",
+    "published": true,
+    "sortOrder": 20,
+    "title": "Delify",
+    "labTitle": "Delify — Commerce Platform",
+    "category": "Product & Startup Execution",
+    "oneLiner": "A founder-built e-commerce platform running for real businesses — catalog, orders and payments owned end to end.",
+    "proof": "Founder execution: a live e-commerce serving real merchants, with full-stack ownership from infrastructure to checkout UX.",
+    "role": [
+      "Founder",
+      "Full-Stack"
+    ],
+    "stack": [
+      "Next.js",
+      "PostgreSQL",
+      "E-commerce",
+      "Payments"
+    ],
+    "highlights": [
+      "Live e-commerce platform serving real merchants",
+      "Catalog, orders and payments owned end to end",
+      "Full-stack ownership: infra, backend, storefront UX",
+      "The commerce foundation that later spawned the Delibot agent layer"
+    ],
+    "architecture": {
+      "nodes": [],
+      "flow": []
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783477345876-590420239-17950745850048642-3764914779640308176-n.jpg",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783481503028-e2fcd006-9c28-4eda-8a96-a701c7cbdde4.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783534201834-4ae2cf58-0233-4de0-a3fa-6f789062c9df.webp",
+        "https://media.jpamorosi.dev/uploads/1783534202907-01aebc7b-efaa-4847-ba81-100ee60fdc9c.webp",
+        "https://media.jpamorosi.dev/uploads/1783534204032-cb2ac159-737b-432e-8449-7dc218d74b4d.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#ff046e",
+      "secondary": "#f258f1",
+      "glow": "rgba(255,4,110,0.2)",
+      "mood": "commerce"
+    },
+    "aiSummary": "Delify is a live WhatsApp-first commerce platform, reinforcing Juan's founder execution track record.",
+    "links": {
+      "website": "https://delify.com.ar"
+    },
+    "updatedAt": "2026-07-09T03:56:58.779Z"
+  },
+  {
+    "id": "recapp-azure",
+    "slug": "recapp-azure",
+    "tier": "featured",
+    "status": "Prototype",
+    "published": true,
+    "sortOrder": 30,
+    "title": "RecApp / Azure PoC",
+    "labTitle": "RecApp — AI Orchestrator (Azure)",
+    "category": "Cloud & Enterprise",
+    "oneLiner": "An enterprise AI claims analyzer for insurance: an Intent Router on Azure OpenAI classifies each claim and hands it to a specialized agent for a structured answer.",
+    "proof": "Enterprise cloud AI: intent classification over Azure OpenAI, specialized agents per claim type, and local RAG (MiniLM + ChromaDB) grounding answers in a knowledge base.",
+    "role": [
+      "AI Orchestrator",
+      "Cloud Architecture"
+    ],
+    "stack": [
+      "Azure",
+      "FastAPI",
+      "Intent Router",
+      "ChromaDB"
+    ],
+    "highlights": [
+      "Intent Router classifies claims and routes them to specialist AI agents",
+      "Azure OpenAI SDK integration — enterprise-grade cloud architecture",
+      "Local RAG: MiniLM embeddings + ChromaDB over an insurance knowledge base",
+      "FastAPI backend with a clean single-page front (Tailwind)"
+    ],
+    "architecture": {
+      "nodes": [
+        "Intent Router",
+        "Agent Pool",
+        "Azure Services",
+        "Workflow Engine"
+      ],
+      "flow": [
+        "Request",
+        "Route",
+        "Dispatch agents",
+        "Orchestrate",
+        "Respond"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783481020129-5e3573f5-65b7-4c68-9a3f-c0680a1fdf31.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783480877813-d03d82f5-7053-4ee5-9493-0774772a525f.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783535851661-27710891-551c-4859-a70d-f2e9570e665f.webp",
+        "https://media.jpamorosi.dev/uploads/1783535853788-622ff371-e0bd-4783-b9b0-362e7cd90c73.webp",
+        "https://media.jpamorosi.dev/uploads/1783535854739-ec685cea-6682-489a-9be3-e92cc057a825.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#0070f3",
+      "secondary": "#00f2ff",
+      "glow": "rgba(0, 112, 243, 0.16)",
+      "mood": "ops"
+    },
+    "aiSummary": "RecApp is Juan's enterprise AI Orchestrator PoC on Azure, proving cloud multi-agent architecture skills.",
+    "links": {
+      "github": "https://github.com/johnitto9/RecApp-Premium"
+    },
+    "updatedAt": "2026-07-09T03:56:58.783Z"
+  },
+  {
+    "id": "delibot",
+    "slug": "delibot",
+    "tier": "featured",
+    "status": "Live",
+    "published": true,
+    "sortOrder": 40,
+    "title": "Delibot",
+    "labTitle": "Delibot — Production Resilience",
+    "category": "AI Automation",
+    "oneLiner": "A full-stack WhatsApp e-commerce agent using a Tool-First Architecture to eradicate hallucinations.",
+    "proof": "Production reliability: an LLM acts as an intent router selecting deterministic tools, so every operation is predictable and fact-based.",
+    "role": [
+      "AI Architect",
+      "Full-Stack"
+    ],
+    "stack": [
+      "Tool-First Architecture",
+      "WhatsApp API",
+      "ChromaDB",
+      "SQLAlchemy",
+      "Python"
+    ],
+    "highlights": [
+      "Tool-First Architecture eliminates AI hallucinations in actions",
+      "LLM as intent router selecting deterministic tools (e.g. AddToCart)",
+      "RAG over product catalog with ChromaDB",
+      "Deterministic cart/order operations persisted with SQLAlchemy"
+    ],
+    "architecture": {
+      "nodes": [
+        "Intent Router",
+        "Tool Registry",
+        "Catalog RAG",
+        "Cart Engine",
+        "WhatsApp Gateway"
+      ],
+      "flow": [
+        "Message",
+        "Route intent",
+        "Select tool",
+        "Execute",
+        "Reply"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783482256284-3918c539-1d14-47db-a792-f03861d4ea85.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783482251970-4089ab2a-8d84-47ca-aa06-a2fb17a27a96.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783535241574-9e28843c-3ed0-4299-9f45-c49fa6f8a34a.webp",
+        "https://media.jpamorosi.dev/uploads/1783535242645-2b1f0368-98d3-47b2-aa76-80c64d6b9543.webp",
+        "https://media.jpamorosi.dev/uploads/1783535243688-2ae4d6de-a282-4342-9bbc-2d422167bda9.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#00ff88",
+      "secondary": "#8b5cf6",
+      "glow": "rgba(0, 255, 136, 0.18)",
+      "mood": "commerce"
+    },
+    "aiSummary": "Delibot proves Juan's anti-hallucination Tool-First Architecture for reliable production AI agents.",
+    "links": {
+      "demo": "https://delify.com.ar"
+    },
+    "updatedAt": "2026-07-09T03:56:58.786Z"
+  },
+  {
+    "id": "dataset-creator",
+    "slug": "dataset-creator",
+    "tier": "archive",
+    "status": "R&D",
+    "published": true,
+    "sortOrder": 70,
+    "title": "Dataset Creator",
+    "labTitle": "Dataset Creator — Market Data Refinery",
+    "category": "Data Engineering",
+    "oneLiner": "A Python ETL pipeline that turns raw market data into context-enriched JSONL datasets for fine-tuning specialized trading AI models.",
+    "proof": "Transforms noisy market data into consistent, context-rich training examples, reducing manual curation and making specialized AI fine-tuning workflows reproducible.",
+    "role": [
+      "Data Engineering",
+      "Python Development",
+      "AI Pipeline Design"
+    ],
+    "stack": [
+      "Python",
+      "Pandas",
+      "LLM APIs",
+      "JSONL"
+    ],
+    "highlights": [
+      "Automated ETL processing of raw market data",
+      "LLM-powered contextual enrichment",
+      "Structured normalization with quality filtering",
+      "Training-ready JSONL for fine-tuning workflows"
+    ],
+    "architecture": {
+      "nodes": [
+        "Raw Market Data",
+        "ETL Processor",
+        "LLM Enrichment",
+        "Quality Filter",
+        "JSONL Builder"
+      ],
+      "flow": [
+        "Ingest raw data",
+        "Normalize & structure",
+        "Enrich with LLM context",
+        "Filter for quality",
+        "Emit fine-tuning JSONL"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783485084576-25c2599e-d33c-4db4-9f0c-8e147749bf06.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783485082579-gjklhlhn.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783536435695-a866e29c-766f-466e-87a9-51d6fe67293d.webp",
+        "https://media.jpamorosi.dev/uploads/1783536436680-1190a151-f8fc-41d5-82dd-b091d5356d08.webp",
+        "https://media.jpamorosi.dev/uploads/1783536437660-cfe5d0cd-4212-4dd1-b10f-5d4915b45e70.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#addd0b",
+      "secondary": "#ffffff",
+      "glow": "rgba(173,221,11,0.2)",
+      "mood": "ai-engine"
+    },
+    "aiSummary": "Dataset Creator reflects Juan's pragmatic approach to AI infrastructure: a focused Python pipeline that converts raw market information into structured, context-enriched training data for specialized models.",
+    "links": {
+      "github": "https://github.com/johnitto9/datasetcreator-v1"
+    },
+    "createdAt": "2026-07-08T04:37:39.300Z",
+    "updatedAt": "2026-07-08T18:47:20.431Z"
+  },
+  {
+    "id": "ai-lab-runpod",
+    "slug": "ai-lab-runpod",
+    "tier": "archive",
+    "status": "R&D",
+    "published": true,
+    "sortOrder": 80,
+    "title": "AI Lab (RunPod)",
+    "labTitle": "AI Lab — Distributed Inference R&D",
+    "category": "Personal R&D",
+    "oneLiner": "A distributed RAG lab split in two: a local 'brain' orchestrating the pipeline and a RunPod GPU 'muscle' serving 4-bit quantized inference.",
+    "proof": "MLOps discipline: total separation of orchestration and inference, VRAM-safe model loading, and embedding parity between the local FAISS knowledge base and the remote /embed endpoint.",
+    "role": [
+      "MLOps",
+      "Research"
+    ],
+    "stack": [
+      "MLOps",
+      "RunPod",
+      "NVIDIA 3090",
+      "4-bit Quantization",
+      "RAG"
+    ],
+    "highlights": [
+      "'Brain & Muscle' split: local orchestrator + Dockerized RunPod inference server",
+      "ModelManager 'VRAM dance' loads 4-bit quantized models without OOM crashes",
+      "FAISS knowledge base with embedding parity between local build and remote /embed",
+      "Build → verify locally → deploy: Docker images tested before touching the GPU"
+    ],
+    "architecture": {
+      "nodes": [],
+      "flow": []
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783483110379-e0d8f4e2-cf4e-47d4-a89c-d66124bc250d.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783483038051-5e37fdb9-495d-4af9-b69a-d11cece46a65.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783536474687-00e13a21-053e-40e0-a32f-0018623f088f.webp",
+        "https://media.jpamorosi.dev/uploads/1783536475819-c805584c-097b-4a1b-bc75-28c4fa265485.webp",
+        "https://media.jpamorosi.dev/uploads/1783536476801-bae40236-a253-4b73-9d3f-8106e19f6293.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#8b5cf6",
+      "secondary": "#00f2ff",
+      "glow": "rgba(139, 92, 246, 0.16)",
+      "mood": "archive"
+    },
+    "aiSummary": "The RunPod AI Lab shows Juan's MLOps approach to cost-efficient distributed inference.",
+    "links": {
+      "github": "https://github.com/johnitto9/RunPod-IA-lab"
+    },
+    "updatedAt": "2026-07-08T18:48:01.647Z"
+  },
+  {
+    "id": "kaelos-legal",
+    "slug": "kaelos-legal",
+    "tier": "archive",
+    "status": "R&D",
+    "published": true,
+    "sortOrder": 90,
+    "title": "Kaelos",
+    "labTitle": "Kaelos — Legal Agentic System",
+    "category": "AI Systems",
+    "oneLiner": "A RAG-based agentic system performing semantic analysis over large volumes of legal documents.",
+    "proof": "Domain agility: repurposing a mastered AI stack to solve high-impact problems in the legal domain.",
+    "role": [
+      "AI Architect"
+    ],
+    "stack": [
+      "RAG",
+      "Vector Databases",
+      "AI Agents",
+      "Semantic Analysis"
+    ],
+    "highlights": [
+      "RAG architecture over large legal document sets",
+      "Semantic analysis for high-impact legal problems",
+      "Fast repurposing of an existing tech stack to a new domain",
+      "Chunking and vector search tuned for long, dense legal texts"
+    ],
+    "architecture": {
+      "nodes": [],
+      "flow": []
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783483595484-chatgpt-image-8-jul-2026-01-06-29-a-m.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783483464187-0e5b2fcb-1295-4bb8-8bb3-32fbfd23dc46.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783536888071-1f98f5a8-c3e1-45a2-9a88-4472aaa79812.webp",
+        "https://media.jpamorosi.dev/uploads/1783536889845-1352b43c-59fd-4e05-b4fa-27c0a46dc882.webp",
+        "https://media.jpamorosi.dev/uploads/1783536890841-27beddf3-cd71-4981-8bed-e4a73668f046.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#00a5a2",
+      "secondary": "#00091c",
+      "glow": "rgba(0,165,162,0.2)",
+      "mood": "archive"
+    },
+    "aiSummary": "Kaelos shows Juan applying RAG agentic systems to the legal domain with fast stack reuse.",
+    "links": {},
+    "updatedAt": "2026-07-08T18:54:52.731Z"
+  },
+  {
+    "id": "code-saver",
+    "slug": "code-saver",
+    "tier": "archive",
+    "status": "R&D",
+    "published": true,
+    "sortOrder": 100,
+    "title": "Code Saver",
+    "labTitle": "Code Saver — AI-Dev Meta Tool",
+    "category": "Developer Tools",
+    "oneLiner": "A GUI tool that consolidates a whole codebase into a single prompt to accelerate AI-assisted development.",
+    "proof": "Meta-efficiency: removes a key bottleneck in AI-assisted analysis, debugging and refactoring.",
+    "role": [
+      "Tool Builder"
+    ],
+    "stack": [
+      "Developer Tools",
+      "PySide6",
+      "Prompt Optimization"
+    ],
+    "highlights": [
+      "Extracts and consolidates an entire codebase into one prompt",
+      "Accelerates analysis, debugging and refactoring cycles",
+      "Desktop GUI built with PySide6",
+      "Output shaped for LLM context windows: filtered noise, ordered files, one paste"
+    ],
+    "architecture": {
+      "nodes": [],
+      "flow": []
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1783484198147-2e27599b-b3d6-4fde-8585-7a67286dfb76.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1783484144527-f29d550b-74d3-4b72-94d8-64ac1d592ee9.webp",
+      "screenshots": [
+        "https://media.jpamorosi.dev/uploads/1783536717168-aacd420e-2440-4c6b-81a9-8c76c33a34fa.webp",
+        "https://media.jpamorosi.dev/uploads/1783536718690-d05fb3b4-0d18-4f58-9355-0c10aee3ce74.webp",
+        "https://media.jpamorosi.dev/uploads/1783536719683-fb1b00ac-92cc-4db3-b87d-4c0fb86fc207.webp"
+      ]
+    },
+    "theme": {
+      "accent": "#395bdd",
+      "secondary": "#131649",
+      "glow": "rgba(57,91,221,0.2)",
+      "mood": "archive"
+    },
+    "aiSummary": "Code Saver is Juan's meta-efficiency tool for faster AI-assisted development workflows.",
+    "links": {
+      "github": "https://github.com/johnitto9/CodeExtractor-PySide6"
+    },
+    "updatedAt": "2026-07-08T18:52:25.386Z"
+  }
+]

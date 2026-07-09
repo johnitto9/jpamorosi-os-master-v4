@@ -51,3 +51,6 @@ RecApp-Premium-master/
 RunPod-IA-lab-master/
 Trading-bot-master/
 datasetcreator-v1-master/
+
+# local DB backups (never commit dumps)
+backups/
