@@ -256,6 +256,12 @@ async function completeAndParse(
     // tolerate models that wrap JSON in code fences
     const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
     const parsed = llmReplySchema.parse(JSON.parse(jsonText));
+    // Valid JSON but blank message (seen in prod: {"message":" "}) — a mute
+    // bubble is worse than the deterministic fallback, treat as failure.
+    if (!parsed.message?.trim()) {
+      await logAiCall({ sessionId, model: llmModel(), ok: false, latencyMs: Date.now() - t0, error: "blank_message" });
+      return null;
+    }
     await logAiCall({ sessionId, model: llmModel(), ok: true, latencyMs: Date.now() - t0 });
     return parsed;
   } catch (err) {

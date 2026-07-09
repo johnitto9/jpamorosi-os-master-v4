@@ -55,6 +55,12 @@ async function completeOnce(
         max_tokens: maxTokens,
         // ask for strict JSON; the orchestrator still validates defensively
         response_format: { type: "json_object" },
+        // GLM-5.2 spends a variable (often huge) reasoning budget: measured
+        // 13.3s default vs 5.2s effort:low for the SAME trivial prompt from
+        // the prod container (2026-07-09). Long tour prompts blew past the
+        // 25s timeout and every one fell back deterministically. Low effort
+        // keeps tool/JSON quality but stays far inside the timeout.
+        reasoning: { effort: "low" },
       }),
     });
     if (!res.ok) {
