@@ -27,7 +27,11 @@ async function loadWith(extra: Record<string, string>) {
 }
 
 describe("env per-field recovery", () => {
-  afterEach(() => vi.resetModules());
+  // Braces matter: vi.resetModules() returns VitestUtils, which tsc rejects
+  // as an afterEach return value (not Awaitable<void>).
+  afterEach(() => {
+    vi.resetModules();
+  });
 
   it("keeps valid vars when one optional var is malformed", async () => {
     const { env, isEmailConfigured, isR2Configured, isInternalToken } = await loadWith({
