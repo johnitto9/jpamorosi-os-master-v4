@@ -81,6 +81,15 @@ const nextConfig = {
         { source: '/preview', destination: to('/preview') },
         { source: '/preview/:path*', destination: to('/preview/:path*') },
       ],
+      // Proxied /admin & /preview HTML references chunks from the BACKEND's
+      // build (/_next/static/<backendBuildId>/…) which don't exist in the
+      // Vercel deployment → 404 → unstyled admin with dead JS (magic-link form
+      // never fired). afterFiles runs only when Vercel's own filesystem has no
+      // match, so Vercel keeps serving its own assets and only the backend's
+      // hashed chunks fall through to the proxy.
+      afterFiles: [
+        { source: '/_next/static/:path*', destination: to('/_next/static/:path*') },
+      ],
     };
   },
 
