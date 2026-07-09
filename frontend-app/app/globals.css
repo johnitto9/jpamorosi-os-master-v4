@@ -368,3 +368,32 @@ button[style*="position: fixed"][style*="z-index: 99999"] {
   display: none !important;
   visibility: hidden !important;
 }
+
+/* --- lab-skeleton: premium shimmer for loading media/blocks (BP-parity) --- */
+@keyframes lab-skeleton-sweep {
+  100% { transform: translateX(100%); }
+}
+.lab-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.04);
+  isolation: isolate;
+}
+.lab-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 242, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(139, 92, 246, 0.06) 55%,
+    transparent 100%
+  );
+  animation: lab-skeleton-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-skeleton::after { animation: none; }
+}

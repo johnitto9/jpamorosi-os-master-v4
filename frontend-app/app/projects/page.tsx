@@ -7,6 +7,7 @@ import { SceneSetter } from "@/components/visual/SceneController";
 import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { getPublicGroupedAuto } from "@/lib/projects/public-projects";
 import { LanguageSwitch } from "@/components/ui/language-switch";
+import { JsonLd, collectionJsonLd, breadcrumbJsonLd } from "@/lib/jsonld";
 import { getDict } from "@/lib/i18n/server";
 import { localizeProjects } from "@/lib/i18n/translate";
 
@@ -33,6 +34,11 @@ export default async function ProjectsIndexPage() {
       {/* Base palette for the index — the Hall carousel below promotes the
           selected flagship's brand color on top of this when it mounts. */}
       <SceneSetter palette={["#1E67C6", "#8b5cf6", "#00f2ff", "#00e0a4"]} />
+      <JsonLd data={collectionJsonLd([...hall, ...featured, ...archive])} />
+      <JsonLd data={breadcrumbJsonLd([
+        { name: "Amorosi Labs", path: "/" },
+        { name: "Project Rooms", path: "/projects" },
+      ])} />
       <LanguageSwitch />
       <div className="mx-auto max-w-6xl px-6 pt-16">
         <Link

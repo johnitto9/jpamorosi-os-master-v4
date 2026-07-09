@@ -10,6 +10,9 @@ import { SceneSetter } from "@/components/visual/SceneController";
 import { ScrollStage } from "@/components/ui/scroll-stage";
 import { getLang } from "@/lib/i18n/server";
 import { LanguageSwitch } from "@/components/ui/language-switch";
+import { pageMetadata } from "@/lib/seo";
+import { JsonLd, projectJsonLd, breadcrumbJsonLd } from "@/lib/jsonld";
+import { resolveMediaUrl } from "@/lib/media/resolve";
 import { localizeProjects } from "@/lib/i18n/translate";
 
 // SAME content source as the home (auto: live repo in Docker/dev, static seed
@@ -25,17 +28,12 @@ export async function generateMetadata({
   const { slug } = await params;
   const project = await getPublicProjectBySlugAuto(slug);
   if (!project) return { title: "Project not found — Amorosi Labs" };
-  return {
-    title: `${project.title} — Amorosi Labs`,
+  return pageMetadata({
+    title: `${project.title} — ${project.category} · Amorosi Labs`,
     description: project.oneLiner,
-    alternates: { canonical: `/projects/${project.slug}` },
-    openGraph: {
-      title: `${project.title} — Amorosi Labs`,
-      description: project.oneLiner,
-      url: `/projects/${project.slug}`,
-      images: project.assets.heroImage ? [{ url: project.assets.heroImage }] : undefined,
-    },
-  };
+    path: `/projects/${project.slug}`,
+    image: resolveMediaUrl(project.assets.heroImage) ?? undefined,
+  });
 }
 
 export default async function ProjectRoomPage({
@@ -75,6 +73,13 @@ export default async function ProjectRoomPage({
   return (
     <ScrollStage className="no-scrollbar h-full w-full scroll-smooth overflow-y-auto overflow-x-hidden text-primary-text antialiased">
       <SceneSetter palette={palette} />
+      {/* structured data: the room as a CreativeWork + breadcrumb trail */}
+      <JsonLd data={projectJsonLd(project)} />
+      <JsonLd data={breadcrumbJsonLd([
+        { name: "Amorosi Labs", path: "/" },
+        { name: "Project Rooms", path: "/projects" },
+        { name: project.title, path: `/projects/${project.slug}` },
+      ])} />
       <LanguageSwitch />
       <ProjectRoom project={project} related={related} />
       <AssistantWidget />

@@ -281,7 +281,7 @@ function InterludeImage({ src, accent, emoji, className }: { src: string; accent
     return () => io.disconnect();
   }, [finalSrc, isVideo, failed]);
   return (
-    <div aria-hidden className={cn("relative overflow-hidden rounded-2xl border bg-white/[0.03]", a.border, className)} style={{ boxShadow: a.glow }}>
+    <div aria-hidden className={cn("lab-skeleton relative overflow-hidden rounded-2xl border bg-white/[0.03]", a.border, className)} style={{ boxShadow: a.glow }}>
       {failed ? (
         <div className="flex h-full w-full items-center justify-center" style={{ background: a.ph }}>
           <span className="select-none text-5xl opacity-70">{emoji}</span>
