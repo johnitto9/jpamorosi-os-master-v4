@@ -60,7 +60,7 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      APP_ENV: local
+      APP_ENV: ${APP_ENV:-local}
       # SOURCE OF TRUTH (2026-07-09): project content lives in Postgres
       # (`projects` table, migrated from the live JSON — see
       # scripts/migrate-projects-json-to-postgres.ts). The old JSON at
@@ -78,9 +78,16 @@ services:
       # House image model for ALL generation (logos, mockups, home, screens,
       # storyboards) via OpenRouter's /api/v1/images endpoint.
       OPENROUTER_IMAGE_MODEL: bytedance-seed/seedream-4.5
-    # Provides ADMIN_* / OPENROUTER_* secrets. Copy .env.docker.local.example first.
+    # ENV LAYERING (deliberate order — in Compose, LATER env_file entries WIN
+    # for duplicated keys):
+    #   1. ./frontend-app/.env.docker.local  -> local lab secrets (gitignored)
+    #   2. ./.env                            -> Dokploy "Environment" tab writes
+    #      this file next to the compose; listing it LAST lets production
+    #      govern every value without a File Mount. Absent locally = no-op.
     env_file:
       - path: ./frontend-app/.env.docker.local
+        required: false
+      - path: ./.env
         required: false
     volumes:
       - amorosi_backend_data:/app/data
@@ -147,9 +154,12 @@ services:
       BACKEND_URL: http://amorosi-backend:3000
       HEALTH_INTERVAL_S: "60"
       SCOUT_HOUR: "9"
-    # INTERNAL_API_TOKEN comes from the same env_file as the backend
+    # INTERNAL_API_TOKEN comes from the same layered env as the backend
+    # (local file first, Dokploy ./.env last so production wins).
     env_file:
       - path: ./frontend-app/.env.docker.local
+        required: false
+      - path: ./.env
         required: false
     depends_on:
       amorosi-backend:
