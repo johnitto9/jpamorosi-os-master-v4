@@ -3,6 +3,12 @@
 // Security headers
 const mediaCdnOrigin = process.env.NEXT_PUBLIC_MEDIA_CDN_BASE || 'https://media.jpamorosi.dev';
 
+// The proxied /admin & /preview HTML loads its CSS/JS/fonts from the backend's
+// own origin (assetPrefix, see below) — CSP with bare 'self' blocked them all
+// and the admin rendered as bare 90s HTML. Only set on deployments that proxy
+// (Vercel); empty locally → CSP unchanged.
+const backendCspOrigin = (process.env.BACKEND_PUBLIC_ORIGIN || '').replace(/\/+$/, '');
+
 const securityHeaders = [
   {
     key: 'Strict-Transport-Security',
@@ -28,13 +34,13 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com data:",
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com ${backendCspOrigin}`.trim(),
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${backendCspOrigin}`.trim(),
+      `font-src 'self' https://fonts.gstatic.com data: ${backendCspOrigin}`.trim(),
       "img-src 'self' data: blob: https:",
       `media-src 'self' data: blob: ${mediaCdnOrigin}`,
       // 🔑 FIX: permitimos llamadas a Formspree y mantenemos Vercel
-      "connect-src 'self' blob: data: https://formspree.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      `connect-src 'self' blob: data: https://formspree.io https://va.vercel-scripts.com https://vitals.vercel-insights.com ${backendCspOrigin}`.trim(),
       // (Opcional pero recomendado si alguna vez usás <form action="https://formspree.io/...">)
       "form-action 'self' https://formspree.io",
       "frame-ancestors 'none'",
