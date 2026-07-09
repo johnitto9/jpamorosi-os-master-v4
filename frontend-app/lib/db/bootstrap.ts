@@ -291,23 +291,48 @@ CREATE INDEX IF NOT EXISTS visual_plans_project_idx ON visual_plans (project_id,
 let ready: Promise<void> | null = null;
 let vectorAvailable = false;
 
-/** True once the pgvector extension was successfully enabled this process. */
+/** Process-local snapshot (sync callers). May lag reality until the next
+ *  checkVectorAvailable() — prefer that in status/reporting paths. */
 export function isVectorAvailable(): boolean {
   return vectorAvailable;
 }
 
+/** REAL capability check, self-healing (prod bug 2026-07-09): a transient
+ *  CREATE EXTENSION failure — e.g. lock contention during a pg_restore
+ *  window — used to poison the process-local flag to `false` FOREVER while
+ *  the extension actually existed (vector 0.8.4 live, /api/status lying).
+ *  A positive result is cached; a negative one re-verifies against
+ *  pg_extension on every call, so the status recovers without a restart. */
+export async function checkVectorAvailable(): Promise<boolean> {
+  if (vectorAvailable) return true;
+  try {
+    const { rows } = await query<{ one: number }>(
+      "SELECT 1 AS one FROM pg_extension WHERE extname = 'vector' LIMIT 1",
+    );
+    vectorAvailable = rows.length > 0;
+  } catch {
+    /* DB down — keep false, next call retries */
+  }
+  return vectorAvailable;
+}
+
 /** Best-effort pgvector enable. The compose image (pgvector/pgvector:pg16)
- *  ships the extension; on a plain postgres this fails and we log ONCE and
- *  carry on — nothing in the MVP requires vectors yet. */
+ *  ships the extension; on a plain postgres the CREATE fails — but the
+ *  extension may STILL exist (created earlier / restored), so verify
+ *  existence before giving up on the capability. */
 async function tryEnableVector(): Promise<void> {
   try {
     await query("CREATE EXTENSION IF NOT EXISTS vector");
     vectorAvailable = true;
   } catch (err) {
     console.warn(
-      "[db] pgvector extension unavailable (keyword memory only):",
+      "[db] CREATE EXTENSION vector failed, probing pg_extension:",
       (err as Error).message.slice(0, 120),
     );
+    await checkVectorAvailable();
+    if (!vectorAvailable) {
+      console.warn("[db] pgvector extension unavailable (keyword memory only)");
+    }
   }
 }
 
