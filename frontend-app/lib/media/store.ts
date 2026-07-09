@@ -43,13 +43,21 @@ export type SiteSettings = {
   profileImage?: string;
 };
 
+// Bundled snapshot of the admin-curated settings (profile image, interlude
+// media — absolute R2/CDN URLs). Static surfaces (Vercel) have NO writable
+// volume, so without this fallback the hero/interludes rendered their bare
+// defaults in production. Refresh it when those change in the admin:
+//   docker exec <backend> cat /app/data/settings.json  (drop heroVideo)
+import bundledSettings from "@/content/site-settings.data.json";
+
 export async function getSiteSettings(): Promise<SiteSettings> {
   try {
     const raw = await fs.readFile(settingsFile(), "utf8");
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? (parsed as SiteSettings) : {};
   } catch {
-    return {};
+    // no volume (Vercel/static builds) -> the bundled admin snapshot
+    return bundledSettings as SiteSettings;
   }
 }
 
