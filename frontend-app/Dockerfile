@@ -26,6 +26,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Runtime smoke-test image: skip redundant type/lint check (still enforced by
 # local `pnpm build` and Vercel). See next.config.js / docs/DOCKER_READINESS.md.
 ENV DOCKER_BUILD=1
+# Absolute asset origin for THIS build (prod: https://api.jpamorosi.dev).
+# Vercel proxies /admin HTML from this image but 404s its hashed chunks at the
+# edge (x-matched-path: /_next/static/not-found.txt — rewrites never run for
+# static misses), so the HTML must point at the backend's own origin. Empty
+# (local lab) = same-relative-URLs as always.
+ARG BACKEND_ASSET_PREFIX=""
+ENV BACKEND_ASSET_PREFIX=$BACKEND_ASSET_PREFIX
 RUN pnpm build
 
 # ---- runner: minimal runtime image -----------------------------------------

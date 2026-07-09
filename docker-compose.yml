@@ -53,6 +53,11 @@ services:
     build:
       context: ./frontend-app
       dockerfile: Dockerfile
+      args:
+        # Prod (Dokploy env): https://api.jpamorosi.dev — the Vercel-proxied
+        # /admin HTML must load assets from the build that produced it (see
+        # Dockerfile). Empty locally = relative URLs, lab unchanged.
+        BACKEND_ASSET_PREFIX: ${BACKEND_ASSET_PREFIX:-}
     image: amorosi-labs-backend
     ports:
       # Loopback-only (security hardening 2026-07-09): public traffic reaches

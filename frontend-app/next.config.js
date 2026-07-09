@@ -68,6 +68,13 @@ const isDockerBuild = process.env.DOCKER_BUILD === '1';
 // runtime serves its own routes exactly as before.
 const backendOrigin = (process.env.BACKEND_PUBLIC_ORIGIN || '').replace(/\/+$/, '');
 
+// Backend (Docker) builds only: absolute asset origin, so /admin & /preview
+// HTML proxied through Vercel loads CSS/JS/fonts from the build that actually
+// produced them. Vercel's static layer 404s foreign hashed chunks BEFORE any
+// rewrite can run (x-matched-path: /_next/static/not-found.txt), so relative
+// asset URLs can never work for cross-deployment proxying.
+const backendAssetPrefix = (process.env.BACKEND_ASSET_PREFIX || '').replace(/\/+$/, '');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
@@ -81,15 +88,6 @@ const nextConfig = {
         { source: '/preview', destination: to('/preview') },
         { source: '/preview/:path*', destination: to('/preview/:path*') },
       ],
-      // Proxied /admin & /preview HTML references chunks from the BACKEND's
-      // build (/_next/static/<backendBuildId>/…) which don't exist in the
-      // Vercel deployment → 404 → unstyled admin with dead JS (magic-link form
-      // never fired). afterFiles runs only when Vercel's own filesystem has no
-      // match, so Vercel keeps serving its own assets and only the backend's
-      // hashed chunks fall through to the proxy.
-      afterFiles: [
-        { source: '/_next/static/:path*', destination: to('/_next/static/:path*') },
-      ],
     };
   },
 
@@ -98,6 +96,10 @@ const nextConfig = {
   // Vercel ignores it (uses its own output). Safe to enable. See
   // docs/DOCKER_READINESS.md for the rationale.
   output: 'standalone',
+
+  // Baked at build time in the Docker image only (see Dockerfile ARG); unset
+  // everywhere else → relative URLs exactly as before.
+  ...(backendAssetPrefix ? { assetPrefix: backendAssetPrefix } : {}),
 
   typescript: {
     // Strict everywhere except the Docker runtime image build.
@@ -120,7 +122,16 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: securityHeaders
-      }
+      },
+      // With an absolute assetPrefix, fonts/scripts load cross-origin from the
+      // proxied admin at www.* — public hashed assets, so a wildcard is safe
+      // and required (browsers block cross-origin font loads without it).
+      ...(backendAssetPrefix
+        ? [{
+            source: '/_next/static/(.*)',
+            headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }]
+          }]
+        : [])
     ];
   },
 
