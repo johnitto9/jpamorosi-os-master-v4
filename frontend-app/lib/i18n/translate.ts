@@ -63,8 +63,11 @@ export async function translateBatch(
   const result = new Map(entries.map((e) => [e.key, e.fields])); // EN floor
   if (lang === "en" || entries.length === 0) return result;
   // translation without a cache would re-pay the LLM on every request — the
-  // cache is a hard requirement, not an optimization
-  if (!(await dbReady())) return result;
+  // cache is a hard requirement, not an optimization. On env-less runtimes
+  // (Vercel: no DB, no LLM) the cache lives behind the backend instead —
+  // without this remote hop, prod project cards NEVER left English while the
+  // chrome switched languages around them.
+  if (!(await dbReady())) return remoteTranslateBatch(lang, entries, result);
 
   const hashes = new Map(entries.map((e) => [e.key, hashOf(e.fields)]));
   const cached = await tryQuery<{ cacheKey: string; sourceHash: string; payload: Fields }>(
@@ -102,6 +105,35 @@ export async function translateBatch(
 
 /** Keys currently being translated in the background (per process). */
 const inFlight = new Set<string>();
+
+/** Env-less runtime path (Vercel): ask the backend — which owns the Postgres
+ *  cache and the LLM — for its localized content map and merge by key. The
+ *  endpoint derives everything from the backend's OWN store (no client text
+ *  is translated → no LLM-abuse surface). Any failure → EN floor, never throw.
+ *  fetch data-cache (5 min per lang) keeps repeat language switches fast. */
+async function remoteTranslateBatch(
+  lang: Lang,
+  entries: Array<{ key: string; fields: Fields }>,
+  result: Map<string, Fields>,
+): Promise<Map<string, Fields>> {
+  const origin = (process.env.BACKEND_PUBLIC_ORIGIN || "").replace(/\/+$/, "");
+  if (!origin) return result;
+  try {
+    const res = await fetch(`${origin}/api/i18n/content?lang=${lang}`, {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(6_000),
+    });
+    if (!res.ok) return result;
+    const data = (await res.json()) as { entries?: Record<string, unknown> };
+    for (const e of entries) {
+      const out = data.entries?.[e.key];
+      if (sameShape(e.fields, out)) result.set(e.key, out);
+    }
+  } catch {
+    /* backend unreachable → English floor */
+  }
+  return result;
+}
 
 /** The actual LLM work + cache writes — detached from any request. */
 async function translateAndCache(
@@ -158,7 +190,7 @@ async function translateAndCache(
 
 /** What we translate of a project. Title/labTitle/stack/status stay canonical
  *  (brand identity + StatusBadge color keys + tech names). */
-function projectFields(p: Project): Fields {
+export function projectFields(p: Project): Fields {
   return {
     category: p.category,
     oneLiner: p.oneLiner,
