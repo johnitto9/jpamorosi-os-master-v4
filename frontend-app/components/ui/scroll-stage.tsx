@@ -100,8 +100,49 @@ export function ScrollStage({
     //    the correct scrollHeight/scrollTop on first paint.
     const raf = requestAnimationFrame(() => ScrollTrigger.refresh());
 
+    // 4. ANCHOR NAVIGATION THROUGH LENIS. Native scrollIntoView/hash-jump
+    //    animates wrapper.scrollTop while Lenis's raf keeps writing its own
+    //    value every frame — the two fight and the glide stops SHORT of the
+    //    target (every #contact link landed "un poco arriba"). All in-page
+    //    anchors must go through lenis.scrollTo, which owns the physics.
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
+
+    const scrollToHash = (hash: string) => {
+      const el = document.getElementById(decodeURIComponent(hash.replace(/^#/, "")));
+      if (!el) return false;
+      lenis.scrollTo(el, { offset: -8 });
+      return true;
+    };
+
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a[href]");
+      if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey) return;
+      const href = a.getAttribute("href") ?? "";
+      // "#id" always; "/#id" only when we're already on the home
+      const hash = href.startsWith("#")
+        ? href
+        : href.startsWith("/#") && window.location.pathname === "/"
+          ? href.slice(1)
+          : null;
+      if (!hash || hash === "#") return;
+      if (scrollToHash(hash)) {
+        e.preventDefault();
+        history.pushState(null, "", hash);
+      }
+    };
+    wrapper.addEventListener("click", onClick);
+
+    // arriving WITH a hash (e.g. /#contact from a project room): the native
+    // jump raced Lenis and stopped short — re-glide once layout settles.
+    const hashTimer = window.location.hash
+      ? window.setTimeout(() => scrollToHash(window.location.hash), 250)
+      : 0;
+
     return () => {
       cancelAnimationFrame(raf);
+      if (hashTimer) window.clearTimeout(hashTimer);
+      wrapper.removeEventListener("click", onClick);
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
       gsap.ticker.remove(tick);
       lenis.off("scroll", onLenisScroll);
       lenis.destroy();

@@ -131,7 +131,13 @@ export function ChapterNav({
 
   const go = (id: string) => {
     setPulseKey((k) => k + 1);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Lenis owns the scroll physics — scrollIntoView's native animation gets
+    // overwritten by Lenis's raf mid-flight and stops short of the target.
+    const lenis = (window as unknown as { __lenis?: { scrollTo: (t: Element, o?: { offset?: number }) => void } }).__lenis;
+    if (lenis) lenis.scrollTo(el, { offset: -8 });
+    else el.scrollIntoView({ behavior: "smooth", block: "start" }); // reduced-motion path
   };
 
   return (
