@@ -140,7 +140,10 @@ export default async function HomePage() {
 
       {/* Hiring conversion band */}
       <SectionTransition>
-      <section id="contact" className="mx-auto max-w-6xl scroll-mt-20 px-6 pb-8 pt-8">
+      {/* scroll-mt-2 (not 20): anchor lands ON the section — the 80px offset
+          was for a fixed header this page doesn't have, so /#contact and the
+          rail/Orbe links were stopping visibly short of the section. */}
+      <section id="contact" className="mx-auto max-w-6xl scroll-mt-2 px-6 pb-8 pt-8">
         <div className="relative overflow-hidden rounded-2xl border border-cyan-400/20 bg-white/[0.03] p-8 sm:p-12">
           {/* cyan/violet ambient */}
           <div
