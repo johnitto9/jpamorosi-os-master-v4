@@ -55,7 +55,12 @@ services:
       dockerfile: Dockerfile
     image: amorosi-labs-backend
     ports:
-      - "3001:3000"
+      # Loopback-only (security hardening 2026-07-09): public traffic reaches
+      # the backend via Traefik labels (api.jpamorosi.dev -> container:3000 on
+      # dokploy-network, verified); the host port exists only for local smoke
+      # tests. The previous "3001:3000" exposed the backend as plain HTTP on
+      # VPS_IP:3001 to the whole internet.
+      - "127.0.0.1:3001:3000"
     environment:
       NODE_ENV: production
       PORT: "3000"
