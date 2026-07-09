@@ -80,7 +80,7 @@ export default async function ProjectRoomPage({
         { name: "Project Rooms", path: "/projects" },
         { name: project.title, path: `/projects/${project.slug}` },
       ])} />
-      <LanguageSwitch />
+      <LanguageSwitch initial={lang} />
       <ProjectRoom project={project} related={related} />
       <AssistantWidget />
     </ScrollStage>

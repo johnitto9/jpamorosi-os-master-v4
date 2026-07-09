@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { AuroraLayer } from '@/components/visual/AuroraLayer'
 import { CookieConsent } from '@/components/CookieConsent'
+import { getLang } from '@/lib/i18n/server'
 import { CampaignCatcher } from '@/components/CampaignCatcher'
 
 // SEO Metadata
@@ -105,13 +106,16 @@ export const viewport = {
   viewportFit: 'cover'
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Follow the visitor (cookie -> geo -> accept-language); a hardcoded "en"
+  // told browsers/translators the Spanish SSR shell was English.
+  const lang = await getLang();
   return (
-    <html lang="en" className="dark">
+    <html lang={lang} className="dark">
       <head>
         {/* JSON-LD Structured Data */}
         <script

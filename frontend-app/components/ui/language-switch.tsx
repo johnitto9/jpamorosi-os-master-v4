@@ -14,19 +14,27 @@ import { LANGS, DEFAULT_LANG, DICTS, type Lang } from "@/lib/i18n/dictionaries";
 
 const NUDGE_KEY = "al_lang_nudge_done";
 
-function readLang(): Lang {
+function readLang(fallback: Lang): Lang {
   const m = document.cookie.match(/(?:^|;\s*)al_lang=([^;]+)/)?.[1];
-  return m && m in LANGS ? (m as Lang) : DEFAULT_LANG;
+  return m && m in LANGS ? (m as Lang) : fallback;
 }
 
-export function LanguageSwitch() {
+export function LanguageSwitch({ initial = DEFAULT_LANG }: { initial?: Lang } = {}) {
   const router = useRouter();
-  const [lang, setLang] = useState<Lang>(DEFAULT_LANG);
+  const [lang, setLang] = useState<Lang>(initial);
   const [open, setOpen] = useState(false);
   const [nudge, setNudge] = useState(false);
 
   useEffect(() => {
-    setLang(readLang());
+    // First visit has no cookie while the SERVER already geo-resolved the
+    // page language — without `initial` the pill said EN over a Spanish page
+    // (and client widgets reading the cookie disagreed with the SSR shell).
+    const resolved = readLang(initial);
+    setLang(resolved);
+    if (!document.cookie.includes("al_lang=")) {
+      document.cookie = `al_lang=${resolved}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+      window.dispatchEvent(new CustomEvent("al_lang_change"));
+    }
     if (!localStorage.getItem(NUDGE_KEY)) {
       const t = setTimeout(() => setNudge(true), 2500);
       const off = setTimeout(() => setNudge(false), 10_500);

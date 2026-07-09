@@ -74,7 +74,7 @@ export default async function HomePage() {
   return (
     // no `scroll-smooth` class here — Lenis (ScrollStage) owns scroll physics
     <ScrollStage className="no-scrollbar relative h-full w-full overflow-y-auto overflow-x-hidden text-primary-text antialiased">
-      <LanguageSwitch />
+      <LanguageSwitch initial={lang} />
       <ChapterNav
         labels={{
           intro: t.navIntro,

@@ -148,7 +148,10 @@ export function HallOfFameCard({
         <div className="relative mt-auto p-4 sm:p-5">
           <div className="rounded-xl border border-white/10 bg-black/70 p-4">
             <span
-              className="font-mono text-[10px] uppercase tracking-[0.3em]"
+              // block+truncate: translated categories ("AI EN PRODUCCIÓN ·
+              // MEDIOS LOCALES") wrapped to two spaced-out lines on phones and
+              // pushed the chips/CTA out of the aspect-locked card.
+              className="block truncate font-mono text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em]"
               style={{ color: theme.accent }}
             >
               {project.category}
@@ -172,7 +175,10 @@ export function HallOfFameCard({
               {project.oneLiner}
             </p>
 
-            <div className="mt-3 flex items-end justify-between gap-3">
+            {/* phones: STACK chips and CTA — side-by-side the shrink-0 CTA
+                (long localized labels) squeezed the chips into one tall
+                column that overflowed the card bottom. */}
+            <div className="mt-3 flex flex-col items-start gap-2.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
               {/* min-h reserves TWO chip rows on compact cards so siblings in a
                   carousel keep equal heights whether their labels wrap or not
                   (short-label stacks used to collapse to one row → shorter card).

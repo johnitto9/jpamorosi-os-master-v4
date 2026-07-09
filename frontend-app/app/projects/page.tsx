@@ -39,7 +39,7 @@ export default async function ProjectsIndexPage() {
         { name: "Amorosi Labs", path: "/" },
         { name: "Project Rooms", path: "/projects" },
       ])} />
-      <LanguageSwitch />
+      <LanguageSwitch initial={lang} />
       <div className="mx-auto max-w-6xl px-6 pt-16">
         <Link
           href="/"
