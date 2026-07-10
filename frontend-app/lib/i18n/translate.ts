@@ -143,10 +143,12 @@ async function translateAndCache(
   misses: Array<{ key: string; fields: Fields }>,
   hashes: Map<string, string>,
 ): Promise<void> {
-  // batched completions in small chunks so no reply outgrows its token budget
-  // (a whole project translates to ~250 output tokens; 3 per call is safe)
+  // ONE unit per call: 3-per-chunk kept truncating for verbose scripts
+  // (ru/ja/ko warmup looped finish_length → retry → timeout for a week on
+  // stale-hash entries). A single project ≈ 300-500 output tokens — never
+  // outgrows the budget; the warmup is background + one-time per edit.
   const language = LANGS[lang].label;
-  const CHUNK = 3;
+  const CHUNK = 1;
   for (let i = 0; i < misses.length; i += CHUNK) {
     const chunk = misses.slice(i, i + CHUNK);
     const raw = await chatCompletion(
