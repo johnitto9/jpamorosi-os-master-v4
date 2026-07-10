@@ -63,8 +63,10 @@
       "mood": "media"
     },
     "aiSummary": "BBN is an AI-assisted local media platform: lightweight production agents for editorial automation and ranking, proving low-cost applied AI that stays reliable.",
-    "links": {},
-    "updatedAt": "2026-07-09T03:56:51.134Z"
+    "links": {
+      "website": "https://bbnoticias.com/"
+    },
+    "updatedAt": "2026-07-10T02:58:55.344Z"
   },
   {
     "id": "buenpick",

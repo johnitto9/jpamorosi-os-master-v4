@@ -73,6 +73,10 @@ export const projectSchema = z.object({
       playstore: z.string().optional(),
       appstore: z.string().optional(),
       website: z.string().optional(),
+      // Admin form + ProjectRoom already handled these — only this schema
+      // didn't, so zod silently STRIPPED them on every save (2026-07-10).
+      instagram: z.string().optional(),
+      facebook: z.string().optional(),
     })
     .optional(),
 
