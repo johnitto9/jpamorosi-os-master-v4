@@ -176,6 +176,17 @@ async function translateAndCache(
       for (const m of chunk) {
         const out = parsed[m.key];
         if (!sameShape(m.fields, out)) continue; // EN floor stays for this one
+        // Anti-echo (prod 2026-07-10): the model sometimes returns the source
+        // text VERBATIM — same shape, valid hash — permanently poisoning the
+        // cache with English (ja/hi/he never completed). If nothing changed,
+        // don't cache; the next request retries.
+        const changed = Object.entries(m.fields).some(([k, v]) => {
+          const o = (out as Fields)[k];
+          return typeof v === "string"
+            ? v !== o
+            : Array.isArray(v) && v.some((s, i) => s !== (o as string[])[i]);
+        });
+        if (!changed) continue;
         await tryQuery(
           `INSERT INTO content_translations (cache_key, lang, source_hash, payload)
            VALUES ($1, $2, $3, $4::jsonb)
