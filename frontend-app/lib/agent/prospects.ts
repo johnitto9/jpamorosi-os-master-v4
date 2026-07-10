@@ -268,7 +268,7 @@ export function deobfuscateContactText(text: string): string {
 // Real prod offenders: 4e3…@reporting.workana.com (scored 85 on content!),
 // wor…@email.com. cleanEmail() already kills junk TLDs like n@app.route.
 const EMAIL_NON_ACTIONABLE =
-  /(^|[.@])(reporting|tracking|bounces?|mailer|notifications?|alerts?|updates?|newsletter|jobs-?noreply|errors?)([.@-])|@(email|mail|example|test)\.(com|net|org)$|\b(sendgrid|mailgun|amazonses|sparkpost)\./i;
+  /(^|[.@])(reporting|tracking|bounces?|mailer|notifications?|alerts?|updates?|newsletter|jobs-?noreply|errors?)([.@-])|@(email|mail|example|test|company|yourcompany|domain|yourdomain|acme)\.(com|net|org|co|io)$|\b(sendgrid|mailgun|amazonses|sparkpost)\./i;
 
 // Live-validation catch (2026-07-10): 77e7…@vs-errors.eightfold.ai — a hash
 // localpart is a machine mailbox no matter how clean the domain looks.
