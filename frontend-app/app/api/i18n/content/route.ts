@@ -34,10 +34,20 @@ export async function GET(request: Request) {
     capabilities: { names: caps.map((c) => c.capability) },
   };
   for (const p of projects) entries[`project:${p.slug}`] = projectFields(p);
+  // Partial-warmup detection: entries still on the EN floor mean the LLM is
+  // translating in the background. Caching a partial response pinned a mixed
+  // page (hall in Spanish, featured/archive in English) for 5 minutes — the
+  // exact prod symptom. Incomplete → never cache; the next request re-asks.
+  const bySlug = new Map(all.map((p) => [p.slug, p]));
+  const complete = projects.every((p) => p.oneLiner !== bySlug.get(p.slug)?.oneLiner);
   return NextResponse.json(
-    { entries },
-    // first render per lang may still be warming the LLM cache (EN floor for
-    // the misses) — keep the CDN copy short so warmed entries surface quickly
-    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+    { entries, complete },
+    {
+      headers: {
+        "Cache-Control": complete
+          ? "public, s-maxage=300, stale-while-revalidate=600"
+          : "no-store",
+      },
+    },
   );
 }

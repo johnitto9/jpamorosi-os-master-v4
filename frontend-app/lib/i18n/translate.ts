@@ -120,7 +120,9 @@ async function remoteTranslateBatch(
   if (!origin) return result;
   try {
     const res = await fetch(`${origin}/api/i18n/content?lang=${lang}`, {
-      next: { revalidate: 300 },
+      // 60s, not 300: during a language's first-ever warmup the backend may
+      // answer with a partial floor — a long data-cache pinned mixed pages.
+      next: { revalidate: 60 },
       signal: AbortSignal.timeout(6_000),
     });
     if (!res.ok) return result;
