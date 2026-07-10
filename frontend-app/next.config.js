@@ -34,13 +34,13 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com ${backendCspOrigin}`.trim(),
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://static.cloudflareinsights.com ${backendCspOrigin}`.trim(),
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${backendCspOrigin}`.trim(),
       `font-src 'self' https://fonts.gstatic.com data: ${backendCspOrigin}`.trim(),
       "img-src 'self' data: blob: https:",
       `media-src 'self' data: blob: ${mediaCdnOrigin}`,
       // 🔑 FIX: permitimos llamadas a Formspree y mantenemos Vercel
-      `connect-src 'self' blob: data: https://formspree.io https://va.vercel-scripts.com https://vitals.vercel-insights.com ${backendCspOrigin}`.trim(),
+      `connect-src 'self' blob: data: https://formspree.io https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cloudflareinsights.com https://*.cloudflareinsights.com ${backendCspOrigin}`.trim(),
       // (Opcional pero recomendado si alguna vez usás <form action="https://formspree.io/...">)
       "form-action 'self' https://formspree.io",
       "frame-ancestors 'none'",
@@ -72,6 +72,14 @@ const isDockerBuild = process.env.DOCKER_BUILD === '1';
 // flow through untouched: same-origin for the browser, Set-Cookie forwarded.
 // Local dev / Docker / Dokploy leave the var UNSET → zero rewrites → each
 // runtime serves its own routes exactly as before.
+const researchSecurityHeaders = securityHeaders.map((header) => {
+  if (header.key === 'X-Frame-Options') return { ...header, value: 'SAMEORIGIN' };
+  if (header.key === 'Content-Security-Policy') {
+    return { ...header, value: header.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") };
+  }
+  return header;
+});
+
 const backendOrigin = (process.env.BACKEND_PUBLIC_ORIGIN || '').replace(/\/+$/, '');
 
 // Backend (Docker) builds only: absolute asset origin, so /admin & /preview
@@ -126,8 +134,12 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/((?!research/hrm-amorosi(?:/|$)).*)',
         headers: securityHeaders
+      },
+      {
+        source: '/research/hrm-amorosi/:path*',
+        headers: researchSecurityHeaders
       },
       // With an absolute assetPrefix, fonts/scripts load cross-origin from the
       // proxied admin at www.* — public hashed assets, so a wildcard is safe
