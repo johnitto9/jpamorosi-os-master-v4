@@ -3,14 +3,14 @@ export type HrmLanguage = "es" | "en" | "zh";
 
 export const HRM_DOCUMENTS: Record<HrmDocument, Record<HrmLanguage, string>> = {
   foundations: {
-    es: "/research/hrm-amorosi/foundations/foundations-es.pdf",
-    en: "/research/hrm-amorosi/foundations/foundations-en.pdf",
-    zh: "/research/hrm-amorosi/foundations/foundations-zh.pdf",
+    es: "/research/hrm-amorosi/foundations/foundations-es.pdf?v=20260710-2",
+    en: "/research/hrm-amorosi/foundations/foundations-en.pdf?v=20260710-2",
+    zh: "/research/hrm-amorosi/foundations/foundations-zh.pdf?v=20260710-2",
   },
   blueprint: {
-    es: "/research/hrm-amorosi/blueprint/blueprint-es.pdf",
-    en: "/research/hrm-amorosi/blueprint/blueprint-en.pdf",
-    zh: "/research/hrm-amorosi/blueprint/blueprint-zh.pdf",
+    es: "/research/hrm-amorosi/blueprint/blueprint-es.pdf?v=20260710-2",
+    en: "/research/hrm-amorosi/blueprint/blueprint-en.pdf?v=20260710-2",
+    zh: "/research/hrm-amorosi/blueprint/blueprint-zh.pdf?v=20260710-2",
   },
 };
 
