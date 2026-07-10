@@ -53,7 +53,12 @@ export function HallOfFameCard({
       <div
         className={cn(
           "group relative flex w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/50",
-          large ? "aspect-[4/5] sm:aspect-[16/13]" : "aspect-[4/5]",
+          // phones: NO aspect lock for large cards — localized copy varies per
+          // project (BuenPick fit, LumenScript clipped) and a fixed ratio kept
+          // cutting the tallest ones. Content defines the height (min-h keeps
+          // the visual weight); the absolute-inset image covers whatever the
+          // panel needs. sm+ restores the designed ratios.
+          large ? "min-h-[26rem] sm:min-h-0 sm:aspect-[16/13]" : "aspect-[4/5]",
         )}
       >
         {/* full-bleed visual — the image IS the card */}
