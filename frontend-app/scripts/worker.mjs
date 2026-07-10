@@ -71,10 +71,13 @@ async function maybeScout() {
 async function maybePulse() {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  // the heartbeat runs EVERY day (unlike the every-3-days wide-net scout):
-  // initiative is cheap — it only spends LLM/serper on what actually moved
-  if (now.getHours() !== PULSE_HOUR || lastPulseDate === today) return;
-  lastPulseDate = today;
+  // TWO pulses a day (PULSE_HOUR and PULSE_HOUR-8, e.g. 12:00 + 20:00): a
+  // fresh catch used to wait a full day per pipeline stage — time-sensitive
+  // opportunities (job posts) died in the queue. Caps inside the heartbeat
+  // still bound total sends; this only halves the funnel latency.
+  const slot = now.getHours() >= PULSE_HOUR ? "pm" : now.getHours() >= PULSE_HOUR - 8 ? "am" : null;
+  if (!slot || lastPulseDate === `${today}:${slot}`) return;
+  lastPulseDate = `${today}:${slot}`;
   if (!TOKEN) {
     console.warn("[worker] heartbeat skipped: INTERNAL_API_TOKEN not set");
     return;
