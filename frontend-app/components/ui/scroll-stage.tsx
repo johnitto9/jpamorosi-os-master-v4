@@ -25,6 +25,7 @@
 // the integration the Lenis README documents for 1.3.x.
 
 import { createContext, useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { usePathname } from "next/navigation";
 import Lenis from "lenis";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -43,11 +44,20 @@ export function ScrollStage({
 }) {
   const ref = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const wrapper = ref.current;
     const content = contentRef.current;
     if (!wrapper || !content) return;
+    // Home and project rooms render the SAME <main> at the same tree position,
+    // so React reuses the DOM node and this component instance across routes —
+    // with [] deps the old Lenis (its internal scroll state and the content's
+    // translateY) survived navigation: pages opened mid-scroll and scrolling
+    // back up left the first section's title clipped under the top edge.
+    // Re-keying the effect by pathname rebuilds a clean stage per route.
+    content.style.transform = "";
+    wrapper.scrollTop = 0;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const lenis = new Lenis({
@@ -147,7 +157,7 @@ export function ScrollStage({
       lenis.off("scroll", onLenisScroll);
       lenis.destroy();
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <ScrollContainerContext.Provider value={ref}>
