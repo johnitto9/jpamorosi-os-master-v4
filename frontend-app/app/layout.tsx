@@ -1,4 +1,5 @@
 import './globals.css'
+import './research/hrm-amorosi/hrm.css'
 import type { Metadata, Viewport } from 'next'
 import { AuroraLayer } from '@/components/visual/AuroraLayer'
 import { CookieConsent } from '@/components/CookieConsent'
