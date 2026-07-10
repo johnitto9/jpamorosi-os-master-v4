@@ -112,7 +112,10 @@ export async function chatCompletion(
   // ONE bounded retry only for the reasoning-ate-the-budget case: same call,
   // double the completion budget (capped). No loops, no retry on other errors.
   if (first.outcome === "finish_length_content_null" || first.outcome === "finish_length_truncated") {
-    const retry = await completeOnce(messages, Math.min(maxTokens * 2, 1600), timeoutMs);
+    // cap must never SHRINK the budget: translation batches call with 2200
+    // and min(4400, 1600) retried with LESS than the original → guaranteed
+    // second truncation (prod: retry_length_failed on ja/ko/hi warmup).
+    const retry = await completeOnce(messages, Math.min(maxTokens * 2, 4096), timeoutMs);
     logOutcome(retry.text ? "retry_length_recovered" : "retry_length_failed");
     return retry.text;
   }
