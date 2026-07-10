@@ -30,6 +30,7 @@ import {
   listOutreachReady,
   buildProspectOutreachData,
   markProspectOutreachSent,
+  recoverMissingContacts,
 } from "@/lib/agent/prospects";
 import { getSiteSettings } from "@/lib/media/store";
 import { chatCompletion, isLlmConfigured } from "@/lib/agent/llm";
@@ -404,6 +405,10 @@ export async function POST(request: Request) {
   // 2. warm leads that went quiet hear from us — once, personally
   const followupsSent = await runFollowups();
   const clickedFollowupsSent = await runClickedNoReturnFollowups();
+  // 2.4 qualified cards stuck in `contact` with no address get a second-pass
+  // dig (searxng-first queries + MX-validated guess) BEFORE outreach picks —
+  // gated with the same opt-in since it only exists to feed outreach.
+  const contactsRecovered = prospectOutreachEnabled() ? await recoverMissingContacts(3) : 0;
   // 2.5 qualified cold prospects get their outreach (double-gated opt-in)
   const prospectOutreachSent = await runProspectOutreach();
   // 3. the system looks at its own day and remembers what it learned
@@ -439,6 +444,7 @@ export async function POST(request: Request) {
     prospectsMoved: pipeline.processed,
     followupsSent: totalFollowupsSent,
     clickedFollowupsSent,
+    contactsRecovered,
     prospectOutreachSent,
     followupsEnabled: followupsEnabled(),
     prospectOutreachEnabled: prospectOutreachEnabled(),

@@ -30,6 +30,8 @@ import { premiumEnrichCandidate } from "@/lib/opportunity-discovery/pipeline";
 import { selectPremiumHarvestUrls } from "@/lib/opportunity-discovery/planner";
 import { chatCompletion, isLlmConfigured } from "./llm";
 import type { SearchHit } from "./tools-server";
+import { search as routedSearch } from "@/lib/search/router";
+import { resolveMx } from "node:dns/promises";
 
 export type ProspectStage =
   | "ingest" | "filter" | "enrich" | "qualify" | "contact" | "contacted" | "discarded";
@@ -213,7 +215,11 @@ export async function harvestContact(
       const mailto = cleanEmail(
         html.match(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i)?.[1],
       );
-      email = mailto ?? cleanEmail(html.match(EMAIL_RE)?.[0]) ?? null;
+      // deobfuscated pass too: "hola [at] empresa [dot] com" was invisible
+      email =
+        mailto ??
+        cleanEmail(deobfuscateContactText(html).match(EMAIL_RE)?.[0]) ??
+        null;
     }
     if (email && company) break;
   }
@@ -240,6 +246,189 @@ export async function harvestContactFromUrls(
     if (best.email && best.company) break;
   }
   return best;
+}
+
+// ---- deep contact recovery (2026-07-10) -------------------------------------
+// Prod audit: 115 prospects, only ~20 ever got an email (regex over 3 static
+// fetches of discovery-grade URLs). This section is the SECOND pass for cards
+// that already earned a qualify score but have no address: targeted searches
+// through the sovereign router (searxng-first, free), obfuscation-aware
+// scanning, and MX-validated generic-mailbox guessing on the company's own
+// domain. Bounded per card: <=2 searches, <=4 fetches, <=2 DNS lookups.
+
+/** Unmask "hola [at] empresa [dot] com" style obfuscation (bracketed forms
+ *  only — a bare " at " rewrites prose like "meet us at berlin.de"). */
+export function deobfuscateContactText(text: string): string {
+  return text
+    .replace(/\s*[\[({]\s*(?:at|arroba)\s*[\])}]\s*/gi, "@")
+    .replace(/\s*[\[({]\s*(?:dot|punto)\s*[\])}]\s*/gi, ".");
+}
+
+// Relay/tracking/anonymous mailboxes: deliverable, but nobody reads them.
+// Real prod offenders: 4e3…@reporting.workana.com (scored 85 on content!),
+// wor…@email.com. cleanEmail() already kills junk TLDs like n@app.route.
+const EMAIL_NON_ACTIONABLE =
+  /(^|[.@])(reporting|tracking|bounces?|mailer|notifications?|alerts?|updates?|newsletter|jobs-?noreply|errors?)([.@-])|@(email|mail|example|test)\.(com|net|org)$|\b(sendgrid|mailgun|amazonses|sparkpost)\./i;
+
+// Live-validation catch (2026-07-10): 77e7…@vs-errors.eightfold.ai — a hash
+// localpart is a machine mailbox no matter how clean the domain looks.
+const HASH_LOCALPART = /^[0-9a-f]{16,}@/i;
+
+/** True when the address is worth a human-to-human cold email. */
+export function isActionableEmail(candidate: string | null | undefined): boolean {
+  const e = cleanEmail(candidate);
+  if (!e || EMAIL_NON_ACTIONABLE.test(e) || HASH_LOCALPART.test(e)) return false;
+  // support@linkedin.com (live catch): platform mailboxes are dead ends for
+  // cold outreach even when perfectly deliverable.
+  return !PLATFORM_HOSTS.test(e.split("@")[1] ?? "");
+}
+
+// Mega-platforms: a card whose "company" is really the platform that hosted
+// the listing (live catch: company="Linkedin" → mx-guess info@linkedin.com).
+// Never treat these hosts as the prospect's own site.
+const PLATFORM_HOSTS =
+  /(^|\.)(linkedin|facebook|instagram|twitter|x|youtube|google|github|medium|substack|notion|glassdoor|indeed|workana|upwork|fiverr|eightfold|greenhouse|lever|remotejobs|remoterocketship)\.(com|co|io|org|ai)$/i;
+
+async function domainAcceptsMail(domain: string): Promise<boolean> {
+  try {
+    return (await resolveMx(domain)).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Loose "this host belongs to that company" check (slug containment). */
+export function hostMatchesCompany(host: string, company: string | null | undefined): boolean {
+  if (!company) return false;
+  const h = host.replace(/^www\./, "").toLowerCase();
+  if (PLATFORM_HOSTS.test(h)) return false; // the platform is never the prospect
+  const slug = company.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (slug.length < 4) return false;
+  return h.replace(/[^a-z0-9.]/g, "").includes(slug.slice(0, 12));
+}
+
+const GENERIC_MAILBOXES = ["info", "contact", "contacto", "hola", "hello", "ventas", "sales"];
+
+export type RecoveredContact = {
+  email: string;
+  sourceUrl: string | null;
+  method: "search-snippet" | "page-scan" | "mx-guess";
+};
+
+/** Second-pass contact dig for one qualified card. Never throws. */
+/** Cards whose "company" is really the hosting platform/aggregator ("Linkedin",
+ *  "RemoteJobs.org", "Next.js jobs") aren't prospects — any address a search
+ *  surfaces for them belongs to someone else (live catch: a RemoteJobs card
+ *  attracted people@residenthome.com, a real but unrelated company). */
+export function companyIsPlatform(company: string | null | undefined): boolean {
+  if (!company) return false;
+  const slug = company.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (
+    slug.length < 3 ||
+    /^(linkedin|facebook|instagram|twitter|youtube|google|github|medium|substack|notion|glassdoor|indeed|workana|upwork|fiverr|eightfold|greenhouse|lever|remotejobsorg|remotejobs|remoterocketship)$/.test(slug) ||
+    /jobs$/.test(slug)
+  );
+}
+
+export async function deepHarvestContact(p: {
+  url: string | null;
+  company: string | null;
+  title?: string | null;
+}): Promise<RecoveredContact | null> {
+  const company = p.company?.trim() || null;
+  if (companyIsPlatform(company)) return null;
+
+  // A. targeted searches: snippets are free — many "contacto" pages leak the
+  // address straight into the SERP. Collect candidate company hosts as we go.
+  const queries = company
+    ? [`"${company}" email contacto`, `"${company}" contact site`]
+    : [];
+  const candidateUrls: string[] = [];
+  for (const q of queries.slice(0, 2)) {
+    let hits: Array<{ title?: string; snippet?: string; url?: string }> = [];
+    try {
+      const report = await routedSearch({ query: q, limit: 4, intent: "general-web-search" });
+      hits = report.results;
+    } catch {
+      continue;
+    }
+    for (const h of hits) {
+      const text = deobfuscateContactText(`${h.title ?? ""} ${h.snippet ?? ""}`);
+      const found = cleanEmail(text.match(EMAIL_RE)?.[0]);
+      if (found && isActionableEmail(found)) {
+        return { email: found, sourceUrl: h.url ?? null, method: "search-snippet" };
+      }
+      if (h.url) {
+        try {
+          if (hostMatchesCompany(new URL(h.url).hostname, company)) candidateUrls.push(h.url);
+        } catch {
+          /* unparseable hit URL */
+        }
+      }
+    }
+  }
+
+  // B. fetch the company's own pages (original card URL last — it's usually
+  // the discovery listicle, not the company).
+  const pages = [...new Set([...candidateUrls.slice(0, 2), p.url].filter(Boolean))] as string[];
+  for (const page of pages.slice(0, 2)) {
+    const found = await harvestContact(page, null);
+    if (found.email && isActionableEmail(found.email)) {
+      return { email: found.email, sourceUrl: page, method: "page-scan" };
+    }
+  }
+
+  // C. MX-validated generic mailbox on the company's OWN domain only — never
+  // on the listicle/job-board host that merely mentioned them.
+  for (const page of pages) {
+    try {
+      const host = new URL(page).hostname.replace(/^www\./, "");
+      if (!hostMatchesCompany(host, company)) continue;
+      if (await domainAcceptsMail(host)) {
+        return { email: `${GENERIC_MAILBOXES[0]}@${host}`, sourceUrl: page, method: "mx-guess" };
+      }
+      break; // one DNS-checked domain is enough — don't scan the web
+    } catch {
+      /* skip unparseable */
+    }
+  }
+  return null;
+}
+
+/** Heartbeat step: dig addresses for qualified cards stuck in `contact` with
+ *  no email (14 of them at audit time). Rotates oldest-touched first; a card
+ *  that stays dry gets its updated_at bumped so the next cycle tries others. */
+export async function recoverMissingContacts(limit = 3): Promise<number> {
+  if (!(await dbReady())) return 0;
+  const res = await tryQuery<Prospect>(
+    `SELECT ${SELECT} FROM prospects
+     WHERE stage = 'contact' AND email IS NULL
+     ORDER BY updated_at ASC LIMIT $1`,
+    [limit],
+  );
+  let recovered = 0;
+  for (const p of res?.rows ?? []) {
+    const hit = await deepHarvestContact(p);
+    if (hit) {
+      await tryQuery(
+        `UPDATE prospects
+         SET email = $2,
+             enrichment = left(coalesce(enrichment,'') || $3, 2000),
+             updated_at = now()
+         WHERE id = $1 AND email IS NULL`,
+        [p.id, hit.email, `\ncontact:recovered:${hit.method}:${hit.sourceUrl ?? ""}`],
+      );
+      await recordEvent("prospect.email_recovered", {
+        id: p.id,
+        email: hit.email,
+        method: hit.method,
+      });
+      recovered += 1;
+    } else {
+      await tryQuery(`UPDATE prospects SET updated_at = now() WHERE id = $1`, [p.id]);
+    }
+  }
+  return recovered;
 }
 
 export function parseDroppedLeadText(text: string): {
@@ -485,7 +674,9 @@ export async function listOutreachReady(limit = 2): Promise<Prospect[]> {
     [limit * 3],
   );
   return (res?.rows ?? [])
-    .filter((p) => cleanEmail(p.email) !== null)
+    // actionable only: relay/tracking mailboxes (reporting.workana et al.)
+    // are deliverable but unread — burning sends and domain reputation
+    .filter((p) => isActionableEmail(p.email))
     .slice(0, limit);
 }
 

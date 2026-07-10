@@ -31,6 +31,7 @@ export type EventType =
   | "prospect.advanced"
   | "prospect.updated"
   | "prospect.email_found"
+  | "prospect.email_recovered"
   | "prospect.outreach.sent"
   | "prospect.outreach.auto_sent"
   | "lead.link.created"
