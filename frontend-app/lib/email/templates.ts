@@ -6,81 +6,24 @@
 // no remote assets, no tracking pixels.
 // -----------------------------------------------------------------------------
 
-export type RenderedEmail = { subject: string; html: string; text: string };
+// Brand chrome lives in one place (lib/email/shell.ts) so the autonomous
+// templates below and the human-in-the-loop composer share an identical shell,
+// buttons, rows, bullet lists, avatar bubble and proof visual.
+import {
+  esc,
+  shell,
+  button,
+  row,
+  quote,
+  chips,
+  paletteBar,
+  bulletList,
+  introBubble,
+  proofVisual,
+  type RenderedEmail,
+} from "./shell";
 
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-// Branded noir-cyber shell (matches the site: dark, cyan→violet energy).
-// Inline styles only, table-free flow that survives Gmail/Outlook.
-function shell(title: string, bodyHtml: string, accent = "#00e5ff"): string {
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#07070f;font-family:'Segoe UI',Arial,sans-serif;color:#e8ecf1">
-  <div style="max-width:560px;margin:0 auto;padding:36px 20px">
-    <!-- wordmark -->
-    <p style="font-family:'Courier New',monospace;font-size:12px;letter-spacing:5px;color:${accent};text-transform:uppercase;margin:0 0 10px;font-weight:700">Amorosi&nbsp;Labs</p>
-    <!-- energy bar -->
-    <div style="height:3px;border-radius:99px;background:linear-gradient(90deg,#00e5ff 0%,#8b5cf6 60%,transparent 100%);margin:0 0 26px"></div>
-    <h1 style="font-size:22px;line-height:1.3;margin:0 0 18px;color:#ffffff">${esc(title)}</h1>
-    <!-- glass card -->
-    <div style="background:#10101c;border:1px solid #262640;border-radius:16px;padding:26px;font-size:14px;line-height:1.65;box-shadow:0 0 0 1px rgba(0,229,255,0.06)">
-      ${bodyHtml}
-    </div>
-    <!-- footer -->
-    <p style="font-size:11px;color:#565672;margin-top:22px;line-height:1.6">
-      <span style="color:#8b5cf6">◆</span>&nbsp; Amorosi Labs · Juan Pablo Amorosi ·
-      <a href="https://jpamorosi.dev" style="color:#00b8cc;text-decoration:none">jpamorosi.dev</a><br>
-      <span style="color:#3d3d52">First architecture. Then marble. Then neon.</span>
-    </p>
-  </div></body></html>`;
-}
-
-const button = (href: string, label: string) =>
-  `<p style="margin:22px 0 8px"><a href="${esc(href)}" style="background:linear-gradient(90deg,#00e5ff,#4dc6ff);color:#00131a;text-decoration:none;font-weight:700;font-size:14px;padding:13px 26px;border-radius:999px;display:inline-block">${esc(label)}</a></p>`;
-
-const row = (k: string, v?: string) =>
-  v
-    ? `<p style="margin:6px 0;padding:8px 12px;background:#161628;border-left:3px solid #00e5ff;border-radius:6px"><b style="color:#9aa3b2;font-size:11px;text-transform:uppercase;letter-spacing:1px">${esc(k)}</b><br><span style="color:#e8ecf1">${esc(v)}</span></p>`
-    : "";
-
-// visitor words, quoted — the human core of a session report
-const quote = (text?: string) =>
-  text
-    ? `<blockquote style="margin:14px 0;padding:12px 16px;background:#0c1420;border-left:3px solid #8b5cf6;border-radius:8px;font-style:italic;color:#c9d4e3">&ldquo;${esc(text)}&rdquo;</blockquote>`
-    : "";
-
-// compact inline chips for context signals (lang, country, device, campaign)
-const chips = (items: Array<[string, string | undefined]>) => {
-  const on = items.filter((i): i is [string, string] => !!i[1]);
-  if (on.length === 0) return "";
-  return `<p style="margin:0 0 14px">${on
-    .map(
-      ([k, v]) =>
-        `<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border:1px solid #2b2b45;border-radius:999px;font-size:11px;color:#9aa3b2"><b style="color:#00d5e8">${esc(k)}</b>&nbsp;${esc(v)}</span>`,
-    )
-    .join("")}</p>`;
-};
-
-const paletteBar = (colors?: string[]) =>
-  colors && colors.length > 0
-    ? `<p style="margin:10px 0 0">${colors
-        .slice(0, 6)
-        .map(
-          (c) =>
-            `<span style="display:inline-block;width:26px;height:14px;margin-right:4px;border-radius:4px;border:1px solid #2b2b45;background:${esc(c)}"></span>`,
-        )
-        .join("")}</p>`
-    : "";
-
-const bulletList = (items?: string[], label = "Signals I reviewed") => {
-  const on = (items ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 4);
-  if (on.length === 0) return "";
-  return `<div style="margin:16px 0;padding:14px 16px;background:#0c1420;border:1px solid #202f46;border-radius:10px">
-    <p style="margin:0 0 8px;color:#00d5e8;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700">${esc(label)}</p>
-    <ul style="margin:0;padding-left:18px;color:#c9d4e3">${on
-      .map((item) => `<li style="margin:6px 0">${esc(item)}</li>`)
-      .join("")}</ul>
-  </div>`;
-};
+export type { RenderedEmail };
 
 // Bilingual labels for prospect_outreach — 0 tokens, pure lookup.
 const OUTREACH_LANG = {
@@ -402,33 +345,26 @@ Snapshot: ${d.exportUrl}`,
     const greetingTarget =
       d.contactName ??
       (d.company ? (lang === "en" ? `${d.company} team` : `equipo de ${d.company}`) : undefined);
-    const introBubble = `<div style="margin:0 0 16px;padding:12px 14px;border:1px solid #262640;border-radius:14px;background:#0c1420;display:flex;align-items:center;gap:14px">
-      ${
-        d.avatarUrl
-          ? `<img src="${esc(d.avatarUrl)}" alt="Juan Pablo Amorosi" width="44" height="44" style="display:block;width:44px;height:44px;border-radius:50%;border:1px solid #2f3a54;object-fit:cover;flex:0 0 auto;margin-right:2px">`
-          : ""
-      }
-      <div style="min-width:0">
-        <div style="color:#00d5e8;font-size:10px;font-weight:700;line-height:1;text-transform:uppercase;letter-spacing:1.6px;margin-bottom:4px">${esc(L.intro)}</div>
-        <div style="color:#ffffff;font-size:14px;font-weight:700;line-height:1.25">Juan Pablo Amorosi</div>
-        <div style="color:#9aa3b2;font-size:11px;line-height:1.35">${esc(L.role)}</div>
-      </div>
-    </div>`;
+    const introBubbleHtml = introBubble({
+      avatarUrl: d.avatarUrl,
+      eyebrow: L.intro,
+      name: "Juan Pablo Amorosi",
+      role: L.role,
+    });
 
     // Systems visual as proof, right before the CTA, with a caption so it has a
     // clear purpose instead of feeling like decoration.
-    const visual = d.visualUrl
-      ? `<div style="margin:20px 0 6px">
-           <img src="${esc(d.visualUrl)}" alt="${esc(L.visualAlt)}" width="508" style="display:block;width:100%;max-width:508px;border-radius:12px;border:1px solid #262640">
-           <p style="margin:8px 0 0;color:#565672;font-size:11px;text-align:center">${esc(L.visualCaption)}</p>
-         </div>`
-      : "";
+    const visual = proofVisual({
+      url: d.visualUrl,
+      alt: L.visualAlt,
+      caption: L.visualCaption,
+    });
 
     return {
       subject,
       html: shell(
         `${L.greeting}${greetingTarget ? `, ${greetingTarget}` : ""}`,
-        `${introBubble}
+        `${introBubbleHtml}
          <p style="white-space:pre-line;margin-top:0">${esc(d.body)}</p>
          ${evidence}${fit}${action}
          ${visual}

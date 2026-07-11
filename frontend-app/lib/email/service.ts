@@ -54,20 +54,31 @@ async function logEmail(
   }
 }
 
-export async function sendEmail<T extends TemplateName>(input: {
-  template: T;
+/**
+ * The SINGLE transport. Takes an already-rendered { subject, html, text } and
+ * runs the shared tail every outbound email needs: tracked-link rewriting, the
+ * outbound gate, the "Resend not configured" degradation, the actual send, and
+ * email_logs + events. Both `sendEmail` (template-driven) and the human
+ * composer route through here, so there is exactly one place that talks to
+ * Resend and one place that logs.
+ *
+ *   logTemplate  — value stored in email_logs.template (a template name, or a
+ *                  composer category key like "founder_direct").
+ *   outboundGated — when true, OUTBOUND_LEAD_EMAILS_ENABLED must be on (this is
+ *                  a customer-facing email, not an internal admin notification).
+ */
+export async function sendRenderedEmail(input: {
+  logTemplate: string;
   to: string;
-  data: Parameters<(typeof templates)[T]>[0];
+  rendered: RenderedEmail;
+  outboundGated?: boolean;
   tracking?: EmailTrackingContext;
   smokeTestBypassOutboundGate?: boolean;
 }): Promise<SendResult> {
-  const { template, to } = input;
-  const renderedBase: RenderedEmail = (
-    templates[template] as (d: unknown) => RenderedEmail
-  )(input.data);
-  const rendered = await withTrackedLinks(renderedBase, {
+  const { to, logTemplate } = input;
+  const rendered = await withTrackedLinks(input.rendered, {
     ...input.tracking,
-    campaign: input.tracking?.campaign ?? template,
+    campaign: input.tracking?.campaign ?? logTemplate,
   });
 
   const smokeBypass =
@@ -75,24 +86,24 @@ export async function sendEmail<T extends TemplateName>(input: {
     env.APP_ENV !== "production" &&
     (input.tracking?.campaign ?? "").startsWith("email_smoke_");
 
-  if (isOutboundLeadTemplate(template) && !outboundLeadEmailsEnabled() && !smokeBypass) {
+  if (input.outboundGated && !outboundLeadEmailsEnabled() && !smokeBypass) {
     console.warn(
-      `[email] outbound lead gate disabled — "${template}" to ${to} logged only (subject: ${rendered.subject})`,
+      `[email] outbound lead gate disabled — "${logTemplate}" to ${to} logged only (subject: ${rendered.subject})`,
     );
-    await logEmail(template, to, rendered.subject, false, undefined, "outbound_lead_email_disabled");
-    await recordEvent("email.blocked", { template, to, reason: "outbound_lead_email_disabled" });
+    await logEmail(logTemplate, to, rendered.subject, false, undefined, "outbound_lead_email_disabled");
+    await recordEvent("email.blocked", { template: logTemplate, to, reason: "outbound_lead_email_disabled" });
     return { ok: false, skipped: true, error: "outbound_lead_email_disabled" };
   }
 
   if (smokeBypass) {
-    await recordEvent("email.smoke_outbound_bypass", { template, to });
+    await recordEvent("email.smoke_outbound_bypass", { template: logTemplate, to });
   }
 
   if (!isEmailConfigured()) {
     console.warn(
-      `[email] RESEND not configured — "${template}" to ${to} logged only (subject: ${rendered.subject})`,
+      `[email] RESEND not configured — "${logTemplate}" to ${to} logged only (subject: ${rendered.subject})`,
     );
-    await logEmail(template, to, rendered.subject, false, undefined, "skipped_no_api_key");
+    await logEmail(logTemplate, to, rendered.subject, false, undefined, "skipped_no_api_key");
     return { ok: false, skipped: true, error: "skipped_no_api_key" };
   }
 
@@ -107,16 +118,46 @@ export async function sendEmail<T extends TemplateName>(input: {
       text: rendered.text,
     });
     if (error) throw new Error(error.message);
-    await logEmail(template, to, rendered.subject, true, data?.id);
-    await recordEvent("email.sent", { template, to, subject: rendered.subject });
+    await logEmail(logTemplate, to, rendered.subject, true, data?.id);
+    await recordEvent("email.sent", { template: logTemplate, to, subject: rendered.subject });
     return { ok: true, id: data?.id };
   } catch (err) {
     const msg = (err as Error).message;
-    console.error(`[email] send failed ("${template}" to ${to}):`, msg.slice(0, 200));
-    await logEmail(template, to, rendered.subject, false, undefined, msg);
-    await recordEvent("email.failed", { template, to, error: msg.slice(0, 200) });
+    console.error(`[email] send failed ("${logTemplate}" to ${to}):`, msg.slice(0, 200));
+    await logEmail(logTemplate, to, rendered.subject, false, undefined, msg);
+    await recordEvent("email.failed", { template: logTemplate, to, error: msg.slice(0, 200) });
     return { ok: false, error: msg };
   }
+}
+
+export async function sendEmail<T extends TemplateName>(input: {
+  template: T;
+  to: string;
+  data: Parameters<(typeof templates)[T]>[0];
+  tracking?: EmailTrackingContext;
+  smokeTestBypassOutboundGate?: boolean;
+}): Promise<SendResult> {
+  const { template } = input;
+  const rendered: RenderedEmail = (
+    templates[template] as (d: unknown) => RenderedEmail
+  )(input.data);
+  return sendRenderedEmail({
+    logTemplate: template,
+    to: input.to,
+    rendered,
+    outboundGated: isOutboundLeadTemplate(template),
+    tracking: { ...input.tracking, campaign: input.tracking?.campaign ?? template },
+    smokeTestBypassOutboundGate: input.smokeTestBypassOutboundGate,
+  });
+}
+
+// Addresses we must never send outreach to (unattended mailboxes, senders).
+const NOREPLY_RE = /(^|[._-])(no-?reply|do-?not-?reply|donotreply|noreply)([._-]|@)/i;
+
+/** True when an address looks like an unattended/automated mailbox. */
+export function isNoreplyAddress(email: string): boolean {
+  const local = email.split("@")[0]?.toLowerCase() ?? "";
+  return NOREPLY_RE.test(email) || /^(postmaster|mailer-daemon|bounce)/.test(local);
 }
 
 /** Shortcut: notify the admin inbox (RESEND_ADMIN_TO_EMAIL). */

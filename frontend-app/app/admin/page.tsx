@@ -98,6 +98,7 @@ export default async function AdminHome() {
           <Link href="/admin/leads" className="rounded-lg border border-cyan-400/40 px-3 py-2 text-sm text-cyan-300 hover:bg-cyan-400/10">Leads ↗</Link>
           <Link href="/admin/pipeline" className="rounded-lg border border-violet-400/40 px-3 py-2 text-sm text-violet-300 hover:bg-violet-400/10">Pipeline ↗</Link>
           <Link href="/admin/prospects" className="rounded-lg border border-emerald-400/40 px-3 py-2 text-sm text-emerald-300 hover:bg-emerald-400/10">Prospects ↗</Link>
+          <Link href="/admin/email" className="rounded-lg border border-cyan-400/40 px-3 py-2 text-sm text-cyan-300 hover:bg-cyan-400/10">Outreach Studio ↗</Link>
           <Link href="/admin/sessions" className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:border-white/30">Sessions ↗</Link>
           <Link href="/preview" target="_blank" className="rounded-lg border border-amber-400/40 px-3 py-2 text-sm text-amber-300 hover:bg-amber-400/10">Live preview ↗</Link>
           <Link href="/" target="_blank" className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:border-white/30">Public site ↗</Link>

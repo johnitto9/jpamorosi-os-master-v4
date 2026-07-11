@@ -436,6 +436,13 @@ function ProspectDrawer({
                 </p>
               )}
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <a
+                  href={`/admin/email?prospectId=${p.id}&template=founder_direct`}
+                  className="mr-auto rounded-full border border-cyan-400/40 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-400/10"
+                  title="Redactá un email a medida con los datos de esta card precargados"
+                >
+                  Abrir en Outreach Studio ↗
+                </a>
                 {!contacted && (
                   <button
                     onClick={() => onStage(p.id, "discarded")}
