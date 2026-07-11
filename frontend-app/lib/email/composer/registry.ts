@@ -21,9 +21,10 @@ type Lang = "es" | "en";
 const L = {
   es: {
     greeting: "Hola",
-    intro: "Soy Juan",
+    intro: "Soy",
     role: "AI Product Engineer · Amorosi Labs",
     teamOf: (c: string) => `equipo de ${c}`,
+    signalsObserved: "Señales observadas",
     observed: "Qué vi",
     reading: "Mi lectura",
     proposal: "Qué propondría",
@@ -50,9 +51,10 @@ const L = {
   },
   en: {
     greeting: "Hi",
-    intro: "I'm Juan",
+    intro: "I'm",
     role: "AI Product Engineer · Amorosi Labs",
     teamOf: (c: string) => `${c} team`,
+    signalsObserved: "Signals observed",
     observed: "What I saw",
     reading: "My read",
     proposal: "What I'd propose",
@@ -82,6 +84,11 @@ const L = {
 // short subject hint from the first words of a body block
 const firstWords = (s: string, words = 8) =>
   s.replace(/\s+/g, " ").trim().split(" ").slice(0, words).join(" ").slice(0, 80);
+
+// split a free-text "what I observed" field into the distinct bulleted signals
+// box (one observation per line); a single prose block becomes one clean bullet.
+const splitLines = (s: string): string[] =>
+  s.split(/\n+/).map((l) => l.trim()).filter(Boolean);
 
 function greetingLine(lang: Lang, contactName?: string, company?: string): string {
   const l = L[lang];
@@ -216,10 +223,12 @@ const founder = define({
   defaults: { lang: "es", showVisual: true },
   render: (d, media) => {
     const l = L[d.lang];
+    // Free intro → the distinct "signals observed" box (like the outreach we
+    // already had) → prose read → at most 3 labeled capsules.
     const blocks: CompositeBlock[] = [
       { kind: "paragraph", text: d.opening },
-      { kind: "row", label: l.observed, value: d.observed },
-      { kind: "row", label: l.reading, value: d.reading },
+      { kind: "signals", label: l.signalsObserved, items: splitLines(d.observed) },
+      { kind: "paragraph", text: d.reading },
       { kind: "row", label: l.proposal, value: d.proposal },
       { kind: "row", label: l.proof, value: d.proof },
       { kind: "row", label: l.nextStep, value: d.cta },
@@ -276,9 +285,10 @@ const opportunity = define({
   defaults: { lang: "es", showVisual: true },
   render: (d, media) => {
     const l = L[d.lang];
+    // Prose why + fit, then at most 3 labeled capsules.
     const blocks: CompositeBlock[] = [
       { kind: "paragraph", text: d.why },
-      { kind: "row", label: l.fitLabel, value: d.fit },
+      { kind: "paragraph", text: d.fit },
       { kind: "row", label: l.systemLabel, value: d.system },
       { kind: "row", label: l.valueLabel, value: d.value },
       { kind: "row", label: l.nextStep, value: d.cta },
