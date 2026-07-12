@@ -1122,6 +1122,15 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
           moves.push({ id: p.id, from, to: "contact" });
           continue;
         }
+        // No email AND the "company" is a job board/aggregator (or blank) —
+        // there was never a real prospect here, just a listing that scored
+        // well on keywords. Discard instead of parking a permanent zombie
+        // in `contact` that recoverMissingContacts() can never resolve.
+        if (companyIsPlatform(p.company)) {
+          await advance(p.id, "discarded");
+          moves.push({ id: p.id, from, to: "discarded" });
+          continue;
+        }
       }
       await advance(p.id, to);
       moves.push({ id: p.id, from, to });
