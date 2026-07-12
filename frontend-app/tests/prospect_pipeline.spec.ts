@@ -75,4 +75,13 @@ describe("prospect pipeline decisions", () => {
     expect(nextStageFromQualify(55)).toBe("contact");
     expect(nextStageFromQualify(54)).toBe("discarded");
   });
+
+  it("lets a real, deliverable contact reach contact on a lower fit score", () => {
+    // A conservative fit score shouldn't throw away a harvested, actionable
+    // address — the email halves the bar (but near-zero relevance still drops).
+    expect(nextStageFromQualify(20, true)).toBe("contact");
+    expect(nextStageFromQualify(14, true)).toBe("discarded");
+    // No usable address: the full fit score is still required.
+    expect(nextStageFromQualify(54, false)).toBe("discarded");
+  });
 });

@@ -64,6 +64,12 @@ export type ProspectStats = {
 };
 
 const QUALIFY_THRESHOLD = 55;
+// A confirmed, deliverable, non-platform contact is expensive signal we already
+// paid to harvest — a conservative LLM fit score alone shouldn't throw it away.
+// So a real address halves the bar: score >= QUALIFY_EMAIL_FLOOR is enough to
+// reach `contact` (where the Outreach Studio / heartbeat decide), while cards
+// WITHOUT a usable address still need the full fit score to justify the effort.
+const QUALIFY_EMAIL_FLOOR = 15;
 
 const SELECT = `id::int AS id, stage, source, title, company,
   contact_name AS "contactName", email, url, snippet, enrichment,
@@ -960,8 +966,13 @@ export function nextStageFromIngest(
     : "discarded";
 }
 
-export function nextStageFromQualify(score: number): ProspectStage {
-  return score >= QUALIFY_THRESHOLD ? "contact" : "discarded";
+export function nextStageFromQualify(
+  score: number,
+  hasActionableEmail = false,
+): ProspectStage {
+  if (score >= QUALIFY_THRESHOLD) return "contact";
+  if (hasActionableEmail && score >= QUALIFY_EMAIL_FLOOR) return "contact";
+  return "discarded";
 }
 
 async function advance(
@@ -1108,13 +1119,13 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
       await advance(p.id, "qualify", q);
       moves.push({ id: p.id, from, to: "qualify" });
     } else if (p.stage === "qualify") {
-      const to = nextStageFromQualify(p.score);
-      // A card can score high on keywords alone and have no email — advancing
-      // it to `contact` as-is just parks it there un-actionable (outreach only
-      // picks stage=contact WITH email). One last harvest attempt right here,
-      // before it joins that queue, catches most of these instead of relying
-      // solely on the slower background recoverMissingContacts() sweep.
-      if (to === "contact" && !p.email) {
+      const hasEmail = isActionableEmail(p.email);
+      let to = nextStageFromQualify(p.score, hasEmail);
+      // High-fit card with no usable address (the email floor never routes
+      // here — it requires an actionable email): one last harvest attempt so
+      // it can actually be reached, before it joins the outreach queue or, if
+      // it's really just a job board, gets dropped instead of parked forever.
+      if (to === "contact" && !hasEmail) {
         const hit = await deepHarvestContact(p);
         if (hit) {
           await advance(p.id, "contact", { email: hit.email });
@@ -1122,15 +1133,7 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
           moves.push({ id: p.id, from, to: "contact" });
           continue;
         }
-        // No email AND the "company" is a job board/aggregator (or blank) —
-        // there was never a real prospect here, just a listing that scored
-        // well on keywords. Discard instead of parking a permanent zombie
-        // in `contact` that recoverMissingContacts() can never resolve.
-        if (companyIsPlatform(p.company)) {
-          await advance(p.id, "discarded");
-          moves.push({ id: p.id, from, to: "discarded" });
-          continue;
-        }
+        if (companyIsPlatform(p.company)) to = "discarded";
       }
       await advance(p.id, to);
       moves.push({ id: p.id, from, to });
