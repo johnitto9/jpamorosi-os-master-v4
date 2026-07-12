@@ -583,7 +583,7 @@ export async function prospectStats(): Promise<ProspectStats> {
        SELECT
          count(*)::int AS total,
          count(*) FILTER (WHERE email IS NOT NULL)::int AS with_email,
-         count(*) FILTER (WHERE stage = 'contact')::int AS ready_to_contact,
+         count(*) FILTER (WHERE stage = 'contact' AND email IS NOT NULL)::int AS ready_to_contact,
          count(*) FILTER (WHERE score >= 70)::int AS high_score,
          count(*) FILTER (WHERE stage = 'ingest')::int AS raw_ingest
        FROM prospects
@@ -1109,6 +1109,20 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
       moves.push({ id: p.id, from, to: "qualify" });
     } else if (p.stage === "qualify") {
       const to = nextStageFromQualify(p.score);
+      // A card can score high on keywords alone and have no email — advancing
+      // it to `contact` as-is just parks it there un-actionable (outreach only
+      // picks stage=contact WITH email). One last harvest attempt right here,
+      // before it joins that queue, catches most of these instead of relying
+      // solely on the slower background recoverMissingContacts() sweep.
+      if (to === "contact" && !p.email) {
+        const hit = await deepHarvestContact(p);
+        if (hit) {
+          await advance(p.id, "contact", { email: hit.email });
+          await recordEvent("prospect.email_found", { id: p.id, email: hit.email });
+          moves.push({ id: p.id, from, to: "contact" });
+          continue;
+        }
+      }
       await advance(p.id, to);
       moves.push({ id: p.id, from, to });
     }

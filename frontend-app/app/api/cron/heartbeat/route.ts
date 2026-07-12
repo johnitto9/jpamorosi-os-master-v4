@@ -342,7 +342,9 @@ async function collectDayStats(): Promise<DayStats> {
     tryQuery<{ n: number }>(
       `SELECT count(*)::int AS n FROM leads WHERE updated_at > now() - interval '24 hours'`,
     ),
-    tryQuery<{ n: number }>(`SELECT count(*)::int AS n FROM prospects WHERE stage = 'contact'`),
+    tryQuery<{ n: number }>(
+      `SELECT count(*)::int AS n FROM prospects WHERE stage = 'contact' AND email IS NOT NULL`,
+    ),
     tryQuery<{ n: number; ok: number }>(
       `SELECT count(*)::int AS n, count(*) FILTER (WHERE ok)::int AS ok
        FROM ai_logs WHERE created_at > now() - interval '24 hours'`,
@@ -408,7 +410,7 @@ export async function POST(request: Request) {
   // 2.4 qualified cards stuck in `contact` with no address get a second-pass
   // dig (searxng-first queries + MX-validated guess) BEFORE outreach picks —
   // gated with the same opt-in since it only exists to feed outreach.
-  const contactsRecovered = prospectOutreachEnabled() ? await recoverMissingContacts(3) : 0;
+  const contactsRecovered = prospectOutreachEnabled() ? await recoverMissingContacts(8) : 0;
   // 2.5 qualified cold prospects get their outreach (double-gated opt-in)
   const prospectOutreachSent = await runProspectOutreach();
   // 3. the system looks at its own day and remembers what it learned
