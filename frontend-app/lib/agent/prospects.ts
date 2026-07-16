@@ -409,14 +409,26 @@ export async function deepHarvestContact(p: {
   return null;
 }
 
+// A high-fit card the dragnet can't find an address for is worth a human's
+// eyes, not an infinite retry loop. After this many days the auto-recovery
+// rotation lets go: the card keeps its board slot with a MANUAL next_action,
+// and the admin composes to a self-found address in Outreach Studio (whose
+// send path takes any typed recipient — the card needn't hold an email).
+const MANUAL_HANDOFF_AFTER_DAYS = 3;
+const MANUAL_HANDOFF_MARK =
+  "MANUAL: recuperación automática agotada — buscá el email y componé en Outreach Studio";
+
 /** Heartbeat step: dig addresses for qualified cards stuck in `contact` with
- *  no email (14 of them at audit time). Rotates oldest-touched first; a card
- *  that stays dry gets its updated_at bumped so the next cycle tries others. */
+ *  no email. Rotates oldest-touched first; a card that stays dry gets its
+ *  updated_at bumped so the next cycle tries others — until it ages out and is
+ *  handed to the human (see MANUAL_HANDOFF_*), which frees the recovery budget
+ *  for fresh cards instead of re-digging the same dead ends forever. */
 export async function recoverMissingContacts(limit = 3): Promise<number> {
   if (!(await dbReady())) return 0;
   const res = await tryQuery<Prospect>(
     `SELECT ${SELECT} FROM prospects
      WHERE stage = 'contact' AND email IS NULL
+       AND (next_action IS NULL OR next_action NOT LIKE 'MANUAL:%')
      ORDER BY updated_at ASC LIMIT $1`,
     [limit],
   );
@@ -439,7 +451,21 @@ export async function recoverMissingContacts(limit = 3): Promise<number> {
       });
       recovered += 1;
     } else {
-      await tryQuery(`UPDATE prospects SET updated_at = now() WHERE id = $1`, [p.id]);
+      const ageDays = (Date.now() - new Date(p.createdAt).getTime()) / 86_400_000;
+      if (ageDays >= MANUAL_HANDOFF_AFTER_DAYS) {
+        await tryQuery(
+          `UPDATE prospects SET next_action = $2, updated_at = now()
+           WHERE id = $1 AND email IS NULL`,
+          [p.id, MANUAL_HANDOFF_MARK],
+        );
+        await recordEvent("prospect.manual_handoff", {
+          id: p.id,
+          company: p.company,
+          score: p.score,
+        });
+      } else {
+        await tryQuery(`UPDATE prospects SET updated_at = now() WHERE id = $1`, [p.id]);
+      }
     }
   }
   return recovered;

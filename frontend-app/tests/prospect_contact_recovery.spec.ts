@@ -137,15 +137,32 @@ describe("recoverMissingContacts", () => {
     expect(update?.[1]).toEqual([7, "hola@neuriax.com", expect.stringContaining("contact:recovered:search-snippet")]);
   });
 
-  it("bumps updated_at (rotation) when the card stays dry", async () => {
+  it("bumps updated_at (rotation) when a young card stays dry", async () => {
+    const fresh = new Date().toISOString();
     queryMock.mockImplementation(async (sql: string) => {
       if (String(sql).includes("SELECT")) {
-        return { rows: [{ id: 9, url: null, company: null, stage: "contact", email: null }] };
+        return { rows: [{ id: 9, url: null, company: null, stage: "contact", email: null, createdAt: fresh }] };
       }
       return { rows: [] };
     });
     expect(await recoverMissingContacts(1)).toBe(0);
-    const bump = queryMock.mock.calls.find(([sql]) => String(sql).includes("SET updated_at"));
+    const bump = queryMock.mock.calls.find(
+      ([sql]) => String(sql).includes("SET updated_at") && !String(sql).includes("next_action"),
+    );
     expect(bump?.[1]).toEqual([9]);
+  });
+
+  it("hands an aged-out dry card to manual outreach instead of retrying forever", async () => {
+    const old = new Date(Date.now() - 5 * 86_400_000).toISOString();
+    queryMock.mockImplementation(async (sql: string) => {
+      if (String(sql).includes("SELECT")) {
+        return { rows: [{ id: 11, url: null, company: "Carmatec", score: 65, stage: "contact", email: null, createdAt: old }] };
+      }
+      return { rows: [] };
+    });
+    expect(await recoverMissingContacts(1)).toBe(0);
+    const handoff = queryMock.mock.calls.find(([sql]) => String(sql).includes("SET next_action"));
+    expect(handoff?.[1]?.[0]).toBe(11);
+    expect(String(handoff?.[1]?.[1])).toMatch(/^MANUAL:/);
   });
 });
