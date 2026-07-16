@@ -46,7 +46,13 @@ export const maxDuration = 180;
 
 const FOLLOWUPS_PER_CYCLE = 3;
 const CLICK_FOLLOWUPS_PER_CYCLE = 2;
-const PROSPECT_OUTREACH_PER_CYCLE = 2;
+// Tunable via Dokploy env WITHOUT a rebuild (edit .env, `up -d --no-build`).
+// Default raised 2→4 as the funnel warms (roadmap: gradual 4→10/day). The
+// quality gate upstream (isActionableEmail) still bounds what actually sends.
+const PROSPECT_OUTREACH_PER_CYCLE = Math.max(
+  1,
+  Number(process.env.PROSPECT_OUTREACH_PER_CYCLE) || 4,
+);
 
 function followupsEnabled(): boolean {
   return process.env.AGENT_FOLLOWUP_ENABLED === "true";

@@ -27,6 +27,17 @@ describe("prospect contact harvesting", () => {
     });
   });
 
+  it("rejects LLM-hallucinated placeholder localparts even on a real-looking domain", async () => {
+    await expect(harvestContact(null, "Contact john.doe@acmecorp.com")).resolves.toEqual({
+      email: null,
+      company: null,
+    });
+    await expect(harvestContact(null, "Write to you@realcompany.io")).resolves.toEqual({
+      email: null,
+      company: null,
+    });
+  });
+
   it("finds mailto contact and company from the original page", async () => {
     vi.stubGlobal("fetch", vi.fn(async () =>
       htmlResponse(`

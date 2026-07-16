@@ -130,12 +130,20 @@ const EMAIL_DISCOVERY_TIMEOUT_MS = 7_000;
 const PLAUSIBLE_TLD =
   /^(com|org|net|io|ai|co|dev|app|info|biz|me|xyz|tech|store|online|site|edu|gov|us|uk|es|ar|mx|br|cl|pe|uy|de|fr|it|nl|pt|ca|au|in|eu|ch|se|no|fi|pl|ru|jp|kr|cn)$/;
 
+// Documentation / LLM-hallucinated placeholder localparts. The example-DOMAIN
+// filter (EMAIL_NON_ACTIONABLE) misses these when the domain looks real — the
+// scout invented "john.doe@acme.com" AND "john.doe@<realco>.com". Killing the
+// localpart at the base gate stops the address being stored, promoted or sent.
+const PLACEHOLDER_LOCALPART =
+  /^(you|your|yourname|youremail|work|test|tester|example|sample|demo|user|username|first[._-]?last|firstname[._-]?lastname|john[._-]?doe|jane[._-]?doe|foo|bar|someone|changeme)$/;
+
 function cleanEmail(candidate: string | undefined | null): string | null {
   if (!candidate) return null;
   const e = candidate.toLowerCase().trim();
   if (EMAIL_JUNK.test(e)) return null;
   const m = e.match(/^([^@\s]+)@[^@\s]+\.([a-z]{2,})$/);
   if (!m || m[1].length < 2 || !PLAUSIBLE_TLD.test(m[2])) return null;
+  if (PLACEHOLDER_LOCALPART.test(m[1])) return null;
   return e;
 }
 
