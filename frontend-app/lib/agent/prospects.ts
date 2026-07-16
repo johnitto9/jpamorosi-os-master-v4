@@ -1063,10 +1063,19 @@ export type PipelineReport = {
  *  kanban visibly rotates on every pass. Serper/LLM cost is bounded by limit. */
 export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
   if (!(await dbReady())) return { processed: 0, moves: [] };
+  // Drain from the DEEP end first: cards one step from becoming outreach-ready
+  // (qualify→contact) must not starve behind a wall of freshly-ingested URLs.
+  // FIFO-by-updated_at alone let a large ingest/filter backlog crowd out the
+  // qualify promotion that actually feeds outreach — so outreach ran dry while
+  // the pipeline churned raw inputs. Later stage first, oldest-within-stage next.
   const res = await tryQuery<Prospect>(
     `SELECT ${SELECT} FROM prospects
      WHERE stage IN ('ingest','filter','enrich','qualify')
-     ORDER BY updated_at ASC LIMIT $1`,
+     ORDER BY
+       CASE stage WHEN 'qualify' THEN 0 WHEN 'enrich' THEN 1
+                  WHEN 'filter' THEN 2 ELSE 3 END,
+       updated_at ASC
+     LIMIT $1`,
     [limit],
   );
   const batch = res?.rows ?? [];

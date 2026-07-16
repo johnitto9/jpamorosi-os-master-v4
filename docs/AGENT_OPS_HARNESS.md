@@ -107,9 +107,13 @@ docker exec jpamorosiprod-system-scxxge-amorosi-backend-1 sh -c \
   - `OUTBOUND_LEAD_EMAILS_ENABLED=true` — master gate en `sendEmail()`
     (bloquea sólo `lead_followup` y `prospect_outreach`).
   - `AGENT_FOLLOWUP_ENABLED=true` — followups a leads (3/ciclo).
-  - `AGENT_PROSPECT_OUTREACH_ENABLED=true` — outreach frío (2/ciclo,
+  - `AGENT_PROSPECT_OUTREACH_ENABLED=true` — outreach frío (default 4/ciclo,
     sólo stage=contact con email válido, dedupe por email vía stage
     `contacted`).
+  - `PROSPECT_OUTREACH_PER_CYCLE` (opcional, default 4) — cap por ciclo,
+    dial-eable desde el `.env` de Dokploy SIN rebuild (`up -d --no-build`).
+    Subir gradual sólo si el funnel tiene contactos accionables reales;
+    `isActionableEmail` acota lo que efectivamente sale.
 - ⚠️ **Sin lock de idempotencia entre heartbeats concurrentes**: dos ciclos
   simultáneos (p.ej. trigger manual + catch-up del worker recién reiniciado)
   duplicaron followups una vez. No dispares heartbeat justo tras reiniciar
