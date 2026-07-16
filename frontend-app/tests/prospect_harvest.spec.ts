@@ -36,6 +36,11 @@ describe("prospect contact harvesting", () => {
       email: null,
       company: null,
     });
+    // bare template localparts (first@, name@) leaked once in prod (first@fullstack.ca)
+    await expect(harvestContact(null, "Reach first@fullstack.ca")).resolves.toEqual({
+      email: null,
+      company: null,
+    });
   });
 
   it("finds mailto contact and company from the original page", async () => {

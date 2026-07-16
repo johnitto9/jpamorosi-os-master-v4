@@ -135,7 +135,7 @@ const PLAUSIBLE_TLD =
 // scout invented "john.doe@acme.com" AND "john.doe@<realco>.com". Killing the
 // localpart at the base gate stops the address being stored, promoted or sent.
 const PLACEHOLDER_LOCALPART =
-  /^(you|your|yourname|youremail|work|test|tester|example|sample|demo|user|username|first[._-]?last|firstname[._-]?lastname|john[._-]?doe|jane[._-]?doe|foo|bar|someone|changeme)$/;
+  /^(you|your|yourname|youremail|name|fullname|first|last|firstname|lastname|first[._-]?last|firstname[._-]?lastname|work|test|tester|example|sample|demo|user|username|john[._-]?doe|jane[._-]?doe|foo|bar|someone|changeme|email)$/;
 
 function cleanEmail(candidate: string | undefined | null): string | null {
   if (!candidate) return null;
