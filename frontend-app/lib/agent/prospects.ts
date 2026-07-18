@@ -212,11 +212,35 @@ async function fetchTextSafe(url: string, ms: number): Promise<string | null> {
  *  pages (where emails actually live). Bounded: <=3 network fetches, short
  *  timeout each. This is the step that was missing — serper SERPs carry no
  *  emails, so without fetching the pages the funnel produced hollow cards. */
+/** Rank the addresses on a page: a named person (jane.doe@) beats a generic
+ *  inbox (info@), and dead-end role mailboxes (support@/careers@) are skipped.
+ *  mailto: links are the page's DECLARED contact, so they win over body text. */
+function pickBestEmail(html: string): string | null {
+  const mailtos = [...html.matchAll(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi)].map(
+    (m) => m[1],
+  );
+  const body = [...deobfuscateContactText(html).matchAll(new RegExp(EMAIL_RE.source, "gi"))].map(
+    (m) => m[0],
+  );
+  for (const pool of [mailtos, body]) {
+    let generic: string | null = null;
+    for (const raw of pool) {
+      const e = cleanEmail(raw);
+      if (!e || !isActionableEmail(e)) continue; // dead-end/junk already gone
+      if (classifyMailbox(e) === "person") return e; // best possible, stop
+      generic ??= e;
+    }
+    if (generic) return generic;
+  }
+  return null;
+}
+
 export async function harvestContact(
   url: string | null,
   extraText: string | null,
 ): Promise<{ email: string | null; company: string | null }> {
-  const fromText = cleanEmail(extraText?.match(EMAIL_RE)?.[0]) ?? null;
+  const fromTextRaw = cleanEmail(extraText?.match(EMAIL_RE)?.[0]) ?? null;
+  const fromText = fromTextRaw && isActionableEmail(fromTextRaw) ? fromTextRaw : null;
   if (!url) return { email: fromText, company: null };
 
   let email = fromText;
@@ -225,16 +249,7 @@ export async function harvestContact(
     const html = await fetchTextSafe(page, EMAIL_DISCOVERY_TIMEOUT_MS);
     if (!html) continue;
     company = company ?? companyFromHtml(html, url);
-    if (!email) {
-      const mailto = cleanEmail(
-        html.match(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i)?.[1],
-      );
-      // deobfuscated pass too: "hola [at] empresa [dot] com" was invisible
-      email =
-        mailto ??
-        cleanEmail(deobfuscateContactText(html).match(EMAIL_RE)?.[0]) ??
-        null;
-    }
+    if (!email) email = pickBestEmail(html); // person > generic, dead-end skipped
     if (email && company) break;
   }
   return { email, company };
@@ -288,10 +303,40 @@ const EMAIL_NON_ACTIONABLE =
 // localpart is a machine mailbox no matter how clean the domain looks.
 const HASH_LOCALPART = /^[0-9a-f]{16,}@/i;
 
+// Role mailboxes that STRUCTURALLY never reach someone who'd hire Juan: a
+// customer-service queue, an inbound-sales team (they sell TO you), PR, an ATS,
+// or ops/finance/legal. Blocked regardless of company size — no founder-to-
+// founder pitch lands in support@ or careers@. Kept separate from REACHABLE
+// generics (info@/hola@) which, at a SMALL company, sit on the founder's desk.
+// (ops@/it@ intentionally NOT here: operations/tech leads ARE buyers of Juan's
+// systems at an SMB — the pitch is literally "your operational pain".)
+const DEAD_END_ROLE =
+  /^(support|help|helpdesk|customer(service|care|support|s)?|care|soporte|atencion|atencioncliente|servicioalcliente|sac|sales|ventas|comercial|presales|press|prensa|media|pr|marketing|newsletters?|careers?|jobs?|empleos?|trabaja|trabajaconnosotros|recruit(ing|ment)?|talent|rrhh|rh|hr|humanresources|billing|invoic(es|ing)|payments?|accounts?|accounting|finance|legal|privacy|dpo|gdpr|compliance|abuse|infosec|hostmaster|webmaster)$/i;
+
+// Generic inboxes that ARE worth a shot at a small/founder-led company.
+const REACHABLE_GENERIC = new Set([
+  "info", "contact", "contacto", "hola", "hello", "hi", "hey", "team", "equipo",
+  "founders", "founder", "hq", "mail", "general", "talk", "yes", "hey",
+]);
+
+/** Triage a mailbox by how likely it reaches a real decision-maker:
+ *  `person` (jane.doe@) > `generic` (info@ — small-co only) > `dead-end` (never). */
+export function classifyMailbox(email: string): "dead-end" | "person" | "generic" {
+  const local = (email.split("@")[0] ?? "").toLowerCase();
+  const norm = local.replace(/[._+-]/g, "");
+  if (DEAD_END_ROLE.test(norm)) return "dead-end";
+  if (REACHABLE_GENERIC.has(norm)) return "generic";
+  // first.last / j.smith / a single name-like token = a person, not a role.
+  if (/^[a-z]+[._-][a-z]/.test(local) || /^[a-z]{3,}$/.test(local)) return "person";
+  return "generic";
+}
+
 /** True when the address is worth a human-to-human cold email. */
 export function isActionableEmail(candidate: string | null | undefined): boolean {
   const e = cleanEmail(candidate);
   if (!e || EMAIL_NON_ACTIONABLE.test(e) || HASH_LOCALPART.test(e)) return false;
+  // support@/sales@/careers@… are deliverable but never the right human.
+  if (classifyMailbox(e) === "dead-end") return false;
   // support@linkedin.com (live catch): platform mailboxes are dead ends for
   // cold outreach even when perfectly deliverable.
   return !PLATFORM_HOSTS.test(e.split("@")[1] ?? "");
@@ -321,7 +366,8 @@ export function hostMatchesCompany(host: string, company: string | null | undefi
   return h.replace(/[^a-z0-9.]/g, "").includes(slug.slice(0, 12));
 }
 
-const GENERIC_MAILBOXES = ["info", "contact", "contacto", "hola", "hello", "ventas", "sales"];
+// mx-guess only ever uses [0]; never guess a dead-end role (sales/ventas gone).
+const GENERIC_MAILBOXES = ["info", "contact", "contacto", "hola", "hello"];
 
 export type RecoveredContact = {
   email: string;

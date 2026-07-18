@@ -28,6 +28,7 @@ vi.mock("node:dns/promises", () => ({ resolveMx: (...a: unknown[]) => resolveMxM
 import {
   deobfuscateContactText,
   isActionableEmail,
+  classifyMailbox,
   hostMatchesCompany,
   deepHarvestContact,
   recoverMissingContacts,
@@ -63,9 +64,24 @@ describe("isActionableEmail (real prod offenders)", () => {
     expect(isActionableEmail("work@email.com")).toBe(false);
     expect(isActionableEmail("n@app.route")).toBe(false);
   });
-  it("accepts the business mailboxes that were actually sent", () => {
+  it("accepts reachable generics and named people", () => {
     expect(isActionableEmail("info@iaclinic.es")).toBe(true);
-    expect(isActionableEmail("sales@interakt.ai")).toBe(true);
+    expect(isActionableEmail("hola@neuriax.com")).toBe(true);
+    expect(isActionableEmail("maria.paz@boutiqueai.dev")).toBe(true);
+  });
+  it("rejects dead-end role mailboxes that never reach a decision-maker", () => {
+    for (const e of [
+      "support@kommo.com", "sales@interakt.ai", "ventas@empresa.com",
+      "press@kore.com", "media@udacity.com", "careers@company.io",
+      "jobs@startup.com", "rrhh@empresa.es", "billing@acmeai.dev", "legal@foo.io",
+    ]) {
+      expect(isActionableEmail(e)).toBe(false);
+    }
+  });
+  it("classifyMailbox triages person > generic > dead-end", () => {
+    expect(classifyMailbox("jane.doe@x.com")).toBe("person");
+    expect(classifyMailbox("info@x.com")).toBe("generic");
+    expect(classifyMailbox("support@x.com")).toBe("dead-end");
   });
   it("rejects notification/newsletter machine senders", () => {
     expect(isActionableEmail("notifications@github.com")).toBe(false);

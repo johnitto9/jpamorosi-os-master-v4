@@ -43,6 +43,35 @@ describe("prospect contact harvesting", () => {
     });
   });
 
+  it("prefers a named person over a generic inbox and skips dead-end roles", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      htmlResponse(`
+        <html><head><meta property="og:site_name" content="Boutique AI" /></head>
+        <body>
+          <a href="mailto:support@boutiqueai.dev">support</a>
+          <a href="mailto:info@boutiqueai.dev">general</a>
+          <a href="mailto:maria.paz@boutiqueai.dev">Maria</a>
+        </body></html>
+      `),
+    ));
+    await expect(harvestContact("https://boutiqueai.dev/jobs", null)).resolves.toEqual({
+      email: "maria.paz@boutiqueai.dev",
+      company: "Boutique AI",
+    });
+  });
+
+  it("falls back to a generic inbox when no person is exposed, never a dead-end", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      htmlResponse(`<body>
+        <a href="mailto:sales@smallco.io">sales</a>
+        <a href="mailto:hola@smallco.io">hola</a>
+      </body>`),
+    ));
+    await expect(harvestContact("https://smallco.io/contacto", null)).resolves.toMatchObject({
+      email: "hola@smallco.io",
+    });
+  });
+
   it("finds mailto contact and company from the original page", async () => {
     vi.stubGlobal("fetch", vi.fn(async () =>
       htmlResponse(`

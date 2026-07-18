@@ -240,6 +240,7 @@ async function regenerateGenome(
             `You design the WEEKLY search-query genome for the autonomous prospecting scout of ${profile.name} (${profile.role}). ` +
             `His provable skills (from his live capability matrix): ${skills}. ` +
             `He sells small, concrete AI systems to companies with operational pain; ideal catches are pages exposing a reachable company/founder (job posts, "we need automation" threads, vendor searches, SME digitalization news, hiring pages). ` +
+            `TARGET SIZE — bias hard toward SMALL, founder-led / bootstrapped teams, indie makers, boutique agencies and niche SMBs, where a generic inbox (info@, hola@) actually reaches the person who decides. DE-PRIORITIZE large enterprises and unicorns (their only public contact is a support/HR queue that never reads cold mail) and AVOID mega job-boards/aggregators (LinkedIn, Indeed, Glassdoor) — phrase queries to surface a company's OWN site/careers page, not a listing on a platform. Prefer signals like "small team", "startup", "founder", "we're a team of", "indie", "boutique". ` +
             `Produce THREE groups of web-search queries:\n` +
             `"specific" (10): his exact skills phrased the way a REAL BUYER searches (first person: "empresa busca…", "need ai agent for…").\n` +
             `"broad" (8): general demand — hiring AI engineers / SMB automation — each combined with a concrete vertical and geography.\n` +
