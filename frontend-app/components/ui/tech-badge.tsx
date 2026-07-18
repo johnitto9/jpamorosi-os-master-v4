@@ -85,6 +85,8 @@ const ICONS: Record<string, SimpleIcon | undefined> = {
   "nvidia 3090": si.siNvidia,
   huggingface: si.siHuggingface,
   langchain: si.siLangchain,
+  n8n: si.siN8n,
+  jinja: si.siJinja,
   kubernetes: si.siKubernetes,
   stripe: si.siStripe,
 };
