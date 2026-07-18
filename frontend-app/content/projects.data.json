@@ -64,9 +64,11 @@
     },
     "aiSummary": "BBN is an AI-assisted local media platform: lightweight production agents for editorial automation and ranking, proving low-cost applied AI that stays reliable.",
     "links": {
-      "website": "https://bbnoticias.com/"
+      "website": "https://bbnoticias.com/",
+      "instagram": "https://www.instagram.com/bbnoticias_/",
+      "facebook": "https://www.facebook.com/people/Bah%C3%ADa-Blanca-Noticias/61566482236113/"
     },
-    "updatedAt": "2026-07-10T02:58:55.344Z"
+    "updatedAt": "2026-07-10T03:24:37.776Z"
   },
   {
     "id": "buenpick",
@@ -456,6 +458,75 @@
       "demo": "https://delify.com.ar"
     },
     "updatedAt": "2026-07-09T03:56:58.786Z"
+  },
+  {
+    "id": "piki",
+    "slug": "piki",
+    "tier": "featured",
+    "status": "R&D",
+    "published": true,
+    "sortOrder": 50,
+    "title": "Piki",
+    "labTitle": "Piki — Grounded Conversational Assistant for BuenPick",
+    "category": "Production AI · Conversational Commerce",
+    "oneLiner": "AI-powered conversational layer for BuenPick, enabling product discovery, operational automation, and human handoff.",
+    "proof": "Reality first, language second: a blocking grounding validator sits between GLM-5.2 and the customer, and BuenPick's own API stays the source of truth for every pick, price and order — so Piki reconfirms the facts before the model is ever allowed to phrase them.",
+    "role": [
+      "AI Architect",
+      "Backend",
+      "Conversational Systems"
+    ],
+    "stack": [
+      "Meta WhatsApp Cloud API",
+      "GLM-5.2 · NVIDIA NIM",
+      "PostgreSQL + pgvector",
+      "Redis",
+      "Jinja",
+      "n8n",
+      "Docker / Dokploy"
+    ],
+    "highlights": [
+      "Grounding validator blocks unsupported claims",
+      "internal leaks and false delivery wording before any message is sent",
+      "Typed evidence pipeline: BuenPick's API reconfirms picks",
+      "prices and stock — the LLM never touches the catalog directly",
+      "Idempotent delivery over the official Meta Cloud API",
+      "tracked through real states: accepted → sent → delivered → read",
+      "n8n used only where it earns its place — notifications",
+      "human handoff and reporting — never for reasoning or facts"
+    ],
+    "architecture": {
+      "nodes": [
+        "Meta Cloud API",
+        "Postgres Outbox",
+        "Typed BuenPick Tools",
+        "Jinja → GLM-5.2",
+        "Grounding Validator"
+      ],
+      "flow": [
+        "Signed webhook",
+        "Reconfirm evidence",
+        "Compose",
+        "Ground-check",
+        "Deliver & track"
+      ]
+    },
+    "assets": {
+      "logo": "https://media.jpamorosi.dev/uploads/1784387306720-fa38cced-f18d-45e2-9f5f-ffb92d508ec0.webp",
+      "heroImage": "https://media.jpamorosi.dev/uploads/1784387610985-45894905-3070-4bef-9fd8-5d3304e9652e.webp"
+    },
+    "theme": {
+      "accent": "#cbe92a",
+      "secondary": "#012928",
+      "glow": "rgba(203,233,42,0.2)",
+      "mood": "ai-engine"
+    },
+    "aiSummary": "Piki is BuenPick's grounded WhatsApp assistant: a typed evidence pipeline and a blocking grounding validator let GLM-5.2 phrase answers while BuenPick's API stays the single source of truth — official Meta delivery, idempotent and audited, with n8n only for operational events.",
+    "links": {
+      "github": "https://github.com/johnitto9/buenpick-piki"
+    },
+    "createdAt": "2026-07-18T15:14:11.183Z",
+    "updatedAt": "2026-07-18T15:22:09.167Z"
   },
   {
     "id": "dataset-creator",

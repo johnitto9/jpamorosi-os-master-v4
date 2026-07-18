@@ -15,6 +15,7 @@ export const ALLOWED_ROUTES = [
   "/projects/bbn",
   "/projects/delify",
   "/projects/delibot",
+  "/projects/piki",
   "/projects/trading-ecosystem",
   "/projects/recapp-azure",
   "/projects/ai-lab-runpod",

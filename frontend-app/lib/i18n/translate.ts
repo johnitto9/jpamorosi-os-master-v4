@@ -157,7 +157,7 @@ async function translateAndCache(
           role: "system",
           content:
             `You are a precise translator for a premium software portfolio. Translate every string value from English to ${language}. ` +
-            `Keep: product names (LumenScript, BuenPick, BBN, Delibot, Delify…), tech terms (WhatsApp, RAG, LLM, stack names), numbers and metrics EXACTLY as they are. ` +
+            `Keep: product names (LumenScript, BuenPick, BBN, Piki, Delibot, Delify…), tech terms (WhatsApp, RAG, LLM, stack names), numbers and metrics EXACTLY as they are. ` +
             `Tone: technical, confident, no marketing fluff added. Arrays keep the same length and order. ` +
             `Reply with STRICT JSON only — the same object shape you received, translated values, no commentary.`,
         },

@@ -12,11 +12,11 @@ export type Capability = {
 
 export const capabilities: Capability[] = [
   { capability: "Multi-model orchestration", projects: ["lumenscript"] },
-  { capability: "Agent workflows", projects: ["bbn", "lumenscript", "delibot"] },
+  { capability: "Agent workflows", projects: ["bbn", "lumenscript", "piki", "delibot"] },
   { capability: "Cost-efficient AI architecture", projects: ["bbn", "ai-lab-runpod"] },
   { capability: "Marketplace / product execution", projects: ["buenpick", "delify"] },
-  { capability: "Full-stack engineering", projects: ["buenpick", "bbn", "delibot"] },
+  { capability: "Full-stack engineering", projects: ["buenpick", "bbn", "piki", "delibot"] },
   { capability: "Founder execution", projects: ["buenpick", "delify"] },
-  { capability: "RAG / memory / reranking", projects: ["lumenscript", "delibot", "kaelos-legal"] },
+  { capability: "RAG / memory / reranking", projects: ["lumenscript", "piki", "delibot", "kaelos-legal"] },
   { capability: "Infrastructure / deployment", projects: ["bbn", "buenpick", "recapp-azure"] },
 ];

@@ -54,6 +54,8 @@ export function matchProjectByText(text: string): Project | undefined {
     bbn: "bbn",
     delify: "delify",
     delibot: "delibot",
+    piki: "piki",
+    whatsapp: "piki",
     trading: "trading-ecosystem",
     recapp: "recapp-azure",
     azure: "recapp-azure",
