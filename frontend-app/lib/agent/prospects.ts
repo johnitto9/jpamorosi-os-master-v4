@@ -1304,6 +1304,92 @@ export type PipelineReport = {
 
 /** Advance up to `limit` cards ONE stage each, oldest-touched first — the
  *  kanban visibly rotates on every pass. Serper/LLM cost is bounded by limit. */
+// A fresh card needs ~5 hops (ingest→filter→enrich→qualify→contact) to become
+// sendable. Advancing ONE hop per cron run made that a ~3-day crawl (measured
+// avg ingest→sent 73h). advanceOneStage runs a single hop and returns the
+// in-memory-updated card so processPipelineBatch can FAST-LANE it through
+// consecutive hops in one pass. `expensive` flags a network/LLM hop for the
+// per-cycle budget that keeps a pass inside maxDuration.
+type StageStep = { to: ProspectStage; card: Prospect; expensive: boolean };
+
+async function advanceOneStage(p: Prospect): Promise<StageStep | null> {
+  if (p.stage === "ingest") {
+    const to = nextStageFromIngest(p);
+    await advance(p.id, to);
+    return { to, card: { ...p, stage: to }, expensive: false };
+  }
+  if (p.stage === "filter") {
+    const premium = await premiumEnrichCandidate(
+      { title: p.title, url: p.url, snippet: p.snippet, source: p.source, company: p.company, email: p.email },
+      { minPremiumScore: 38, premiumBudget: 1 },
+    );
+    const enrichment = [
+      premium.premiumCallsUsed > 0
+        ? `premium:serper:${premium.candidate.premiumQuery ?? ""}`
+        : premium.enrichmentText,
+      premium.premiumCallsUsed > 0 ? premium.enrichmentText : null,
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 2000);
+    const premiumUrls = selectPremiumHarvestUrls(premium.candidate, premium.candidate.enrichment, 2);
+    const found =
+      p.email && p.company
+        ? { email: p.email, company: p.company, sourceUrl: p.url }
+        : await harvestContactFromUrls([p.url, ...premiumUrls], enrichment);
+    const enrichText = [
+      enrichment,
+      premiumUrls.length > 0 ? `premium:scrape:${premiumUrls.join(", ")}` : null,
+      found.sourceUrl ? `contact:source:${found.sourceUrl}` : null,
+    ].filter(Boolean).join("\n").slice(0, 2000);
+    await advance(p.id, "enrich", {
+      enrichment: enrichText,
+      email: found.email ?? undefined,
+      company: found.company ?? undefined,
+    });
+    if (found.email && !p.email) {
+      await recordEvent("prospect.email_found", { id: p.id, email: found.email });
+    }
+    return {
+      to: "enrich",
+      card: { ...p, stage: "enrich", email: found.email ?? p.email, company: found.company ?? p.company, enrichment: enrichText },
+      expensive: true,
+    };
+  }
+  if (p.stage === "enrich") {
+    const q = await qualifyProspect(p);
+    await advance(p.id, "qualify", q);
+    return {
+      to: "qualify",
+      card: { ...p, stage: "qualify", score: q.score, fitReason: q.fitReason, nextAction: q.nextAction },
+      expensive: true,
+    };
+  }
+  // qualify
+  const hasEmail = isActionableEmail(p.email);
+  let to = nextStageFromQualify(p.score, hasEmail);
+  let expensive = false;
+  if (to === "contact" && !hasEmail) {
+    expensive = true; // deep-harvest does network + GitHub
+    const hit = await deepHarvestContact(p);
+    if (hit) {
+      await advance(p.id, "contact", { email: hit.email });
+      await recordEvent("prospect.email_found", { id: p.id, email: hit.email });
+      return { to: "contact", card: { ...p, stage: "contact", email: hit.email }, expensive };
+    }
+    if (companyIsPlatform(p.company)) to = "discarded";
+  }
+  await advance(p.id, to);
+  return { to, card: { ...p, stage: to }, expensive };
+}
+
+// Per-cycle ceiling on network/LLM hops (env-tunable, no rebuild). Keeps a
+// fast-laned pass inside maxDuration; cheap ingest→filter hops are unbounded.
+const PIPELINE_EXPENSIVE_OPS = Math.max(
+  1,
+  Number(process.env.PIPELINE_EXPENSIVE_OPS_PER_CYCLE) || 10,
+);
+
 export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
   if (!(await dbReady())) return { processed: 0, moves: [] };
   // Drain from the DEEP end first: cards one step from becoming outreach-ready
@@ -1323,80 +1409,32 @@ export async function processPipelineBatch(limit = 6): Promise<PipelineReport> {
   );
   const batch = res?.rows ?? [];
   const moves: PipelineReport["moves"] = [];
+  let expensiveBudget = PIPELINE_EXPENSIVE_OPS;
 
   for (const p of batch) {
-    const from = p.stage;
-    if (p.stage === "ingest") {
-      // deterministic relevance gate: junk drowns, signal passes
-      const to = nextStageFromIngest(p);
-      await advance(p.id, to);
-      moves.push({ id: p.id, from, to });
-    } else if (p.stage === "filter") {
-      // Premium enrichment is a scalpel now: only high-fit, incomplete cards
-      // can spend Serper, and the query is built for contact/hiring context.
-      const premium = await premiumEnrichCandidate(
-        {
-          title: p.title,
-          url: p.url,
-          snippet: p.snippet,
-          source: p.source,
-          company: p.company,
-          email: p.email,
-        },
-        { minPremiumScore: 38, premiumBudget: 1 },
-      );
-      const enrichment = [
-        premium.premiumCallsUsed > 0
-          ? `premium:serper:${premium.candidate.premiumQuery ?? ""}`
-          : premium.enrichmentText,
-        premium.premiumCallsUsed > 0 ? premium.enrichmentText : null,
-      ]
-        .filter(Boolean)
-        .join("\n")
-        .slice(0, 2000);
-      const premiumUrls = selectPremiumHarvestUrls(premium.candidate, premium.candidate.enrichment, 2);
-      // Harvest the original URL plus selected premium Serper URLs. Serper is
-      // only useful if it opens pages where contact data can actually be read.
-      const found =
-        p.email && p.company
-          ? { email: p.email, company: p.company, sourceUrl: p.url }
-          : await harvestContactFromUrls([p.url, ...premiumUrls], enrichment);
-      await advance(p.id, "enrich", {
-        enrichment: [
-          enrichment,
-          premiumUrls.length > 0 ? `premium:scrape:${premiumUrls.join(", ")}` : null,
-          found.sourceUrl ? `contact:source:${found.sourceUrl}` : null,
-        ].filter(Boolean).join("\n").slice(0, 2000),
-        email: found.email ?? undefined,
-        company: found.company ?? undefined,
-      });
-      if (found.email && !p.email) {
-        await recordEvent("prospect.email_found", { id: p.id, email: found.email });
+    let card = p;
+    // FAST-LANE: carry this card through as many consecutive hops as it earns in
+    // ONE pass — a promising fresh card reaches `contact` (and gets emailed by
+    // the same heartbeat's outreach step) this cycle, not three days later.
+    while (["ingest", "filter", "enrich", "qualify"].includes(card.stage)) {
+      // predict the hop's cost to gate on the shared budget; ingest→filter is
+      // free (deterministic), so it always runs and junk dies immediately.
+      const willSpend =
+        card.stage === "filter" ||
+        card.stage === "enrich" ||
+        (card.stage === "qualify" &&
+          !isActionableEmail(card.email) &&
+          nextStageFromQualify(card.score, false) === "contact");
+      if (willSpend && expensiveBudget <= 0) break; // defer rest to next cycle
+      const from = card.stage;
+      const step = await advanceOneStage(card);
+      if (!step) break;
+      if (step.expensive) expensiveBudget -= 1;
+      moves.push({ id: card.id, from, to: step.to });
+      card = step.card;
+      if (card.stage !== "ingest" && card.stage !== "filter" && card.stage !== "enrich" && card.stage !== "qualify") {
+        break; // reached contact / contacted / discarded — waiting or terminal
       }
-      moves.push({ id: p.id, from, to: "enrich" });
-    } else if (p.stage === "enrich") {
-      const q = await qualifyProspect(p);
-      await advance(p.id, "qualify", q);
-      moves.push({ id: p.id, from, to: "qualify" });
-    } else if (p.stage === "qualify") {
-      const hasEmail = isActionableEmail(p.email);
-      let to = nextStageFromQualify(p.score, hasEmail);
-      // High-fit card with no usable address (the email floor never routes
-      // here — it requires an actionable email): one last harvest attempt so
-      // it can actually be reached, before it joins the outreach queue or, if
-      // it's really just a job board, gets dropped instead of parked forever.
-      if (to === "contact" && !hasEmail) {
-        const hit = await deepHarvestContact(p);
-        if (hit) {
-          await advance(p.id, "contact", { email: hit.email });
-          await recordEvent("prospect.email_found", { id: p.id, email: hit.email });
-          moves.push({ id: p.id, from, to: "contact" });
-          continue;
-        }
-        if (companyIsPlatform(p.company)) to = "discarded";
-      }
-      await advance(p.id, to);
-      moves.push({ id: p.id, from, to });
     }
   }
   return { processed: moves.length, moves };

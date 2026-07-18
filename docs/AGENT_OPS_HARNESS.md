@@ -114,6 +114,12 @@ docker exec jpamorosiprod-system-scxxge-amorosi-backend-1 sh -c \
     dial-eable desde el `.env` de Dokploy SIN rebuild (`up -d --no-build`).
     Subir gradual sólo si el funnel tiene contactos accionables reales;
     `isActionableEmail` acota lo que efectivamente sale.
+  - `PIPELINE_EXPENSIVE_OPS_PER_CYCLE` (opcional, default 10) — techo de hops
+    caros (enrich/qualify/deep-harvest) por corrida de `processPipelineBatch`.
+    El pipeline hace FAST-LANE: una card cruza varias etapas en un pase (antes
+    era 1 etapa/cron → ~73h ingest→enviado). Subir acelera el drenado pero
+    acerca la corrida a `maxDuration` (heartbeat 180s); bajar si el heartbeat
+    se acerca al timeout. Dial sin rebuild.
 - ⚠️ **Sin lock de idempotencia entre heartbeats concurrentes**: dos ciclos
   simultáneos (p.ej. trigger manual + catch-up del worker recién reiniciado)
   duplicaron followups una vez. No dispares heartbeat justo tras reiniciar
