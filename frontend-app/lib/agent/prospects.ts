@@ -372,8 +372,149 @@ const GENERIC_MAILBOXES = ["info", "contact", "contacto", "hola", "hello"];
 export type RecoveredContact = {
   email: string;
   sourceUrl: string | null;
-  method: "search-snippet" | "page-scan" | "mx-guess";
+  method: "search-snippet" | "page-scan" | "team-page" | "github" | "format-infer" | "mx-guess";
 };
+
+// ---- sovereign person-finding (OSINT, no paid provider, no IP-burning SMTP) ---
+// Reaching a NAMED human beats any generic inbox. Three open techniques, best-
+// confidence first, all degrade to null: (1) a person's address on the company's
+// own team/about page, (2) a real corporate address from the org's public GitHub
+// commits, (3) format inference from an OBSERVED same-domain sample (string
+// construction only — never an SMTP probe, so it can't burn the sending IP).
+
+const LEADERSHIP =
+  /(co-?)?(founder|ceo|cto|coo|cmo|owner|fundador|fundadora|director|directora|head)/i;
+
+/** First + last token of a display name (accent-folded); null if not a name. */
+function nameTokens(name: string): { first: string; last: string } | null {
+  const parts = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+  if (parts.length < 2) return null;
+  return { first: parts[0], last: parts[parts.length - 1] };
+}
+
+/** A leadership person's name from JSON-LD or "Name — Founder"/"CEO: Name" text. */
+function extractLeaderName(html: string): string | null {
+  for (const m of html.matchAll(
+    /"@type"\s*:\s*"Person"[^{}]*?"name"\s*:\s*"([^"]{4,60})"/gi,
+  )) {
+    if (nameTokens(m[1])) return m[1].trim();
+  }
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  // exactly first+last (2 words): 3-word capture lets an adjacent heading
+  // ("Team Maria Paz") bleed into the name and derive a wrong address.
+  const NAME = "([A-Z][a-z]+\\s+[A-Z][a-z]+)";
+  for (const re of [
+    new RegExp(`${NAME}\\s*[,–—-]\\s*(?:co-?)?(?:founder|ceo|cto|coo|owner|fundador)`, "i"),
+    new RegExp(`(?:co-?)?(?:founder|ceo|cto|coo|owner|fundador)\\s*[:–—-]\\s*${NAME}`, "i"),
+  ]) {
+    const m = text.match(re);
+    if (m && nameTokens(m[1])) return m[1].trim();
+  }
+  return null;
+}
+
+/** Construct an address by the pattern an OBSERVED sample reveals. Only the two
+ *  unambiguous corporate formats (first.last, f.last); single-token samples are
+ *  too ambiguous to derive safely, so we decline rather than guess. */
+export function inferEmailFromSample(
+  name: string,
+  domain: string,
+  sampleLocal: string,
+): string | null {
+  const t = nameTokens(name);
+  if (!t) return null;
+  const s = sampleLocal.toLowerCase();
+  let local: string | null = null;
+  if (/^[a-z]{2,}\.[a-z]+$/.test(s)) local = `${t.first}.${t.last}`; // first.last
+  else if (/^[a-z]\.[a-z]+$/.test(s)) local = `${t.first[0]}.${t.last}`; // f.last
+  if (!local) return null;
+  const email = `${local}@${domain}`;
+  return isActionableEmail(email) ? email : null;
+}
+
+/** The company's OWN team/about pages. Returns a named person's real mailto if
+ *  one is exposed; otherwise the leadership NAME it could read (no address),
+ *  which a later observed corporate format can turn into an address. */
+async function harvestPersonFromSite(
+  host: string,
+): Promise<{ email?: string; leaderName?: string; url: string } | null> {
+  const base = `https://${host}`;
+  let leaderName: string | null = null;
+  let leaderUrl: string | null = null;
+  for (const page of [`${base}/team`, `${base}/equipo`, `${base}/about`, `${base}/nosotros`]) {
+    const html = await fetchTextSafe(page, EMAIL_DISCOVERY_TIMEOUT_MS);
+    if (!html) continue;
+    for (const m of html.matchAll(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi)) {
+      const e = cleanEmail(m[1]);
+      if (e && isActionableEmail(e) && e.endsWith(`@${host}`) && classifyMailbox(e) === "person") {
+        return { email: e, url: page };
+      }
+    }
+    if (!leaderName) {
+      const n = extractLeaderName(html);
+      if (n) {
+        leaderName = n;
+        leaderUrl = page;
+      }
+    }
+  }
+  return leaderName ? { leaderName, url: leaderUrl ?? base } : null;
+}
+
+/** Real corporate addresses from an org's public GitHub commits. Personal
+ *  gmails are ignored — we only accept an address on the company's OWN domain
+ *  (a dev committing with their work email). GITHUB_TOKEN lifts the rate limit
+ *  but is optional. */
+async function githubContact(
+  company: string,
+  host: string,
+): Promise<{ email: string; url: string } | null> {
+  const token = process.env.GITHUB_TOKEN?.trim();
+  const api = async <T>(path: string): Promise<T | null> => {
+    try {
+      const res = await fetch(`https://api.github.com${path}`, {
+        signal: AbortSignal.timeout(6_000),
+        headers: {
+          accept: "application/vnd.github+json",
+          "user-agent": "AmorosiScout/1.0",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      return res.ok ? ((await res.json()) as T) : null;
+    } catch {
+      return null;
+    }
+  };
+  const search = await api<{ items?: Array<{ login?: string }> }>(
+    `/search/users?q=${encodeURIComponent(company)}+type:org&per_page=3`,
+  );
+  const orgs = (search?.items ?? []).map((o) => o.login).filter(Boolean) as string[];
+  for (const org of orgs.slice(0, 1)) {
+    const repos = await api<Array<{ name?: string }>>(
+      `/orgs/${org}/repos?sort=pushed&per_page=3`,
+    );
+    for (const repo of (repos ?? []).slice(0, 2)) {
+      if (!repo.name) continue;
+      const commits = await api<
+        Array<{ commit?: { author?: { email?: string } } }>
+      >(`/repos/${org}/${repo.name}/commits?per_page=25`);
+      for (const c of commits ?? []) {
+        const e = cleanEmail(c.commit?.author?.email);
+        if (!e || /noreply|users\.noreply\.github/.test(e)) continue;
+        if (e.endsWith(`@${host}`) && isActionableEmail(e)) {
+          return { email: e, url: `https://github.com/${org}/${repo.name}` };
+        }
+      }
+    }
+  }
+  return null;
+}
 
 /** Second-pass contact dig for one qualified card. Never throws. */
 /** Cards whose "company" is really the hosting platform/aggregator ("Linkedin",
@@ -438,19 +579,49 @@ export async function deepHarvestContact(p: {
     }
   }
 
-  // C. MX-validated generic mailbox on the company's OWN domain only — never
-  // on the listicle/job-board host that merely mentioned them.
+  // the company's OWN host (never the listicle/job-board that mentioned them) —
+  // the base for every person-level dig and the generic fallback below.
+  let ownHost: string | null = null;
   for (const page of pages) {
     try {
       const host = new URL(page).hostname.replace(/^www\./, "");
-      if (!hostMatchesCompany(host, company)) continue;
-      if (await domainAcceptsMail(host)) {
-        return { email: `${GENERIC_MAILBOXES[0]}@${host}`, sourceUrl: page, method: "mx-guess" };
+      if (hostMatchesCompany(host, company)) {
+        ownHost = host;
+        break;
       }
-      break; // one DNS-checked domain is enough — don't scan the web
     } catch {
       /* skip unparseable */
     }
+  }
+
+  if (ownHost && company) {
+    // B2. the company's own team/about page: a named person's real address wins
+    // outright; otherwise keep the leadership NAME for the format step below.
+    const site = await harvestPersonFromSite(ownHost);
+    if (site?.email) return { email: site.email, sourceUrl: site.url, method: "team-page" };
+    // B3. a real corporate address from the org's public GitHub commits.
+    const gh = await githubContact(company, ownHost);
+    if (gh) {
+      // B4. if we also read a leader's NAME, retarget the founder using the
+      // format this real address reveals (observed, not guessed — no SMTP).
+      if (site?.leaderName) {
+        const inferred = inferEmailFromSample(site.leaderName, ownHost, gh.email.split("@")[0]);
+        if (inferred && inferred !== gh.email) {
+          return { email: inferred, sourceUrl: gh.url, method: "format-infer" };
+        }
+      }
+      return { email: gh.email, sourceUrl: gh.url, method: "github" };
+    }
+  }
+
+  // C. MX-validated GENERIC mailbox on that own domain — the last resort, only
+  // once every person-level technique above came up empty.
+  if (ownHost && (await domainAcceptsMail(ownHost))) {
+    return {
+      email: `${GENERIC_MAILBOXES[0]}@${ownHost}`,
+      sourceUrl: `https://${ownHost}`,
+      method: "mx-guess",
+    };
   }
   return null;
 }
@@ -956,8 +1127,8 @@ function subjectParts(p: Prospect, lang: ProspectLang): { signal: string; reason
   }
   if (includesAny(text, ["whatsapp", "commerce", "catalog", "catalogo", "orders", "ordenes", "e-commerce", "ecommerce", "storefront"])) {
     return isEn
-      ? { signal: `WhatsApp commerce at ${company}`, reason: "tool-first agents are the useful layer" }
-      : { signal: `Comercio por WhatsApp en ${company}`, reason: "un agente con herramientas es la capa útil" };
+      ? { signal: `WhatsApp commerce at ${company}`, reason: "a grounded WhatsApp agent wired to your real data is the useful layer" }
+      : { signal: `Comercio por WhatsApp en ${company}`, reason: "un agente de WhatsApp conectado a tus datos reales es la capa útil" };
   }
   if (includesAny(text, ["trading", "risk", "backtesting", "market", "mercado", "fintech", "quant", "dataset"])) {
     return isEn

@@ -60,6 +60,27 @@ API-first, REST limpia, plan de entrada barato con rollover. Descartar Hunter
    igual y suben calidad sin tocar el resto del pipeline.
 5. Riesgo: costo por abuso → cap de lookups/ciclo + sólo para score alto.
 
+## Actualización 2026-07-18 — capa OSINT soberana implementada (gratis)
+
+Antes de pagar, se implementó una capa OSINT soberana en `deepHarvestContact`
+(`lib/agent/prospects.ts`) que consigue personas con nombre **sin costo ni
+SMTP probing** (no quema la IP de envío). Orden por confianza:
+
+1. **team-page** — mailto de una persona (classifyMailbox=`person`) en la web
+   propia (`/team`, `/equipo`, `/about`, `/nosotros`).
+2. **github** — dirección corporativa real de los commits públicos de la org
+   (API de GitHub, `GITHUB_TOKEN` opcional); sólo acepta `@dominio-propio`,
+   nunca un gmail personal.
+3. **format-infer** — si se leyó el NOMBRE de un líder (founder/CEO) pero no su
+   email, se deriva su dirección con el formato que revela una dirección
+   corporativa REAL observada (ej. `j.smith@co` → `m.paz@co`). String-only,
+   sin verificación SMTP. Sólo formatos inequívocos (`first.last`, `f.last`).
+
+Esto **reduce** la necesidad del proveedor pago, sobre todo en empresas chicas
+(que exponen founders públicamente — sinergia con el targeting del scout). El
+pago sigue ganando en **cobertura** y **verificación** (bounce): evaluar Prospeo/
+Findymail sólo si el residuo sin-persona sigue siendo alto tras medir esta capa.
+
 ## Fuentes
 
 - [Hunter.io pricing](https://hunter.io/pricing) · [Hunter API](https://hunter.io/api-documentation)
